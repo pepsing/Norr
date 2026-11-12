@@ -25,3 +25,9 @@ Cloud 环境从仓库根目录执行 `npm ci`，按任务运行 `npm run test --
 阅读 `AGENTS.md` 和目标目录说明。界面修改按 `DESIGN.md` 验证浅深主题及手机、桌面尺寸。复用现有状态与能力判断，覆盖问题相关的失败和恢复分支。回归用例优先使用固定数据，避免依赖真实车辆状态。
 
 PR 关联 issue，说明根因、改动、已运行的检查与待验证项。服务接受指令、服务完成与车辆回读各自保留证据，测试范围按实际记录。[原生构建与 Actions](apps/native/README.md#github-actions)
+
+## 版本更新说明
+
+每日 alpha 发布会从 PR 标题和直接提交摘要生成更新列表。标题应说明用户可感知的变化，例如“修复空调开启后状态未刷新”。PR 正文用 `Closes #123` 关联已解决的问题，用 `Refs #123` 引用仍需跟进的问题，也可以使用同仓库的完整 issue URL。自动版本说明会附上关联 issue 的标题、链接和状态。
+
+每天北京时间 03:20 检查 main，未发布提交会进入下一版。相同提交再次运行时跳过构建，维护者可在 Actions 的 `Daily alpha release` 中手动提前执行。[alpha 版本下载](https://github.com/pepsing/Norr/releases)

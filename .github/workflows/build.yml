@@ -6,14 +6,24 @@ on:
     paths-ignore: ['docs/**', '**/*.md', '.github/ISSUE_TEMPLATE/**', 'LICENSE', 'licenses/**']
   pull_request:
     paths-ignore: ['docs/**', '**/*.md', '.github/ISSUE_TEMPLATE/**', 'LICENSE', 'licenses/**']
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      build_number:
+        type: number
+        required: true
+      source_sha:
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
   web:
@@ -22,11 +32,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
+      - name: Set alpha version
+        if: inputs.version != ''
+        run: node scripts/release/version.mjs "$RELEASE_VERSION" "$BUILD_NUMBER"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
       - run: npm ci
+      - run: node --test scripts/release/*.test.mjs
       - run: npm run test --workspace @norr/web
       - run: npm run build
 
@@ -54,32 +73,43 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
+      - name: Set alpha version
+        if: inputs.version != ''
+        run: node scripts/release/version.mjs "$RELEASE_VERSION" "$BUILD_NUMBER"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - name: Share Windows target between checks and packaging
+        if: matrix.platform == 'windows'
+        run: echo 'CARGO_BUILD_TARGET=x86_64-pc-windows-msvc' >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       - run: cargo fmt --all -- --check
       - run: cargo test --workspace --release --locked
       - run: cargo clippy --workspace --all-targets --release --locked -- -D warnings
       - name: Build login-enabled package
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: inputs.version != '' && github.ref == 'refs/heads/main'
         run: npm run build:${{ matrix.build }} -- --ci
         env:
           NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
       - name: Archive macOS app
-        if: matrix.platform == 'macos' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: matrix.platform == 'macos' && inputs.version != '' && github.ref == 'refs/heads/main'
         run: |
           test "$(uname -m)" = arm64
           codesign --verify --strict target/release/bundle/macos/Norr.app
           mkdir -p target/packages
           ditto -c -k --keepParent target/release/bundle/macos/Norr.app target/packages/Norr-macos-arm64.zip
       - uses: actions/upload-artifact@v7.0.2
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: inputs.version != '' && github.ref == 'refs/heads/main'
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
@@ -89,15 +119,22 @@ jobs:
   android:
     name: Android ARM64 package
     needs: web
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: inputs.version != '' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
+      - name: Set alpha version
+        run: node scripts/release/version.mjs "$RELEASE_VERSION" "$BUILD_NUMBER"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
       - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
@@ -149,15 +186,22 @@ jobs:
   ios:
     name: iOS ARM64 simulator package
     needs: web
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: inputs.version != '' && github.ref == 'refs/heads/main'
     runs-on: macos-15
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
+      - name: Set alpha version
+        run: node scripts/release/version.mjs "$RELEASE_VERSION" "$BUILD_NUMBER"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios-sim

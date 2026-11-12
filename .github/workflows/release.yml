@@ -1,0 +1,81 @@
+name: Daily alpha release
+
+on:
+  schedule:
+    - cron: '20 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: norr-alpha-release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Check unpublished commits
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      sha: ${{ steps.release.outputs.sha }}
+      version: ${{ steps.release.outputs.version }}
+      build_number: ${{ steps.release.outputs.buildNumber }}
+      tag: ${{ steps.release.outputs.tag }}
+      previous_tag: ${{ steps.release.outputs.previousTag }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - id: release
+        run: node scripts/release/release.mjs plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build:
+    name: Build alpha packages
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.plan.outputs.version }}
+      build_number: ${{ fromJSON(needs.plan.outputs.build_number) }}
+      source_sha: ${{ needs.plan.outputs.sha }}
+    secrets: inherit
+
+  publish:
+    name: Publish verified alpha release
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: Norr-*
+          path: artifacts
+      - name: Generate notes and publish all assets
+        run: node scripts/release/release.mjs publish artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NORR_RELEASE_PLAN: ${{ toJSON(needs.plan.outputs) }}
