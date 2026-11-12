@@ -1,0 +1,175 @@
+name: Checks and packages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', '.github/ISSUE_TEMPLATE/**', 'LICENSE', 'licenses/**']
+  pull_request:
+    paths-ignore: ['docs/**', '**/*.md', '.github/ISSUE_TEMPLATE/**', 'LICENSE', 'licenses/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test --workspace @norr/web
+      - run: npm run build
+
+  desktop:
+    name: ${{ matrix.platform }} checks and package
+    needs: web
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            runner: macos-15
+            build: mac
+            artifact: Norr-macos-arm64
+            path: target/packages/*-macos-arm64.zip
+          - platform: windows
+            runner: windows-2025
+            build: windows
+            artifact: Norr-windows-x64
+            path: target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: npm ci
+      - run: cargo fmt --all -- --check
+      - run: cargo test --workspace --release --locked
+      - run: cargo clippy --workspace --all-targets --release --locked -- -D warnings
+      - name: Build login-enabled package
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: npm run build:${{ matrix.build }} -- --ci
+        env:
+          NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+      - name: Archive macOS app
+        if: matrix.platform == 'macos' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          test "$(uname -m)" = arm64
+          codesign --verify --strict target/release/bundle/macos/Norr.app
+          mkdir -p target/packages
+          ditto -c -k --keepParent target/release/bundle/macos/Norr.app target/packages/Norr-macos-arm64.zip
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    name: Android ARM64 package
+    needs: web
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;30.0.16248370"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+      - run: npm ci
+      - name: Restore Android signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NORR_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo 'Missing NORR_ANDROID_KEYSTORE_BASE64'; exit 1; }
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/norr.keystore"
+      - name: Build Android package
+        run: npm run build:android -- --ci
+        env:
+          NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+          NORR_ANDROID_KEYSTORE: ${{ runner.temp }}/norr.keystore
+          NORR_ANDROID_STORE_PASSWORD: ${{ secrets.NORR_ANDROID_STORE_PASSWORD }}
+          NORR_ANDROID_KEY_ALIAS: ${{ secrets.NORR_ANDROID_KEY_ALIAS }}
+          NORR_ANDROID_KEY_PASSWORD: ${{ secrets.NORR_ANDROID_KEY_PASSWORD }}
+      - name: Verify Android package
+        run: |
+          apk=apps/native/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 "$apk"
+          mkdir -p target/packages
+          cp "$apk" target/packages/Norr-android-arm64.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Norr-android-arm64
+          path: target/packages/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/norr.keystore"
+
+  ios:
+    name: iOS ARM64 simulator package
+    needs: web
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+      - run: npm ci
+      - name: Check simulator toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+      - name: Build simulator app
+        run: npm run build:ios -- --ci
+        env:
+          NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Norr-ios-arm64-simulator
+          path: target/ios/*-simulator.zip
+          if-no-files-found: error
+          retention-days: 14

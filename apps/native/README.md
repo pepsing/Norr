@@ -93,7 +93,36 @@ $env:NORR_POLESTAR_CN_SIGNING_KEY = "<中国区应用签名配置>"
 npm run build:windows
 ```
 
-构建也支持从被 Git 忽略的根目录 `.env.secrets` 读取同名配置。GitHub 的 `Windows test package` 工作流可手动触发，在仓库 Secrets 中配置 `NORR_POLESTAR_CN_SIGNING_KEY` 后，运行 Windows 原生测试、Clippy 和安装包构建，将结果保存为 Actions artifact。
+构建也支持从被 Git 忽略的根目录 `.env.secrets` 读取同名配置。GitHub 的 `Checks and packages` 工作流提供 Windows 原生测试、Clippy 和安装包构建，将结果保存为 Actions artifact，配置方式见下方说明。
+
+## GitHub Actions
+
+`Checks and packages` 在 PR 和主分支代码更新时运行，也可以从 Actions 手动触发。仅文档、issue 表单与许可文件变化时跳过自动构建。
+
+- PR 执行前端测试、类型检查与生产构建，以及 macOS、Windows 的 Rust 格式、release 测试和严格 Clippy。
+- 主分支 push 或选择 main 手动运行时，在检查通过后构建四端测试包。打包步骤从仓库 Secrets 读取配置。
+- 产物保留 14 天，可在该次运行页面的 Artifacts 区下载。压缩包内包含对应安装文件。[构建记录](https://github.com/pepsing/Norr/actions/workflows/build.yml)
+
+| Artifact 名称 | 内容 |
+| --- | --- |
+| `Norr-macos-arm64` | Apple Silicon 的 Norr.app ZIP，ad-hoc 签名 |
+| `Norr-windows-x64` | Windows 10/11 x64 NSIS 安装程序 |
+| `Norr-android-arm64` | Android ARM64 APK，包含签名与 16 KB 对齐检查 |
+| `Norr-ios-arm64-simulator` | Apple Silicon iOS 模拟器应用 ZIP |
+
+仓库管理员在 Settings → Secrets and variables → Actions 配置以下 Secrets。
+
+| Secret | 内容 |
+| --- | --- |
+| `NORR_POLESTAR_CN_SIGNING_KEY` | 中国区登录构建配置，与本地构建使用同一变量 |
+| `NORR_ANDROID_KEYSTORE_BASE64` | Android 签名 keystore 的 Base64 内容 |
+| `NORR_ANDROID_STORE_PASSWORD` | keystore 密码 |
+| `NORR_ANDROID_KEY_ALIAS` | 签名别名 |
+| `NORR_ANDROID_KEY_PASSWORD` | 签名私钥密码 |
+
+当前 Android CI 复用已安装测试包的测试证书，支持覆盖安装。正式分发签名仍待配置。macOS 的 Developer ID 签名与公证、Windows 代码签名、iOS 真机分发也仍待完成。GitHub Release 的发布由维护者另行操作。
+
+PR 检查仅运行无需生产配置的测试。仓库写权限允许修改主分支打包代码，应按维护职责授予。构建配置通过环境变量注入，Android keystore 在临时目录恢复并在结束时删除，上传内容限定为安装产物。原生应用会携带运行所需的登录配置，公开源码与安装包前仍需核对厂商配置和车辆图片的分发授权。
 
 本轮在 macOS 交叉编译得到 Windows x64 程序与 NSIS 安装包，检查了安装包中的主程序、WebView2 引导程序和通知所需的快捷方式标识。Windows 专属代码及测试目标通过编译检查。macOS 的 36 项开发测试与 37 项 release 测试通过。浏览器模拟 Windows 环境验证了 6 组登录布局、登录错误与取消、重试、账号切换、无车账号和系统设置文案，页面错误为 0。
 

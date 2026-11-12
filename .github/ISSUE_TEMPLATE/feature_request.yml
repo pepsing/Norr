@@ -1,0 +1,29 @@
+name: 功能建议
+description: 描述使用场景、希望的变化和验收方式。
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景与当前困难
+      description: 请说明在哪种情况下需要这个功能。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 希望如何改进
+      description: 描述希望用户能完成的操作和看到的结果。
+    validations:
+      required: true
+  - type: input
+    id: scope
+    attributes:
+      label: 适用平台、车型与区域
+      placeholder: 例如 Android / 中国区 Polestar 2，或所有平台
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 如何确认功能满足需求
+      description: 可填写具体操作与结果、参考截图或相关 issue。请遮盖截图中的个人信息。

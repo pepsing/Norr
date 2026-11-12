@@ -56,7 +56,11 @@ npm run dev -- --port 5174
 
 依赖由根目录 `package-lock.json` 统一锁定。
 
-原生应用构建使用 Rust 工具链和各平台 SDK。中国区登录配置通过 `NORR_POLESTAR_CN_SIGNING_KEY` 环境变量或根目录 `.env.secrets` 提供，平台签名配置按宿主说明设置。仓库忽略本地配置、签名文件、调试快照和构建产物。Windows Actions 使用同名仓库 Secret，构建命令与各端安装步骤见[原生应用说明](apps/native/README.md)。
+原生应用构建使用 Rust 工具链和各平台 SDK。中国区登录配置通过 `NORR_POLESTAR_CN_SIGNING_KEY` 环境变量或根目录 `.env.secrets` 提供，平台签名配置按宿主说明设置。仓库忽略本地配置、签名文件、调试快照和构建产物。GitHub Actions 检查 PR，并在主分支更新时构建 macOS、Windows、Android 与 iOS 模拟器测试包。密钥配置、下载与安装方式见[原生应用说明](apps/native/README.md#github-actions)。
+
+## 反馈问题
+
+问题反馈表单收集版本、平台、复现步骤与预期结果。车控问题可以补充服务回执和独立回读，帮助排查权限与刷新时序。维护者可将 issue 交给本地 Codex 或 Codex Cloud 修复并提交 PR。[提交问题](https://github.com/pepsing/Norr/issues/new/choose) · [参与开发](CONTRIBUTING.md)
 
 ## 目录与实现状态
 

@@ -1,0 +1,101 @@
+name: 问题反馈
+description: 报告登录、车辆状态、控制、历史或界面问题。
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 issue，每个问题单独提交。复现步骤、预期结果和实际结果可以帮助维护者与 Codex 接手排查。
+        截图和日志请遮盖手机号、完整 VIN、车牌和位置。请勿上传验证码、令牌、会话备份或密钥。
+  - type: input
+    id: version
+    attributes:
+      label: Norr 版本与安装来源
+      placeholder: 例如 0.1.0，GitHub Actions 构建链接或安装包名称
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 使用平台
+      options:
+        - Android
+        - macOS
+        - Windows
+        - iOS 模拟器
+        - iOS 真机
+        - 浏览器预览
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 系统版本与设备
+      placeholder: 例如 Android 16 / vivo V2408A，或 macOS 15 / Apple Silicon
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题所在功能
+      options:
+        - 短信登录与会话恢复
+        - 车辆状态与自动刷新
+        - 空调、车门及其他控制
+        - 充电与日程
+        - 历史、备份与导出
+        - 地图
+        - 通知、托盘与启动
+        - 界面与布局
+        - 安装、启动与崩溃
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: vehicle_context
+    attributes:
+      label: 车型、服务区域与账号角色
+      description: 涉及车辆或登录时填写，未知项可写不清楚。
+      placeholder: 例如 Polestar 2 / 中国区 / 共享账号。无需提供 VIN 或手机号。
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 写出页面入口、点击操作，以及问题是否每次发生。
+      placeholder: |
+        1. 打开控制页
+        2. …
+        发生频率为…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+      placeholder: 操作后希望看到什么？
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 请保留错误提示原文，可补充手动刷新、重启或官方 App 的对照结果。
+    validations:
+      required: true
+  - type: textarea
+    id: command_evidence
+    attributes:
+      label: 发生时间、服务回执与车辆回读
+      description: 车控或刷新问题请尽量填写记录页中的时间和时区、服务结果、回读结果及车辆数据时间。无需为提交 issue 再次操作车辆。
+      placeholder: |
+        发生时间与时区
+        服务结果
+        独立回读结果与时间
+        车辆实际状态（如已确认）
+  - type: textarea
+    id: attachments
+    attributes:
+      label: 截图或脱敏日志
+      description: 可拖入截图，界面问题请包含完整页面和浅色或深色主题。上传前检查个人信息。

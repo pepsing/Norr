@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 当前支持范围与待验证项目
+    url: https://github.com/pepsing/Norr/blob/main/docs/PROGRESS.md
+    about: 提交前可查阅各平台、P2 和 P4 的实现与实测状态。
