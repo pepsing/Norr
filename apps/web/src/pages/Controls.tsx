@@ -239,7 +239,7 @@ export function Controls({
       {tab === "即时控制" && (
         <>
           <div className="control-lead">
-            <section>
+            <section data-active={vehicle.climateOn === true}>
               <Fan size={28} strokeWidth={1.2} />
               <div>
                 <span className="muted">座舱温度</span>
@@ -262,7 +262,7 @@ export function Controls({
                 <ArrowRight size={17} />
               </button>
             </section>
-            <section>
+            <section data-active={vehicle.locked === false}>
               <LockKeyhole size={28} strokeWidth={1.2} />
               <div>
                 <span className="muted">中央门锁</span>
@@ -295,6 +295,7 @@ export function Controls({
                 </div>
                 <button
                   className="secondary-button"
+                  data-active={action.capability === "cleaning" && vehicle.cleaning === true}
                   disabled={
                     disabled ||
                     !supports(vehicle, action.capability) ||

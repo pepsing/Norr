@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "app.norr.mobile",
+  "app": {
+    "windows": [{ "label": "main", "title": "Norr 北行" }]
+  },
+  "bundle": {
+    "android": { "minSdkVersion": 24 },
+    "targets": "all"
+  }
+}

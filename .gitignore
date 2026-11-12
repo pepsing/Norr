@@ -1,7 +1,9 @@
 node_modules/
 dist/
 target/
+apps/native/src-tauri/gen/schemas/
 .npm-cache/
+.playwright-cli/
 *.tsbuildinfo
 *.log
 .DS_Store
@@ -15,6 +17,12 @@ target/
 *.keystore
 *.jks
 DerivedData/
+.build/
+.swiftpm/
+apps/native/src-tauri/ios/.tauri/
+apps/native/src-tauri/gen/apple/build/
+apps/native/src-tauri/gen/apple/Externals/
+apps/native/src-tauri/gen/apple/assets/
 xcuserdata/
 .idea/
 .hvigor/

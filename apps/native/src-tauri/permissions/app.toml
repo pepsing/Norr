@@ -1,0 +1,16 @@
+[[permission]]
+identifier = "main-app"
+description = "Local Norr window commands"
+commands.allow = [
+  "session_status", "request_login_code", "sign_in_phone", "import_hisingen",
+  "connect", "refresh", "history", "history_report", "preview_history_import",
+  "commit_history_import", "cancel_history_import", "set_refresh_interval",
+  "desktop_status", "set_desktop_option", "open_system_settings",
+  "test_notification", "take_notification_target", "open_location",
+  "open_map_link", "export_history", "send_command"
+]
+
+[[permission]]
+identifier = "phone-verification"
+description = "Submit the official phone verification result"
+commands.allow = ["submit_verification"]

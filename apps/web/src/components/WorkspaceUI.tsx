@@ -325,7 +325,7 @@ export function Bars({
   values,
   labels,
 }: {
-  title: string;
+  title?: string;
   unit: string;
   values: number[];
   labels: string[];
@@ -336,7 +336,7 @@ export function Bars({
   return (
     <figure className="chart-figure">
       <figcaption>
-        <span>{title}</span>
+        {title && <span>{title}</span>}
         <strong>
           {labels[index]} · {values[index]} {unit}
         </strong>

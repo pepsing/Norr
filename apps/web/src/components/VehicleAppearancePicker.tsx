@@ -10,9 +10,11 @@ import { VehicleArtwork } from "./VehicleArtwork";
 export function VehicleAppearancePicker({
   value,
   onChange,
+  modelLabel = "演示车型",
 }: {
   value: VehicleAppearance;
   onChange: (appearance: VehicleAppearance) => void;
+  modelLabel?: string;
 }) {
   const [view, setView] = useState<"side" | "front">("side");
   const { model, variant, color } = appearanceDetails(value);
@@ -37,7 +39,7 @@ export function VehicleAppearancePicker({
       </div>
       <div className="appearance-fields">
         <label>
-          演示车型
+          {modelLabel}
           <select
             value={value.modelId}
             onChange={(event) =>

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Norr",
+  "version": "0.1.0",
+  "identifier": "app.norr.mac",
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace @norr/web -- --port 1420",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build --workspace @norr/web",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Norr 北行",
+        "width": 1280,
+        "height": 880,
+        "minWidth": 640,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src ipc: http://ipc.localhost; frame-src https://www.amap.com"
+    }
+  },
+  "bundle": {
+    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "active": true,
+    "resources": {"../../../licenses/coordtransform-MIT.txt": "licenses/coordtransform-MIT.txt"},
+    "targets": ["app"],
+    "category": "Utilities",
+    "shortDescription": "Norr 北行车辆管理",
+    "macOS": { "minimumSystemVersion": "13.0", "signingIdentity": "-" }
+  }
+}

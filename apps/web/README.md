@@ -2,6 +2,8 @@
 
 Runnable React + TypeScript + Vite design for the cross-platform rebuild. The second round extends the Polestar-inspired first design across the main product workflows.
 
+The browser entry shows this simulated preview. Inside Tauri, `src/main.tsx` selects `src/native/NativeApp.tsx`, which calls the shared Rust core through Tauri IPC on macOS, Windows, Android and iOS and reuses the typography, styles, vehicle artwork and modal components. Current implementation and verification status are documented in [development progress](../../docs/PROGRESS.md) and [the native application README](../native/README.md).
+
 Verified with Node.js 22.12.0. Run commands from the repository root.
 
 ```sh
@@ -43,7 +45,7 @@ Schedule lists distinguish unrequested, failed, cached, partial and complete rea
 
 The browser stores demo state under `hisingen-design-workspace-v2`. Theme preference uses `hisingen-preview-theme`. Backups restore validated data in one state update. Pending receipts restored after interruption become uncertain, allowing the user to inspect the outcome. Legacy success receipts without matching readback evidence become service-completed. Legacy vehicles receive demo capability profiles only when both capability and permission fields are absent; explicitly empty capability maps remain empty. Samples use dates relative to the day the preview is opened.
 
-Native integration will replace simulated authorization, dispatch, sampling and persistence with the local vehicle core. Rust/Tauri, system credential storage, real manufacturer connections, native notification delivery, tray/menu bar, operating-system startup, background collection and physical-device behavior remain integration work. The existing macOS China P2 login, telemetry and reported successful climate control are evidence for that native adapter, not evidence of this web preview or the future cross-platform host. The preview saves relevant platform preferences and explains their activation conditions in Settings. This round uses Simplified Chinese.
+The native entry now uses the local Rust core for authorization, dispatch, sampling and persistence. Platform adapters provide credential storage, notifications and file access, with desktop tray/menu bar and startup integration. Android and iOS collection runs while the application is in the foreground. Physical-device verification is recorded per platform in [development progress](../../docs/PROGRESS.md). The browser preview continues to simulate these workflows and saves relevant preferences locally. This round uses Simplified Chinese.
 
 ## Visual direction
 

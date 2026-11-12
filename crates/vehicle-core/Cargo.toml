@@ -1,0 +1,30 @@
+[package]
+name = "norr-vehicle-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bytes = "1"
+http = "1"
+md5 = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
+tonic = { version = "0.14" }
+uuid = { version = "1", features = ["v4"] }
+zeroize = "1"
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+security-framework = { version = "3.7", features = ["OSX_10_15"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Win32_Security_Cryptography", "Win32_Foundation"] }
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+tonic = { version = "0.14", features = ["tls-webpki-roots"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
+tonic = { version = "0.14", features = ["tls-native-roots"] }

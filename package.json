@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/web"],
+  "workspaces": [
+    "apps/web",
+    "apps/native"
+  ],
   "engines": {
     "node": ">=22.12.0"
   },
@@ -11,6 +14,13 @@
     "dev": "npm run dev --workspace @norr/web --",
     "build": "npm run build --workspace @norr/web",
     "preview": "npm run preview --workspace @norr/web --",
-    "typecheck": "npm run typecheck --workspace @norr/web"
+    "typecheck": "npm run typecheck --workspace @norr/web",
+    "dev:mac": "npm run dev --workspace @norr/native",
+    "build:mac": "npm run build --workspace @norr/native",
+    "dev:windows": "npm run dev --workspace @norr/native",
+    "build:windows": "npm run build --workspace @norr/native -- windows",
+    "build:android": "npm run build --workspace @norr/native -- android",
+    "build:ios": "npm run build --workspace @norr/native -- ios",
+    "check:native": "cargo test --workspace"
   }
 }

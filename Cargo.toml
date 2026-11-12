@@ -1,0 +1,14 @@
+[workspace]
+members = ["apps/native/src-tauri", "crates/vehicle-core"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[profile.release]
+strip = "none"
+lto = "thin"
+
+[profile.release.build-override]
+strip = "none"

@@ -94,6 +94,7 @@ export function VehiclePage({
       <div className="quick-controls">
         <button
           className="control-tile"
+          data-active={vehicle.locked === false}
           disabled={unavailable || !supports(vehicle, "lock")}
           onClick={() => onControl("lock")}
         >
@@ -109,6 +110,7 @@ export function VehiclePage({
         </button>
         <button
           className="control-tile"
+          data-active={vehicle.climateOn === true}
           disabled={unavailable || !supports(vehicle, "climate")}
           onClick={() => onControl("climate")}
         >

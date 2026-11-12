@@ -27,3 +27,9 @@ Norr 初始界面从 Hisingen 工作区的 React 预览迁入。原工程使用 
 [车型素材来源与范围](apps/web/public/images/vehicles/README.md) · [文件清单](apps/web/public/images/vehicles/manifest.json)
 
 其余 npm 依赖的版本由根目录 `package-lock.json` 固定，许可随安装包提供。
+
+## 地图与坐标转换
+
+车辆位置使用高德官方嵌入页面，地图内保留服务方标识，外部入口使用高德 URI、Google Maps URLs 和 Apple 地图链接。高德嵌入服务按官方服务条款使用。[高德嵌入说明](https://lbs.amap.com/api/uri-api/guide/embedded-map/summarize)
+
+WGS84 与 GCJ-02 的本地转换使用 `coordtransform` 2.1.2，MIT 许可随源码及 macOS 应用包保留。[许可全文](licenses/coordtransform-MIT.txt) · [上游项目](https://github.com/wandergis/coordtransform)

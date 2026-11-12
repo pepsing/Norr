@@ -1,0 +1,6 @@
+<resources>
+    <color name="norr_accent">#A1481B</color>
+    <color name="norr_surface">#F7F7F5</color>
+    <color name="norr_text">#20221F</color>
+    <color name="norr_muted">#62665E</color>
+</resources>

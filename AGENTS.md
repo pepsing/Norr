@@ -16,4 +16,4 @@ npm run build
 - 命令结果不明时先核对车辆状态。凭据、账号响应、设备日志和签名文件保存在本机受控位置。
 - 修改资源目录时同步 `manifest.json` 与来源记录。
 
-`apps/native`、`apps/harmonyos` 和 `crates/vehicle-core` 当前包含接入说明。新增实现从技术栈研究的验证顺序开始。
+`apps/native` 和 `crates/vehicle-core` 共用 macOS、Windows、Android 与 iOS 实现。运行 `npm run check:native` 验证协议和记录语义，运行 `npm run build:mac`、`npm run build:windows`、`npm run build:android` 或 `npm run build:ios` 构建对应应用。iOS 默认构建 Apple Silicon 模拟器版本。实机与实车验证状态、其他平台和适配范围见各目录说明。
