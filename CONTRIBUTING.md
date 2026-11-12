@@ -31,3 +31,5 @@ PR 关联 issue，说明根因、改动、已运行的检查与待验证项。�
 每日 alpha 发布会从 PR 标题和直接提交摘要生成更新列表。标题应说明用户可感知的变化，例如“修复空调开启后状态未刷新”。PR 正文用 `Closes #123` 关联已解决的问题，用 `Refs #123` 引用仍需跟进的问题，也可以使用同仓库的完整 issue URL。自动版本说明会附上关联 issue 的标题、链接和状态。
 
 每天北京时间 03:20 检查 main，未发布提交会进入下一版。相同提交再次运行时跳过构建，维护者可在 Actions 的 `Daily alpha release` 中手动提前执行。[alpha 版本下载](https://github.com/pepsing/Norr/releases)
+
+修改发布脚本时执行 `node --test scripts/release/*.test.mjs`，覆盖版本分配、无更新跳过、草稿恢复、issue 引用和多端版本写入。工作流可用 `actionlint .github/workflows/*.yml` 检查。

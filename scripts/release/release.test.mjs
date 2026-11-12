@@ -52,7 +52,7 @@ test('issue references are deduplicated and limited to the current repository', 
 test('notes include actual changes and issue links without claiming open issues are fixed', () => {
   const plan = { ...planRelease(initial), previousTag: 'v0.1.0-alpha.1' };
   const notes = renderNotes(plan,
-    [{ title: 'fix: refresh climate state', label: 'PR #8', url: 'https://github.com/pepsing/Norr/pull/8' }],
+    [{ title: 'fix: refresh climate state [skip ci]', label: 'PR #8', url: 'https://github.com/pepsing/Norr/pull/8' }],
     [{ number: 7, title: '空调状态未刷新', state: 'open', html_url: 'https://github.com/pepsing/Norr/issues/7' }],
     'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1');
   assert.match(notes, /refresh climate state/);
@@ -60,6 +60,7 @@ test('notes include actual changes and issue links without claiming open issues 
   assert.match(notes, /issues\/7/);
   assert.match(notes, /compare\//);
   assert.doesNotMatch(notes, /首个 alpha/);
+  assert.doesNotMatch(notes, /skip ci/);
 });
 
 test('invalid versions and native build numbers fail before writing files', () => {

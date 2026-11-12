@@ -109,6 +109,8 @@ Release 的更新摘要来自上次发布以来的 PR 标题与直接提交的�
 
 版本号只在构建工作区注入，源码的基础版本由根目录 `package.json` 维护。npm、Cargo 与 Tauri 版本同步为 alpha 版本，Android versionCode 和 Apple bundleVersion 使用独立递增的构建号，从 1001 开始。相同提交的草稿重试沿用构建号。
 
+iOS 的系统短版本使用三段数字，例如 `0.1.0`，对应 alpha 迭代由 Release 标签、安装包文件名与 bundleVersion 标识。`v0.1.0-alpha.1` 的原生构建号为 `1001`。
+
 GitHub 定时任务可能因负载延迟，公开仓库连续 60 天无活动时定时工作流会被停用，届时可在 Actions 中重新启用。[GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
 
 | Artifact 名称 | 内容 |

@@ -40,7 +40,8 @@ export function referencedIssues(text, repository) {
 }
 
 function markdownText(text) {
-  return text.replace(/\s+/g, ' ').replace(/[\\`*_[\]<>]/g, '\\$&').replaceAll('@', '@\u200b');
+  return text.replace(/\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]/gi, '')
+    .replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]<>]/g, '\\$&').replaceAll('@', '@\u200b');
 }
 
 export function renderNotes(plan, changes, issues, repository, runUrl) {
@@ -91,7 +92,9 @@ function api(path, method = 'GET', body) {
 }
 
 function pages(path) {
-  return JSON.parse(execFileSync('gh', ['api', path, '--paginate', '--slurp'], { encoding: 'utf8' })).flat();
+  return JSON.parse(execFileSync('gh', ['api', path, '--paginate', '--slurp'], {
+    encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+  })).flat();
 }
 
 function getReleases(repository) {

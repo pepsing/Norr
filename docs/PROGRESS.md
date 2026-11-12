@@ -1,6 +1,6 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。当前版本为 0.1.0，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.1`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
 
@@ -165,6 +165,23 @@ Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macO
 - Liveliness PASS，采用面向车友的中文字段和 Norr 车型、账号与控制术语，表单使用 GitHub 原生控件。
 - Craftsmanship PASS，工作流通过 actionlint，新增与修改说明中的 32 个本地链接有效，Git 差异格式检查通过，四端 CI 与下载产物校验通过。
 
+## 2026-11-13 每日 alpha 发布
+
+- 用户确认每天北京时间 03:20 检查 main，版本从 `v0.1.0-alpha.1` 递增。`Daily alpha release` 按上次成功发布的源提交判断是否存在更新，未发布的失败构建会在后续运行中重试。支持从 Actions 选择 main 手动运行。
+- 发布任务固定源提交，复用四端构建，并在全部成功后上传四个安装包及 `SHA256SUMS.txt`。上传完成后核对远端 SHA-256，再将草稿发布为预发行版。发布串行执行，同一提交的未完成草稿复用版本号与构建号。
+- 自动说明汇总上次发布后的 PR 标题与直接提交摘要，关联 issue 来自提交、PR 正文及 GitHub 的关闭关联，展示标题、链接和状态。当前仓库没有 issue，首版据此显示未关联。PR 关联接口与关闭关联字段已进行只读校验，固定样本覆盖 issue 去重和说明生成。
+- 首版 `v0.1.0-alpha.1` 对应提交 `085f6f4`，构建号为 `1001`。发布流程的 7 个任务全部通过，包含发布脚本 9 项、前端 6 项、macOS 39 项与 Windows 40 项测试，以及四端打包。[首版 Release](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.1) · [完整发布运行](https://github.com/pepsing/Norr/actions/runs/43310237585)
+- 再次对相同提交手动执行，仅提交检查任务运行，构建与发布均跳过，Release 数量和版本号保持为首版。[无更新跳过验证](https://github.com/pepsing/Norr/actions/runs/43314007690)
+- 从 Release 下载的 5 个附件与远端摘要一致，四个安装包全部通过 `SHA256SUMS.txt` 校验。Mac 与 iOS 签名、Android 签名与 16 KB ZIP 对齐、Windows NSIS 完整性通过。四端安装包均包含登录构建配置，测试包保存于 `target/releases/v0.1.0-alpha.1/`。
+- macOS 与 Android 版本为 `0.1.0-alpha.1`。Android versionCode、Mac 与 iOS bundleVersion 均为 `1001`，iOS 系统短版本按平台格式使用 `0.1.0`。下一版会继续递增原生构建号。各端正式签名及新包真机、实车验收继续保留在待办中。
+
+本轮版本说明与发布流程的适用项检查如下。
+
+- Hard Gate PASS，Release 已标记预发行，平台、签名、P4 支持与实测范围按现有结果说明，首次关联 issue 为空时如实显示。
+- Purpose Gate PASS，安装附件按版本与平台命名，摘要和 issue 链接用于定位改动，校验文件用于核对下载内容。
+- Liveliness PASS，采用 Norr、Polestar 2、alpha 版本及具体车辆功能用语，说明沿用中文与 GitHub 原生排版。
+- Craftsmanship PASS，actionlint、9 项发布回归、完整 GitHub 发布和无更新跳过验证通过，5 个附件摘要与安装包结构校验通过。
+
 ## 当前测试包与分发
 
 2026-11-13 完成 GitHub 提交准备检查，用户确认创建私有仓库。已通过本机 GitHub CLI 创建 `pepsing/Norr` 并配置 `origin`，源码使用 `main` 作为远端默认分支。Codex GitHub 连接返回需要重新认证，本轮使用已验证登录的 GitHub CLI。[私有仓库](https://github.com/pepsing/Norr)
@@ -186,7 +203,7 @@ macOS ZIP 的 SHA-256 为 `715d39c82b138e3183d0a12aba60acea8aabe066c0d9822609d44
 
 iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d1f6134c336b101f1a6f`。模拟器包不能直接安装到实体 iPhone。macOS、Android 与该 iOS 包均包含共享账号修复。橙色状态与地图默认展示已打入 macOS、Android，iOS 与 Windows 现有包需重新构建后包含本轮界面修改，Windows 包还需合入共享账号修复。
 
-最新四端测试包已在 GitHub Actions 生成，并下载到 `target/ci/43290331554/`。此前本机交付包仍按上表保留。GitHub Release 发布待执行，Polestar 车辆图片的公开分发授权状态仍待确认，素材来源与摘要已记录。[第三方说明](../THIRD_PARTY_NOTICES.md)
+最新四端 alpha 包已发布到 GitHub Release，并下载到 `target/releases/v0.1.0-alpha.1/`。前一轮 CI 包位于 `target/ci/43290331554/`，此前本机交付包按上表记录。Polestar 车辆图片的公开分发授权状态仍待确认，素材来源与摘要已记录。[Release 下载](https://github.com/pepsing/Norr/releases) · [第三方说明](../THIRD_PARTY_NOTICES.md)
 
 ## 待办与验证条件
 
@@ -195,7 +212,7 @@ iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d
 | Windows 首轮测试 | 用户或车友安装 x64 包，验证短信登录、车辆读取、退出后恢复、托盘和通知 |
 | Android 系统功能 | 使用现有手机验证通知权限与点击、JSON 备份导出恢复、后台与锁屏暂停、返回后刷新、过期续期 |
 | Android 最新修复反馈 | 最新包已安装，待用户验证指令后的自动状态更新、车窗与尾门确认交互和实车动作 |
-| 四端 CI 更新包 | macOS、Windows、Android、iOS 模拟器均已构建并校验，包含当前主分支的局部回读与控制页布局修复，新包安装与实车验收待执行 |
+| 四端 alpha 更新包 | `v0.1.0-alpha.1` 已发布，macOS、Windows、Android、iOS 模拟器均已构建并校验，包含局部回读与控制页布局修复，新包安装与实车验收待执行 |
 | iOS 验证 | 已有共享账号会话恢复、车辆读取及空调启动回读通过，短信流程现场复核、空调关闭与其他车控、通知与备份待验证，实体设备还需开发签名 |
 | macOS 新账号登录 | 使用可收短信的账号完成登录、退出后恢复与续期，保留现有原生验证窗口结果 |
 | P2 车旁验证 | 使用具备相应授权的账号核对闪灯、空调与其他车辆动作，目标电量、电流上限和临时充电在有充电条件时验证 |
