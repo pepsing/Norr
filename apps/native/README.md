@@ -100,7 +100,7 @@ npm run build:windows
 `Checks and packages` 在 PR 和主分支代码更新时运行，也可以从 Actions 手动触发。仅文档、issue 表单与许可文件变化时跳过自动构建。
 
 - PR 执行前端测试、类型检查与生产构建，以及 macOS、Windows 的 Rust 格式、release 测试和严格 Clippy。
-- 主分支 push 或选择 main 手动运行时，在检查通过后构建四端测试包。打包步骤从仓库 Secrets 读取配置。
+- 主分支 push 或选择 main 手动运行时生成四端测试包。桌面打包在本平台原生检查通过后执行，移动端打包在前端检查通过后执行。打包步骤从仓库 Secrets 读取配置。
 - 产物保留 14 天，可在该次运行页面的 Artifacts 区下载。压缩包内包含对应安装文件。[构建记录](https://github.com/pepsing/Norr/actions/workflows/build.yml)
 
 | Artifact 名称 | 内容 |

@@ -146,13 +146,32 @@ Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macO
 - 真机阶段准备华为开发者账号和对应设备的调试签名，账号登录及实名认证由用户完成。首轮评估 DevEco 自动签名。[自动签名说明](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing-auto/)
 - 按当前 P2 短信登录、读取与控制范围，初步估算页面可运行版约 1～2 天、核心测试版约 3～7 个工作日、补齐系统能力及真机问题约 1～2 周。各阶段按累计工作量理解，待 Rust TLS / HTTP/2 / gRPC 与官方验证码验证后修订。鸿蒙工程尚待初始化，当前完成项为调研与环境检查。
 
+## 2026-11-13 Issue 规范与自动构建
+
+- 新增“问题反馈”和“功能建议”表单。问题表单保留版本、平台、设备、复现步骤、预期与实际结果，并为车控提供发生时间、服务回执及独立回读字段。字段 ID 固定，便于后续 Codex 读取和定位。表单开头说明截图与日志脱敏范围。
+- 新增 PR 模板和 `CONTRIBUTING.md`，说明 issue 验收条件、Codex 接手方式、检查结果与真机待验证项。`AGENTS.md` 补充共享账号能力、局部刷新、回读证据与回归审查要求。
+- `Checks and packages` 覆盖 PR 检查、main 自动打包和手动触发。PR 执行前端与 macOS、Windows 原生检查，主分支生成 macOS ARM64、Windows x64、Android ARM64 和 iOS ARM64 模拟器产物，保留 14 天。
+- 已配置登录构建配置及 Android 签名所需的 5 项仓库 Secrets。Android 复用当前测试证书。首次 CI 修正了旧 Android SDK 安装动作、桌面测试前的前端资源生成，以及 iOS Xcode 子进程的配置传递。iOS 构建使用权限为 `0600` 的临时 `.env.secrets`，任务结束时删除。
+- 提交 `30a3524` 的 5 个 CI 任务全部成功。前端 6 项测试、类型检查与生产构建通过，macOS 39 项、Windows 40 项 release 测试及两端格式、严格 Clippy 通过。四端安装产物已上传，主分支 push 自动触发验证成功。[构建运行](https://github.com/pepsing/Norr/actions/runs/43290331554)
+- 下载后的 macOS、Android、iOS 文件通过 ZIP 完整性检查。两个 Apple 应用的 ARM64 架构和签名通过，iOS 包标识为 `iPhoneSimulator`。Android APK 签名与此前安装包证书一致，16 KB ZIP 对齐通过。Windows NSIS 完整性通过，包内程序为 x86-64。已核对四端构建日志未出现登录构建配置原值。
+- 四端产物已下载至本机 `target/ci/43290331554/` 下各平台目录。本轮完成 CI 构建与产物校验，新包的安装、登录和实车验收继续按下方待办记录。Windows 本轮在 GitHub 原生 Windows runner 上执行了 DPAPI 与验证码解析回归。
+
+本地 Codex 继续承担设备、模拟器、钥匙串和真实账号调试。Cloud 可按 issue 承担独立修复与 PR 工作，启用前需要重新授权当前 Codex GitHub 连接并选择仓库环境。当前由维护者发起 issue 修复任务，GitHub PR 自动审查可在 Codex 仓库设置中配置。[参与开发](../CONTRIBUTING.md)
+
+本轮表单与文档的适用项检查如下。
+
+- Hard Gate PASS，表单 YAML、字段 ID 和标签存在性检查通过，已完成与待验证范围按实际结果记录。
+- Purpose Gate PASS，复现字段服务于问题定位，车控证据字段用于区分服务处理与车辆状态，PR 模板承接验收结果。
+- Liveliness PASS，采用面向车友的中文字段和 Norr 车型、账号与控制术语，表单使用 GitHub 原生控件。
+- Craftsmanship PASS，工作流通过 actionlint，新增与修改说明中的 32 个本地链接有效，Git 差异格式检查通过，四端 CI 与下载产物校验通过。
+
 ## 当前测试包与分发
 
 2026-11-13 完成 GitHub 提交准备检查，用户确认创建私有仓库。已通过本机 GitHub CLI 创建 `pepsing/Norr` 并配置 `origin`，源码使用 `main` 作为远端默认分支。Codex GitHub 连接返回需要重新认证，本轮使用已验证登录的 GitHub CLI。[私有仓库](https://github.com/pepsing/Norr)
 
 提交范围已补充排除 Playwright 调试快照，现有忽略规则覆盖本地登录配置、签名材料和构建目录。README 同步当前 P2 支持范围、最新 Android 修复与原生构建配置。代码许可、第三方字体和图标许可、车辆素材来源说明已保留。
 
-以下路径相对于仓库根目录。
+以下保留此前本机交付包，路径相对于仓库根目录。最新 CI 产物及验证结果见上方构建记录。
 
 | 平台 | 本地构建产物 | 分发状态 |
 | --- | --- | --- |
@@ -167,7 +186,7 @@ macOS ZIP 的 SHA-256 为 `715d39c82b138e3183d0a12aba60acea8aabe066c0d9822609d44
 
 iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d1f6134c336b101f1a6f`。模拟器包不能直接安装到实体 iPhone。macOS、Android 与该 iOS 包均包含共享账号修复。橙色状态与地图默认展示已打入 macOS、Android，iOS 与 Windows 现有包需重新构建后包含本轮界面修改，Windows 包还需合入共享账号修复。
 
-GitHub Release 发布待执行，当前各端测试包保存在上表列出的本地路径。Polestar 车辆图片的公开分发授权状态仍待确认，素材来源与摘要已记录。[第三方说明](../THIRD_PARTY_NOTICES.md)
+最新四端测试包已在 GitHub Actions 生成，并下载到 `target/ci/43290331554/`。此前本机交付包仍按上表保留。GitHub Release 发布待执行，Polestar 车辆图片的公开分发授权状态仍待确认，素材来源与摘要已记录。[第三方说明](../THIRD_PARTY_NOTICES.md)
 
 ## 待办与验证条件
 
@@ -176,7 +195,7 @@ GitHub Release 发布待执行，当前各端测试包保存在上表列出的�
 | Windows 首轮测试 | 用户或车友安装 x64 包，验证短信登录、车辆读取、退出后恢复、托盘和通知 |
 | Android 系统功能 | 使用现有手机验证通知权限与点击、JSON 备份导出恢复、后台与锁屏暂停、返回后刷新、过期续期 |
 | Android 最新修复反馈 | 最新包已安装，待用户验证指令后的自动状态更新、车窗与尾门确认交互和实车动作 |
-| 其他平台更新包 | macOS、iOS、Windows 待重新构建以包含局部回读与控制页布局修复，按各平台当前包的差异复核 |
+| 四端 CI 更新包 | macOS、Windows、Android、iOS 模拟器均已构建并校验，包含当前主分支的局部回读与控制页布局修复，新包安装与实车验收待执行 |
 | iOS 验证 | 已有共享账号会话恢复、车辆读取及空调启动回读通过，短信流程现场复核、空调关闭与其他车控、通知与备份待验证，实体设备还需开发签名 |
 | macOS 新账号登录 | 使用可收短信的账号完成登录、退出后恢复与续期，保留现有原生验证窗口结果 |
 | P2 车旁验证 | 使用具备相应授权的账号核对闪灯、空调与其他车辆动作，目标电量、电流上限和临时充电在有充电条件时验证 |
