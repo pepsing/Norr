@@ -1,0 +1,16 @@
+{
+  "name": "norr",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/web"],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @norr/web --",
+    "build": "npm run build --workspace @norr/web",
+    "preview": "npm run preview --workspace @norr/web --",
+    "typecheck": "npm run typecheck --workspace @norr/web"
+  }
+}
