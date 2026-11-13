@@ -1,14 +1,8 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.1`，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.2`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
-
-### macOS Intel 自动构建
-
-- GitHub Actions 新增 `macos-15-intel` 任务，与 ARM64 分别运行测试、Clippy 和原生打包，归档前校验主程序架构与签名。
-- 每日 alpha 发布要求同时具备 `macos-arm64.zip` 与 `macos-x64.zip`，Release 下载表与 SHA-256 清单覆盖两种 Mac 架构。
-- 本地 actionlint 与 10 项发布脚本测试通过。Intel 云端构建和安装运行待验证。
 
 Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本地车辆核心，各设备直接访问厂商服务。当前原生车辆适配覆盖中国区 Polestar 2 的 ICUP / AccountLinking 平台。Polestar 4 的外观素材已内置，HUANFU / Geely 服务适配与实车验证待完成。
 
@@ -21,6 +15,13 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 | 原生 HarmonyOS | 已准备 `apps/harmonyos` 目录与 ArkTS + ArkWeb 接入说明，明确模拟器先行路径 | 已检查本机基础工具，工程与运行验证待开展 | DevEco 与 SDK 配置、模拟器工程、Rust 协议适配、原生桥接，后续真机验收 |
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
+
+## 2026-11-13 macOS Intel 自动构建
+
+- GitHub Actions 新增 `macos-15-intel` 任务，与 ARM64 分别运行测试、Clippy 和原生打包，归档前校验主程序架构与签名。
+- 每日 alpha 发布要求同时具备 `macos-arm64.zip` 与 `macos-x64.zip`，Release 下载表与 SHA-256 清单覆盖两种 Mac 架构。
+- `v0.1.0-alpha.2` 已发布，五个安装包与 `SHA256SUMS.txt` 上传并校验通过，源提交为 `6e8d790`。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.2)
+- 本地 actionlint 与 10 项发布脚本测试通过。Intel 云端测试、Clippy、打包与上传通过，下载后的应用主程序确认是 `x86_64`，ad-hoc 签名校验通过。Intel Mac 安装、启动和登录仍待车友验证。[构建记录](https://github.com/pepsing/Norr/actions/runs/43354167152)
 
 ## 2026-11-13 充电设置档位修复
 
