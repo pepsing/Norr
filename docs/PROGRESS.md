@@ -1,6 +1,6 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.4`，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.5`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
 
@@ -22,7 +22,7 @@ Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macO
 - Windows 官方滑块页面的默认回调仅处理 Android / iOS 浏览器标识，Windows 验证成功后无法返回结果。验证窗口改用官方 `?from=webview` 回调，接收同来源、当前主框架的消息，再提交给原生验证处理。失败显示重试提示，重复回调仅提交一次。
 - 原生测试使用与应用启动相同的 Tauri Context，确认短信与密码登录可从本地主窗口调用，其他窗口与远程来源被拒绝。新增 Windows 验证窗口 ACL 测试，检查带查询参数的官方页面可以提交验证结果。
 - 密码 ACL 回归在修复前复现失败，修复后本机 40 项 Rust 测试和严格 Clippy 通过。4 项 JavaScript 回归覆盖官方回调模式、来源校验、提交失败重试和取消，并接入 CI。使用下载的官方页面脚本离线复现 Windows 默认回调丢失，改用 webview 模式后成功传入原生 IPC。
-- Windows 实机滑块完成后发送短信、收到短信并登录，以及真实密码登录仍待车友复测。云端打包与发布结果随后补记。
+- `v0.1.0-alpha.5` 已发布，源提交为 `a639905`，构建号为 1005。Windows 原生权限回归、release 测试与 Clippy 通过，六个包构建、上传与 SHA-256 校验全部成功。Windows 实机滑块完成后发送短信、收到短信并登录，以及真实密码登录仍待车友复测。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.5) · [构建记录](https://github.com/pepsing/Norr/actions/runs/43434058122)
 
 ## 2026-11-13 iOS 未签名真机 IPA
 

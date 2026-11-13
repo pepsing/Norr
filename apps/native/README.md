@@ -6,7 +6,7 @@ macOS 应用标识为 `app.norr.mac`，Windows 为 `app.norr.windows`，Android 
 
 共用登录页已增加「短信登录 / 密码登录」切换，密码登录使用中国大陆手机号与 Polestar 账号密码。四端通过同一 Rust 核心调用厂商接口，成功后沿用系统加密会话保存、续期及车辆读取。密码字段在提交结束、切换方式和取消时清空。此功能已随 `v0.1.0-alpha.3` 发布，真实密码登录与重启恢复待验证。
 
-`alpha.3` 和 `alpha.4` 存在密码命令 ACL 漏项，会报 `Command sign_in_password not allowed by ACL`。源码已补齐权限并增加原生权限回归测试。Windows 滑块回调同时改用官方 webview 消息模式，验证成功后继续发送短信，实际短信与密码登录结果待新版实机复测。
+`alpha.3` 和 `alpha.4` 存在密码命令 ACL 漏项，会报 `Command sign_in_password not allowed by ACL`。`alpha.5` 已补齐权限并通过 Windows 原生权限回归测试。Windows 滑块回调同时改用官方 webview 消息模式，验证成功后继续发送短信，实际短信与密码登录结果待新版实机复测。
 
 ## iOS 模拟器版
 
