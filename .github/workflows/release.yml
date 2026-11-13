@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '20 19 * * *'
   workflow_dispatch:
+    inputs:
+      platform:
+        description: 构建平台
+        type: choice
+        default: all
+        options: [all, windows]
 
 permissions:
   contents: read
@@ -27,6 +33,7 @@ jobs:
       build_number: ${{ steps.release.outputs.buildNumber }}
       tag: ${{ steps.release.outputs.tag }}
       previous_tag: ${{ steps.release.outputs.previousTag }}
+      platform: ${{ steps.release.outputs.platform }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -40,6 +47,7 @@ jobs:
         run: node scripts/release/release.mjs plan
         env:
           GH_TOKEN: ${{ github.token }}
+          NORR_RELEASE_PLATFORM: ${{ inputs.platform || 'all' }}
 
   build:
     name: Build alpha packages
@@ -50,6 +58,7 @@ jobs:
       version: ${{ needs.plan.outputs.version }}
       build_number: ${{ fromJSON(needs.plan.outputs.build_number) }}
       source_sha: ${{ needs.plan.outputs.sha }}
+      platform: ${{ needs.plan.outputs.platform }}
     secrets: inherit
 
   publish:
@@ -74,7 +83,7 @@ jobs:
         with:
           pattern: Norr-*
           path: artifacts
-      - name: Generate notes and publish all assets
+      - name: Generate notes and publish selected assets
         run: node scripts/release/release.mjs publish artifacts
         env:
           GH_TOKEN: ${{ github.token }}

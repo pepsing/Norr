@@ -6,22 +6,38 @@ import { pathToFileURL } from 'node:url';
 import { validateVersion } from './version.mjs';
 
 const marker = /<!-- norr-release (\{[^\n]+\}) -->/;
+const packages = [
+  ['Norr-macos-arm64', '.zip', 'macos-arm64.zip', 'Apple Silicon Mac，解压后安装 Norr.app'],
+  ['Norr-macos-x64', '.zip', 'macos-x64.zip', 'Intel Mac，解压后安装 Norr.app'],
+  ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe', 'Windows 10/11 x64 安装程序'],
+  ['Norr-android-arm64', '.apk', 'android-arm64.apk', 'Android ARM64，沿用当前测试证书'],
+  ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip', 'Apple Silicon Mac 上的 iOS 模拟器'],
+  ['Norr-ios-arm64-unsigned', '-unsigned.ipa', 'ios-arm64-unsigned.ipa', 'iPhone / iPad 真机包，安装前需使用有效证书与描述文件重新签名'],
+];
+
+function releasePackages(platform = 'all') {
+  if (!['all', 'windows'].includes(platform)) throw new Error('Invalid release platform');
+  return packages.filter(([artifact]) => platform === 'all' || artifact === 'Norr-windows-x64');
+}
 
 export function releaseMetadata(release) {
   const match = release.body?.match(marker);
   return match ? JSON.parse(match[1]) : undefined;
 }
 
-export function planRelease({ sha, baseVersion, releases, tags }) {
+export function planRelease({ sha, baseVersion, releases, tags, platform = 'all' }) {
+  releasePackages(platform);
   const published = releases.filter((release) => !release.draft)
     .sort((left, right) => Date.parse(right.published_at ?? 0) - Date.parse(left.published_at ?? 0));
-  const previous = published[0];
+  const previous = published.find((release) => platform === 'windows'
+    || (releaseMetadata(release)?.platform ?? 'all') === 'all');
   if (previous?.sha === sha) return { publish: false, sha };
-  const pending = releases.find((release) => release.draft && releaseMetadata(release)?.sha === sha);
+  const pending = releases.find((release) => release.draft && releaseMetadata(release)?.sha === sha
+    && (releaseMetadata(release)?.platform ?? 'all') === platform);
   if (pending) {
     const metadata = releaseMetadata(pending);
     validateVersion(metadata.version, metadata.buildNumber);
-    return { ...metadata, publish: true, tag: pending.tag_name };
+    return { ...metadata, platform, publish: true, tag: pending.tag_name };
   }
   const prefix = `v${baseVersion}-alpha.`;
   const numbers = [...tags, ...releases.map((release) => release.tag_name)]
@@ -30,7 +46,7 @@ export function planRelease({ sha, baseVersion, releases, tags }) {
   const version = `${baseVersion}-alpha.${Math.max(0, ...numbers) + 1}`;
   const buildNumber = Math.max(1000, ...releases.map((release) => releaseMetadata(release)?.buildNumber ?? 0)) + 1;
   validateVersion(version, buildNumber);
-  return { publish: true, sha, version, buildNumber, tag: `v${version}`, previousTag: previous?.tag_name ?? '' };
+  return { publish: true, sha, version, buildNumber, platform, tag: `v${version}`, previousTag: previous?.tag_name ?? '' };
 }
 
 export function referencedIssues(text, repository) {
@@ -64,20 +80,17 @@ export function renderNotes(plan, changes, issues, repository, runUrl) {
   }
   lines.push('', '## 安装包', '',
     '| 文件后缀 | 适用平台 |', '| --- | --- |',
-    '| `macos-arm64.zip` | Apple Silicon Mac，解压后安装 Norr.app |',
-    '| `macos-x64.zip` | Intel Mac，解压后安装 Norr.app |',
-    '| `windows-x64-setup.exe` | Windows 10/11 x64 安装程序 |',
-    '| `android-arm64.apk` | Android ARM64，沿用当前测试证书 |',
-    '| `ios-arm64-simulator.zip` | Apple Silicon Mac 上的 iOS 模拟器 |',
-    '| `ios-arm64-unsigned.ipa` | iPhone / iPad 真机包，安装前需使用有效证书与描述文件重新签名 |',
-    '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
-    '', '本版通过自动测试与四端构建，新包的登录、系统功能和实车操作按进度表继续验收。',
+    ...releasePackages(plan.platform).map(([, , suffix, description]) => `| \`${suffix}\` | ${description} |`),
+    '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。',
+    plan.platform === 'windows' ? 'Windows 安装包尚未进行代码签名。'
+      : 'macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
+    '', '本版通过所选平台的自动测试与构建，新包的登录、系统功能和实车操作按进度表继续验收。',
     '', `[构建记录](${runUrl}) · [验证范围](https://github.com/${repository}/blob/${plan.sha}/docs/PROGRESS.md)`,
   );
   if (plan.previousTag) {
     lines.push('', `[完整改动](https://github.com/${repository}/compare/${plan.previousTag}...${plan.tag})`);
   }
-  lines.push('', `<!-- norr-release ${JSON.stringify({ sha: plan.sha, version: plan.version, buildNumber: plan.buildNumber, previousTag: plan.previousTag })} -->`, '');
+  lines.push('', `<!-- norr-release ${JSON.stringify({ sha: plan.sha, version: plan.version, buildNumber: plan.buildNumber, previousTag: plan.previousTag, platform: plan.platform ?? 'all' })} -->`, '');
   return lines.join('\n');
 }
 
@@ -150,15 +163,8 @@ function collectChanges(plan, repository) {
   return { changes, issues };
 }
 
-export function prepareAssets(version, directory) {
-  const patterns = [
-    ['Norr-macos-arm64', '.zip', 'macos-arm64.zip'],
-    ['Norr-macos-x64', '.zip', 'macos-x64.zip'],
-    ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe'],
-    ['Norr-android-arm64', '.apk', 'android-arm64.apk'],
-    ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip'],
-    ['Norr-ios-arm64-unsigned', '-unsigned.ipa', 'ios-arm64-unsigned.ipa'],
-  ];
+export function prepareAssets(version, directory, platform = 'all') {
+  const patterns = releasePackages(platform);
   const output = join(directory, 'release');
   mkdirSync(output, { recursive: true });
   const files = [];
@@ -180,9 +186,12 @@ export function prepareAssets(version, directory) {
 function publishRelease(plan, repository, directory) {
   validateVersion(plan.version, plan.buildNumber);
   if (plan.tag !== `v${plan.version}` || git('rev-parse', 'HEAD') !== plan.sha) throw new Error('Release source mismatch');
-  const files = prepareAssets(plan.version, directory);
+  const files = prepareAssets(plan.version, directory, plan.platform);
   let release = getReleases(repository).find((item) => item.tag_name === plan.tag);
-  if (release && releaseMetadata(release)?.sha !== plan.sha) throw new Error('Release tag belongs to different source');
+  if (release && (releaseMetadata(release)?.sha !== plan.sha
+      || (releaseMetadata(release)?.platform ?? 'all') !== (plan.platform ?? 'all'))) {
+    throw new Error('Release tag belongs to different source or platform');
+  }
   if (!release || release.draft) {
     const { changes, issues } = collectChanges(plan, repository);
     const runUrl = `https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`;
@@ -200,7 +209,7 @@ function publishRelease(plan, repository, directory) {
   }
   if (release.draft) release = api(`repos/${repository}/releases/${release.id}`, 'PATCH', { draft: false, prerelease: true, make_latest: 'false' });
   console.log(release.html_url);
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `发布完成 [${plan.tag}](${release.html_url})，包含四端安装包及 SHA256SUMS.txt。\n`);
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `发布完成 [${plan.tag}](${release.html_url})，包含 ${files.length - 1} 个安装包及 SHA256SUMS.txt。\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -209,11 +218,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (process.argv[2] === 'plan') {
     const baseVersion = JSON.parse(readFileSync('package.json', 'utf8')).version.split('-')[0];
     const releases = getReleases(repository);
-    const plan = planRelease({ sha: git('rev-parse', 'HEAD'), baseVersion, releases, tags: git('tag', '--list').split('\n') });
+    const plan = planRelease({ sha: git('rev-parse', 'HEAD'), baseVersion, releases,
+      tags: git('tag', '--list').split('\n'), platform: process.env.NORR_RELEASE_PLATFORM ?? 'all' });
     for (const [name, value] of Object.entries(plan)) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, plan.publish
-      ? `准备发布 ${plan.tag}，源提交 ${plan.sha}。\n`
-      : `main 与上次成功发布的提交一致，跳过构建和发布。\n`);
+      ? `准备发布 ${plan.tag}，平台 ${plan.platform}，源提交 ${plan.sha}。\n`
+      : `所选平台与上次成功发布的提交一致，跳过构建和发布。\n`);
   } else if (process.argv[2] === 'publish') {
     const outputs = JSON.parse(process.env.NORR_RELEASE_PLAN);
     publishRelease({ ...outputs, buildNumber: Number(outputs.build_number), previousTag: outputs.previous_tag }, repository, process.argv[3]);

@@ -36,7 +36,49 @@ test('new commits increment versions and retain the previous release boundary', 
 test('a partial draft upload resumes its version, source and native build number', () => {
   const metadata = { sha: initial.sha, version: '0.1.0-alpha.2', buildNumber: 1002, previousTag: 'v0.1.0-alpha.1' };
   const draft = { draft: true, tag_name: 'v0.1.0-alpha.2', body: `<!-- norr-release ${JSON.stringify(metadata)} -->` };
-  assert.deepEqual(planRelease({ ...initial, releases: [draft] }), { ...metadata, publish: true, tag: draft.tag_name });
+  assert.deepEqual(planRelease({ ...initial, releases: [draft] }), { ...metadata, platform: 'all', publish: true, tag: draft.tag_name });
+});
+
+test('Windows-only publication leaves other platforms eligible for the next full release', () => {
+  const full = { draft: false, sha: 'b'.repeat(40), tag_name: 'v0.1.0-alpha.1', published_at: '2026-11-12T00:00:00Z',
+    body: '<!-- norr-release {"buildNumber":1001} -->' };
+  const windows = { draft: false, sha: initial.sha, tag_name: 'v0.1.0-alpha.2', published_at: '2026-11-13T00:00:00Z',
+    body: '<!-- norr-release {"buildNumber":1002,"platform":"windows"} -->' };
+  const input = { ...initial, releases: [full, windows] };
+  assert.equal(planRelease({ ...input, platform: 'windows' }).publish, false);
+  const plan = planRelease(input);
+  assert.equal(plan.publish, true);
+  assert.equal(plan.platform, 'all');
+  assert.equal(plan.previousTag, full.tag_name);
+  assert.equal(plan.version, '0.1.0-alpha.3');
+});
+
+test('draft retries retain their selected platform and reject invalid platform names', () => {
+  const metadata = { sha: initial.sha, version: '0.1.0-alpha.2', buildNumber: 1002, previousTag: '', platform: 'windows' };
+  const draft = { draft: true, tag_name: 'v0.1.0-alpha.2', body: `<!-- norr-release ${JSON.stringify(metadata)} -->` };
+  assert.equal(planRelease({ ...initial, releases: [draft], platform: 'windows' }).tag, draft.tag_name);
+  assert.equal(planRelease({ ...initial, releases: [draft], platform: 'all' }).tag, 'v0.1.0-alpha.3');
+  assert.throws(() => planRelease({ ...initial, platform: 'invalid' }), /Invalid release platform/);
+});
+
+test('Windows-only assets and release notes include exactly the selected package', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'norr-windows-release-'));
+  try {
+    mkdirSync(join(directory, 'Norr-windows-x64'));
+    writeFileSync(join(directory, 'Norr-windows-x64', 'Norr-setup.exe'), 'windows-package');
+    const files = prepareAssets('0.1.0-alpha.6', directory, 'windows');
+    assert.deepEqual(files.map(file => file.name), ['Norr_0.1.0-alpha.6_windows-x64-setup.exe', 'SHA256SUMS.txt']);
+    assert.equal(readFileSync(files[1].path, 'utf8').trim().split('\n').length, 1);
+    const plan = { ...planRelease({ ...initial, platform: 'windows' }), previousTag: 'v0.1.0-alpha.5' };
+    const notes = renderNotes(plan, [], [], 'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1');
+    assert.match(notes, /windows-x64-setup.exe/);
+    assert.doesNotMatch(notes, /macos-arm64.zip|ios-arm64|android-arm64|四端构建/);
+    assert.match(notes, /"platform":"windows"/);
+    rmSync(join(directory, 'Norr-windows-x64', 'Norr-setup.exe'));
+    assert.throws(() => prepareAssets('0.1.0-alpha.6', directory, 'windows'), /exactly one package/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('base version changes keep native build numbers increasing', () => {

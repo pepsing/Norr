@@ -16,6 +16,12 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
 
+## 2026-11-13 Windows 单平台发布
+
+- 手动发布新增 `platform` 选择，`windows` 只执行前端检查、Windows 测试与打包，上传 Windows x64 安装程序和 SHA-256 清单。`all` 与每日定时任务生成全平台包。
+- 发布元数据记录平台范围，全平台任务以上次全平台版本为基线，Windows 单平台发布后仍可补齐其他平台。草稿重试同时匹配源提交与平台。
+- 13 项发布脚本回归、actionlint 与差异检查通过，本次登录修复按用户要求仅发布 Windows，云端结果随后补记。
+
 ## 2026-11-13 Windows 验证结果提交权限修复
 
 - `alpha.5` 已收到官方滑块回调，但 Tauri 自定义协议 IPC 按 HTTP `Origin` 校验权限，来源仅含 `https://h5.app.polestar-auto.com/`。先前权限只匹配完整验证页面，导致结果提交继续被 ACL 拦截。
