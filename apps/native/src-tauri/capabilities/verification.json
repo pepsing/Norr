@@ -6,6 +6,7 @@
   "windows": ["phone-verification-*"],
   "remote": {
     "urls": [
+      "https://h5.app.polestar-auto.com/",
       "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html"
     ]
   },

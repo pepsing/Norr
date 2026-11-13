@@ -980,27 +980,42 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "windows")]
     #[test]
     fn verification_callback_is_allowed_only_from_its_official_window() {
-        let mut context = app_context();
-        let authority = context.runtime_authority_mut();
-        let remote = tauri::ipc::Origin::Remote {
-            url: "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html?from=webview"
-                .parse()
-                .unwrap(),
-        };
-        assert!(authority
-            .resolve_access(
-                "submit_verification",
-                "phone-verification-1",
-                "phone-verification-1",
-                &remote
-            )
-            .is_some());
-        assert!(authority
-            .resolve_access("submit_verification", "main", "main", &remote)
-            .is_none());
+        let manifests = serde_json::from_str(include_str!(concat!(
+            env!("OUT_DIR"),
+            "/acl-manifests.json"
+        )))
+        .unwrap();
+        let capabilities =
+            serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/capabilities.json")))
+                .unwrap();
+        let resolved = tauri::utils::acl::resolved::Resolved::resolve(
+            &manifests,
+            capabilities,
+            tauri::utils::platform::Target::Windows,
+        )
+        .unwrap();
+        let authority = tauri::ipc::RuntimeAuthority::new(manifests, resolved);
+        for url in [
+            "https://h5.app.polestar-auto.com/",
+            "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html?from=webview",
+        ] {
+            let remote = tauri::ipc::Origin::Remote {
+                url: url.parse().unwrap(),
+            };
+            assert!(authority
+                .resolve_access(
+                    "submit_verification",
+                    "phone-verification-1",
+                    "phone-verification-1",
+                    &remote
+                )
+                .is_some(), "verification callback must accept IPC source {url}");
+            assert!(authority
+                .resolve_access("submit_verification", "main", "main", &remote)
+                .is_none());
+        }
         assert!(authority
             .resolve_access(
                 "submit_verification",

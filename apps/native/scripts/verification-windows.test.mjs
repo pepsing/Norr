@@ -70,3 +70,28 @@ test('Escape cancels verification with a null result', async () => {
   assert.equal(view.calls.length, 1);
   assert.equal(view.calls[0].payload, null);
 });
+
+test('ACL rejection and native validation failures expose actionable reasons', async () => {
+  for (const [error, expected] of [
+    ['Command submit_verification not allowed by ACL', /权限拦截/],
+    ['此验证窗口已失效', /此验证窗口已失效/],
+    ['验证结果格式无效', /验证结果格式无效/],
+    ['unexpected error containing fixture-token', /未能提交/],
+  ]) {
+    const view = verificationWindow(async () => { throw error; });
+    await view.window.chromium.postMessage(JSON.stringify(proof));
+    assert.match(view.status.textContent, expected);
+    assert.doesNotMatch(view.status.textContent, /fixture-token/);
+  }
+});
+
+test('a missing native bridge reports the connection problem and permits retry', async () => {
+  const view = verificationWindow();
+  const bridge = view.window.__TAURI_INTERNALS__;
+  delete view.window.__TAURI_INTERNALS__;
+  await view.window.chromium.postMessage(JSON.stringify(proof));
+  assert.match(view.status.textContent, /连接未就绪/);
+  view.window.__TAURI_INTERNALS__ = bridge;
+  await view.window.chromium.postMessage(JSON.stringify(proof));
+  assert.equal(view.calls.length, 1);
+});

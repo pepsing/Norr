@@ -1,16 +1,31 @@
 if (window === window.top && location.origin === 'https://h5.app.polestar-auto.com'
     && location.pathname === '/account-components/auth-slider/index.html') {
   let submitting = false;
+  const errors = new Set([
+    '验证窗口连接未就绪，请重新加载后重试。',
+    '无法确认验证页面', '验证页面来源无效', '验证状态不可用', '此验证窗口已失效',
+    '验证结果过大', '验证结果格式无效', '验证回调地址无效', '验证回调缺少结果',
+    '验证结果无效，请重新完成滑块验证',
+  ]);
   const submit = async payload => {
     if (submitting) return;
     submitting = true;
     const status = document.getElementById('norr-verification-status');
     try {
       if (status) status.textContent = payload === null ? '正在取消验证…' : '验证已完成，正在返回 Norr…';
+      if (typeof window.__TAURI_INTERNALS__?.invoke !== 'function') {
+        throw new Error('验证窗口连接未就绪，请重新加载后重试。');
+      }
       await window.__TAURI_INTERNALS__.invoke('submit_verification', { payload });
-    } catch {
+    } catch (error) {
       submitting = false;
-      if (status) status.textContent = '验证结果未能提交，请重新加载后重试。';
+      const message = typeof error === 'string' ? error : error?.message;
+      let explanation = '验证结果未能提交，请重新加载后重试。';
+      if (errors.has(message)) explanation = message;
+      if (typeof message === 'string' && message.includes('not allowed')) {
+        explanation = '验证提交被应用权限拦截，请更新 Norr 后重试。';
+      }
+      if (status) status.textContent = explanation;
     }
   };
   const receive = message => {
