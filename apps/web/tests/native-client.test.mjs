@@ -10,10 +10,16 @@ const server = await createServer({
 let unavailableReason;
 let activeControls;
 let openingState;
+let chargingOptions;
+let commandLimits;
 try {
-  ({ unavailableReason, activeControls, openingState } = await server.ssrLoadModule(
-    "/src/native/client.ts",
-  ));
+  ({
+    unavailableReason,
+    activeControls,
+    openingState,
+    chargingOptions,
+    commandLimits,
+  } = await server.ssrLoadModule("/src/native/client.ts"));
 } finally {
   await server.close();
 }
@@ -27,6 +33,98 @@ const sharedVehicle = {
   capabilities: { supportsParkingClimatization: true },
   limits: {},
 };
+
+test("charging selectors match Hisingen presets and slider increments", () => {
+  const target = chargingOptions(sharedVehicle, "target", null);
+  assert.deepEqual(target.presets, [40, 50, 60, 70, 80, 90, 100]);
+  assert.deepEqual(
+    target.values,
+    Array.from({ length: 13 }, (_, index) => 40 + index * 5),
+  );
+  const current = chargingOptions(sharedVehicle, "amperage", null);
+  assert.deepEqual(current.presets, [6, 8, 10, 13, 16, 20, 24, 32]);
+  assert.deepEqual(
+    current.values,
+    Array.from({ length: 27 }, (_, index) => 6 + index),
+  );
+  assert.equal(commandLimits(sharedVehicle, "target").step, 1);
+});
+
+test("charging selectors preserve reported values and unusual bounds", () => {
+  const vehicle = {
+    ...sharedVehicle,
+    limits: {
+      targetChargeLevelPercentageMinLimit: 43,
+      chargeAmperageMinLimit: 7,
+      chargeAmperageMaxLimit: 15,
+    },
+  };
+  const target = chargingOptions(vehicle, "target", 83);
+  assert.deepEqual(target.presets, [43, 50, 60, 70, 80, 90, 100]);
+  assert.deepEqual(
+    target.values,
+    [43, 45, 50, 55, 60, 65, 70, 75, 80, 83, 85, 90, 95, 100],
+  );
+  assert.deepEqual(
+    chargingOptions(vehicle, "amperage", 12).presets,
+    [7, 8, 10, 13, 15],
+  );
+  assert.deepEqual(
+    chargingOptions(vehicle, "amperage", 12).values,
+    [7, 8, 9, 10, 11, 12, 13, 14, 15],
+  );
+  for (const current of [NaN, Infinity, 101, 39, 80.5])
+    assert.equal(
+      chargingOptions(vehicle, "target", current).values.includes(current),
+      false,
+    );
+});
+
+test("charging selectors handle fixed and malformed capability ranges", () => {
+  assert.deepEqual(
+    chargingOptions(
+      {
+        ...sharedVehicle,
+        limits: {
+          chargeAmperageMinLimit: 16,
+          chargeAmperageMaxLimit: 16,
+        },
+      },
+      "amperage",
+      null,
+    ),
+    { values: [16], presets: [16] },
+  );
+  for (const min of [NaN, Infinity, 0, -1, 101, 43.5]) {
+    assert.deepEqual(
+      chargingOptions(
+        {
+          ...sharedVehicle,
+          limits: {
+            targetChargeLevelPercentageMinLimit: min,
+          },
+        },
+        "target",
+        null,
+      ),
+      { values: [], presets: [] },
+    );
+  }
+  assert.deepEqual(
+    chargingOptions(
+      {
+        ...sharedVehicle,
+        limits: {
+          chargeAmperageMinLimit: 32,
+          chargeAmperageMaxLimit: 6,
+        },
+      },
+      "amperage",
+      null,
+    ),
+    { values: [], presets: [] },
+  );
+});
 
 test("climate controls follow capability for shared, owner and unknown roles", () => {
   for (const owner of [false, true, null]) {

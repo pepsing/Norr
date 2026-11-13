@@ -38,6 +38,7 @@ import {
   actionLabels,
   activeControls,
   commandLimits,
+  chargingOptions,
   native,
   numeric,
   readingText,
@@ -162,13 +163,30 @@ export default function NativeApp() {
     dialog?.action === "otaSchedule" ||
     (dialog?.action === "climateStart" && supportsTemperature);
   const limits = commandLimits(vehicle, dialog?.action ?? "");
+  const chargeAction =
+    dialog?.action === "target" || dialog?.action === "amperage"
+      ? dialog.action
+      : null;
+  const chargeOptions = chargeAction
+    ? chargingOptions(
+        vehicle,
+        chargeAction,
+        numeric(
+          snapshot,
+          chargeAction,
+          chargeAction === "target" ? "percent" : "amps",
+        ),
+      )
+    : null;
+  const chargeUnit = chargeAction === "target" ? "%" : "A";
   const validValue =
     !needsValue ||
     (dialog?.value !== undefined &&
       Number.isFinite(dialog.value) &&
       dialog.value >= limits.min &&
       dialog.value <= limits.max &&
-      Number.isInteger(dialog.value / limits.step));
+      Number.isInteger(dialog.value / limits.step) &&
+      (!chargeOptions || chargeOptions.values.includes(dialog.value)));
 
   useEffect(() => {
     document.title = `Norr 北行 · ${pages.find((item) => item.id === page)?.label}`;
@@ -404,7 +422,12 @@ export default function NativeApp() {
           ? numeric(snapshot, "amperage", "amps")
           : numeric(snapshot, "climate", "targetTemperature");
     const fallback = action === "target" ? 80 : action === "amperage" ? 16 : 22;
-    setDialog({ vin, action, value: current ?? fallback });
+    const bounds = commandLimits(vehicle, action);
+    setDialog({
+      vin,
+      action,
+      value: current ?? Math.min(bounds.max, Math.max(bounds.min, fallback)),
+    });
   }
 
   async function sendCommand() {
@@ -1112,7 +1135,64 @@ export default function NativeApp() {
           ) && (
             <p className="modal-description">请确认车辆周围空间允许此操作。</p>
           )}
-          {needsValue && (
+          {chargeOptions && (
+            <>
+              <div className="limit-readout">
+                <output htmlFor="native-charge-limit">
+                  {dialog.value ?? "待选择"}
+                  <span>{chargeUnit}</span>
+                </output>
+              </div>
+              <label className="range-label" htmlFor="native-charge-limit">
+                {chargeAction === "target" ? "目标电量" : "交流电流上限"}
+                <span>
+                  {limits.min}–{limits.max} {chargeUnit}
+                </span>
+              </label>
+              <input
+                id="native-charge-limit"
+                type="range"
+                min={0}
+                max={Math.max(0, chargeOptions.values.length - 1)}
+                step={1}
+                value={Math.max(
+                  0,
+                  chargeOptions.values.indexOf(dialog.value ?? NaN),
+                )}
+                aria-valuetext={`${dialog.value ?? "待选择"} ${chargeUnit}`}
+                disabled={busy || chargeOptions.values.length < 2}
+                onChange={(event) =>
+                  setDialog({
+                    ...dialog,
+                    value: chargeOptions.values[Number(event.target.value)],
+                  })
+                }
+              />
+              <div
+                className="limit-presets native-charge-presets"
+                role="group"
+                aria-label="快捷档位"
+              >
+                {chargeOptions.presets.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={busy}
+                    aria-pressed={dialog.value === value}
+                    onClick={() => setDialog({ ...dialog, value })}
+                  >
+                    {value} {chargeUnit}
+                  </button>
+                ))}
+              </div>
+              <p className="modal-description">
+                {chargeAction === "target"
+                  ? "按 5% 调节，可保留车辆当前值及范围端点。"
+                  : "按 1 A 调节，实际交流充电电流受充电桩与线缆限制。"}
+              </p>
+            </>
+          )}
+          {needsValue && !chargeOptions && (
             <label className="native-field">
               {dialog.action === "climateStart"
                 ? "目标温度 °C"
@@ -1142,7 +1222,9 @@ export default function NativeApp() {
           )}
           {needsValue && !validValue && (
             <p role="status">
-              请输入 {limits.min} 至 {limits.max}，步长为 {limits.step}。
+              {chargeOptions
+                ? "请选择车辆支持范围内的档位。"
+                : `请输入 ${limits.min} 至 ${limits.max}，步长为 ${limits.step}。`}
             </p>
           )}
           {error && <p role="alert">{error}</p>}

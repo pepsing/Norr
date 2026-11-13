@@ -282,6 +282,43 @@ export function commandLimits(
   };
 }
 
+export function chargingOptions(
+  vehicle: NativeVehicle | undefined,
+  action: "target" | "amperage",
+  current: number | null,
+) {
+  const { min, max } = commandLimits(vehicle, action);
+  if (
+    !Number.isInteger(min) ||
+    !Number.isInteger(max) ||
+    min < 1 ||
+    max > 100 ||
+    min > max
+  )
+    return { values: [], presets: [] };
+  const step = action === "target" ? 5 : 1;
+  const values = new Set([min, max]);
+  for (let value = Math.ceil(min / step) * step; value <= max; value += step)
+    values.add(value);
+  if (
+    current !== null &&
+    Number.isInteger(current) &&
+    current >= min &&
+    current <= max
+  )
+    values.add(current);
+  const candidates =
+    action === "target"
+      ? [min, ...[...values].filter((value) => value % 10 === 0), max]
+      : [min, 6, 8, 10, 13, 16, 20, 24, 32, max];
+  return {
+    values: [...values].sort((a, b) => a - b),
+    presets: [...new Set(candidates)]
+      .filter((value) => value >= min && value <= max)
+      .sort((a, b) => a - b),
+  };
+}
+
 export function unavailableReason(
   vehicle: NativeVehicle | undefined,
   action: string,

@@ -676,3 +676,10 @@
   font-size: 13px;
   line-height: 1.7;
 }
+.native-charge-presets {
+  flex-wrap: wrap;
+}
+.limit-presets.native-charge-presets button {
+  flex: 1 0 64px;
+  white-space: nowrap;
+}
