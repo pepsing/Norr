@@ -135,6 +135,8 @@ export const native = {
     invoke<number | null>("request_login_code", { phone }),
   signInPhone: (phone: string, code: string) =>
     invoke<SessionStatus>("sign_in_phone", { phone, code }),
+  signInPassword: (phone: string, password: string) =>
+    invoke<SessionStatus>("sign_in_password", { phone, password }),
   import: import.meta.env.DEV
     ? (configPath?: string) =>
         invoke<SessionStatus>("import_hisingen", { configPath })

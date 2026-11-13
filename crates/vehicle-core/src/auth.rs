@@ -38,6 +38,16 @@ pub fn validate_code(code: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn validate_password(password: &str) -> Result<()> {
+    if password.is_empty() {
+        return Err("请输入账号密码".into());
+    }
+    if password.len() > 4096 {
+        return Err("密码过长，请检查输入".into());
+    }
+    Ok(())
+}
+
 pub struct PhoneLogin {
     http: Client,
     sent_phone: Option<String>,
@@ -121,6 +131,28 @@ impl PhoneLogin {
         self.pending_session = None;
     }
 
+    pub async fn sign_in_password(
+        &mut self,
+        phone: &str,
+        password: String,
+    ) -> Result<credentials::Session> {
+        let password = zeroize::Zeroizing::new(password);
+        validate_phone(phone)?;
+        validate_password(&password)?;
+        self.finish();
+        let data = self
+            .post(
+                "/user/api/v2/oauth/login/password",
+                json!({"clientId": "polestar-app-android", "phone": phone,
+                "password": password.as_str(), "autocrt": true}),
+                &credentials::signing_key()?,
+                &credentials::device_id()?,
+            )
+            .await?;
+        let login = serde_json::from_value(data).map_err(|_| "登录响应格式无效")?;
+        credentials::Session::from_login(login)
+    }
+
     pub fn retry_at(&self) -> u64 {
         self.next_send_at
     }
@@ -143,7 +175,7 @@ impl PhoneLogin {
             .map_err(|_| "登录服务连接失败，请检查网络后重试")?;
         let status = response.status().as_u16();
         if status == 429 {
-            return Err("操作频繁，请稍后重新获取验证码".into());
+            return Err("操作频繁，请稍后重试".into());
         }
         if !response.status().is_success() {
             return Err(format!("登录服务暂不可用（HTTP {status}），请稍后重试"));
@@ -156,16 +188,18 @@ impl PhoneLogin {
             bytes.extend_from_slice(&chunk);
         }
         let envelope: Value = serde_json::from_slice(&bytes).map_err(|_| "登录响应格式无效")?;
-        decode_response(envelope, path.ends_with("/send"))
+        decode_response(envelope, path)
     }
 }
 
-fn decode_response(envelope: Value, sending: bool) -> Result<Value> {
+fn decode_response(envelope: Value, path: &str) -> Result<Value> {
     if envelope["status"].as_i64() != Some(200) || envelope["code"].as_i64() != Some(200) {
-        return Err(if sending {
-            "短信未发送成功，请稍后重新完成滑块验证"
-        } else {
-            "登录未成功，请检查验证码或重新获取"
+        return Err(match path {
+            "/user/api/v1/credcode/send" => "短信未发送成功，请稍后重新完成滑块验证",
+            "/user/api/v2/oauth/login/password" => {
+                "密码登录未成功，请检查手机号和密码，或使用短信登录"
+            }
+            _ => "登录未成功，请检查验证码或重新获取",
         }
         .into());
     }
@@ -198,12 +232,41 @@ mod tests {
             serde_json::from_value(json!({"sessionId":" ","sig":"fixture","token":"fixture"}))
                 .unwrap();
         assert!(invalid.validate().is_err());
-        assert!(decode_response(json!({"status":200,"code":401,"data":true}), false).is_err());
+        assert!(decode_response(
+            json!({"status":200,"code":401,"data":true}),
+            "/user/api/v2/oauth/login/phone"
+        )
+        .is_err());
         let login = serde_json::from_value(json!({"userUid":"fixture", "globleToken":{
             "accessToken":"", "refreshToken":"fixture", "tokenType":"bearer", "expiresIn":3600
         }}))
         .unwrap();
         assert!(credentials::Session::from_login(login).is_err());
+    }
+
+    #[tokio::test]
+    async fn password_validation_and_errors_do_not_use_sms_requirements() {
+        let mut flow = PhoneLogin::new().unwrap();
+        assert_eq!(
+            flow.sign_in_password("13800000000", String::new())
+                .await
+                .err()
+                .unwrap(),
+            "请输入账号密码"
+        );
+        assert!(flow
+            .sign_in_password("invalid", "fixture".into())
+            .await
+            .is_err());
+        assert!(validate_password(&"a".repeat(4097)).is_err());
+        assert!(validate_password("  密码 with spaces  ").is_ok());
+        let error = decode_response(
+            json!({"status":200,"code":401,"message":"sensitive server detail"}),
+            "/user/api/v2/oauth/login/password",
+        )
+        .unwrap_err();
+        assert!(error.contains("手机号和密码"));
+        assert!(!error.contains("sensitive server detail"));
     }
 
     #[tokio::test]

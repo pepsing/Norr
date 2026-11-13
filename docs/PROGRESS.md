@@ -16,6 +16,18 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
 
+## 2026-11-13 国行密码登录
+
+- 共用登录表单增加「短信登录 / 密码登录」切换，密码登录填写中国大陆手机号与 Polestar 账号密码。macOS、Windows、Android 和 iOS 共用这一入口与原生处理流程。
+- 对照本机留存的官方 Android 4.25.0 客户端 `VerificationCodeLoginViewModel`、`PscnAccountRepo` 与 API 声明，确认 `POST /user/api/v2/oauth/login/password`，请求字段为 `clientId`、`phone`、`password`、`autocrt`。通过现有签名网关发送，沿用既有登录响应解析和会话续期。
+- 密码按原文提交，提交结束、切换方式、取消和更改手机号时清空输入。Rust 请求入口使用 Zeroizing 管理密码字符串，持久化仍只保存登录会话。密码请求失败时显示专用提示，原生登录互斥锁防止并发提交。
+- TypeScript、39 项 Rust 测试、9 项前端回归、严格 Clippy 通过。模拟 IPC 检查错误重试、短信切换、忙碌状态、键盘提交、会话接入、取消清空与缺少登录配置。四个平台标识下的 320 / 1280 像素浅深主题共 16 组布局通过，页面错误为 0。
+- 本轮保留本地源码修改，安装包待后续构建。真实账号密码换取会话、车辆读取及重启恢复仍待验证。
+- Hard Gate PASS，密码遮罩、错误提示与禁用状态已检查。
+- Purpose Gate PASS，登录方式切换复用已有页签样式，表单字段对应官方接口。
+- Liveliness PASS，沿用项目 ENERGY 2 / RHYTHM 2 / MOTION 1、字标与浅深配色。
+- Craftsmanship PASS，类型检查、回归测试及上述模拟交互与布局通过，实测范围明确记录。
+
 ## 2026-11-13 macOS Intel 自动构建
 
 - GitHub Actions 新增 `macos-15-intel` 任务，与 ARM64 分别运行测试、Clippy 和原生打包，归档前校验主程序架构与签名。

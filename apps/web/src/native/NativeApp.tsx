@@ -809,7 +809,7 @@ export default function NativeApp() {
                 ? "读取本机登录会话并连接厂商车辆服务。"
                 : connected
                   ? "请确认此手机号已在 Polestar App 绑定车辆，然后刷新重试。"
-                  : "使用中国大陆 Polestar 账号的手机号和短信验证码登录。"}
+                  : "使用中国大陆 Polestar 账号的手机号，通过短信验证码或密码登录。"}
             </p>
             <button
               className="primary-button"

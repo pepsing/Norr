@@ -902,6 +902,7 @@ pub fn run() {
                 session_status,
                 login::request_login_code,
                 login::sign_in_phone,
+                login::sign_in_password,
                 connect,
                 refresh,
                 history,

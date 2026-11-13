@@ -18,6 +18,8 @@ export function PhoneSignIn({
   const [expanded, setExpanded] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [method, setMethod] = useState<"sms" | "password">("sms");
+  const [password, setPassword] = useState("");
   const [sentPhone, setSentPhone] = useState("");
   const [retryAt, setRetryAt] = useState(0);
   const [seconds, setSeconds] = useState(0);
@@ -25,6 +27,10 @@ export function PhoneSignIn({
   const [error, setError] = useState("");
   const validPhone = /^1[0-9]{10}$/.test(phone);
   const validCode = /^[0-9]{6}$/.test(code);
+  const canSignIn =
+    validPhone &&
+    !!session?.hasSigningKey &&
+    (method === "password" ? password.length > 0 : validCode && sentPhone === phone);
 
   useEffect(() => {
     const update = () =>
@@ -68,12 +74,15 @@ export function PhoneSignIn({
 
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || !validPhone || !validCode || sentPhone !== phone) return;
+    if (busy || !canSignIn) return;
     onBusyChange(true);
     setError("");
     setStatus("正在登录…");
     try {
-      const nextSession = await native.signInPhone(phone, code);
+      const nextSession =
+        method === "password"
+          ? await native.signInPassword(phone, password)
+          : await native.signInPhone(phone, code);
       setCode("");
       setPhone("");
       setSentPhone("");
@@ -84,6 +93,7 @@ export function PhoneSignIn({
       setStatus("");
       setError(String(problem));
     } finally {
+      setPassword("");
       onBusyChange(false);
     }
   }
@@ -109,12 +119,33 @@ export function PhoneSignIn({
       <p className="muted" id="phone-login-help">
         使用中国大陆 Polestar 账号绑定的手机号登录。
       </p>
+      <div className="section-tabs" role="group" aria-label="登录方式">
+        {(["sms", "password"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={method === value}
+            disabled={busy}
+            onClick={() => {
+              if (value === method) return;
+              setMethod(value);
+              setPassword("");
+              setCode("");
+              setSentPhone("");
+              setStatus("");
+              setError("");
+            }}
+          >
+            {value === "sms" ? "短信登录" : "密码登录"}
+          </button>
+        ))}
+      </div>
       <label className="native-field">
         手机号 · +86
         <input
           type="tel"
           inputMode="numeric"
-          autoComplete="tel-national"
+          autoComplete={method === "password" ? "username" : "tel-national"}
           aria-describedby="phone-login-help"
           maxLength={11}
           value={phone}
@@ -123,41 +154,57 @@ export function PhoneSignIn({
           onChange={(event) => {
             setPhone(event.target.value.trim());
             setCode("");
+            setPassword("");
             setSentPhone("");
             setStatus("");
             setError("");
           }}
         />
       </label>
-      <div className="native-sign-in-code">
+      {method === "password" ? (
         <label className="native-field">
-          短信验证码
+          账号密码
           <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            value={code}
-            placeholder="6 位验证码"
+            type="password"
+            autoComplete="current-password"
+            maxLength={1024}
+            value={password}
+            placeholder="Polestar 账号密码"
             disabled={busy}
-            onChange={(event) => setCode(event.target.value.trim())}
+            onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <button
-          className="secondary-button"
-          type="button"
-          disabled={
-            busy || !validPhone || seconds > 0 || !session?.hasSigningKey
-          }
-          onClick={() => void sendCode()}
-        >
-          {seconds > 0
-            ? `${seconds} 秒后重发`
-            : sentPhone && sentPhone === phone
-              ? "重新获取验证码"
-              : "获取验证码"}
-        </button>
-      </div>
+      ) : (
+        <div className="native-sign-in-code">
+          <label className="native-field">
+            短信验证码
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              placeholder="6 位验证码"
+              disabled={busy}
+              onChange={(event) => setCode(event.target.value.trim())}
+            />
+          </label>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={
+              busy || !validPhone || seconds > 0 || !session?.hasSigningKey
+            }
+            onClick={() => void sendCode()}
+          >
+            {seconds > 0
+              ? `${seconds} 秒后重发`
+              : sentPhone && sentPhone === phone
+                ? "重新获取验证码"
+                : "获取验证码"}
+          </button>
+        </div>
+      )}
       {!session?.hasSigningKey && !busy && (
         <p className="native-inline-error" role="alert">
           此安装包缺少中国区登录配置，请安装包含登录配置的版本。
@@ -179,7 +226,7 @@ export function PhoneSignIn({
         <button
           className="primary-button"
           type="submit"
-          disabled={busy || !validCode || !validPhone || sentPhone !== phone}
+          disabled={busy || !canSignIn}
         >
           登录并读取车辆
         </button>
@@ -191,6 +238,7 @@ export function PhoneSignIn({
             onClick={() => {
               setExpanded(false);
               setCode("");
+              setPassword("");
               setError("");
               setStatus("");
             }}

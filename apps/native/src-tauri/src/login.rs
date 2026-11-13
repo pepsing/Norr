@@ -94,6 +94,35 @@ pub async fn sign_in_phone(
         .map_err(|_| "登录操作正在进行，请稍后再试")?;
     let mut backend = backend.lock().await;
     let session = flow.sign_in(&phone, &code).await?;
+    commit_session(&app, &mut backend, &mut flow, session)
+}
+
+#[tauri::command]
+pub async fn sign_in_password(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, Mutex<PhoneLogin>>,
+    backend: State<'_, Mutex<crate::Backend>>,
+    phone: String,
+    password: String,
+) -> Result<credentials::SessionStatus> {
+    if window.label() != "main" {
+        return Err("请在 Norr 主窗口登录".into());
+    }
+    let mut flow = state
+        .try_lock()
+        .map_err(|_| "登录操作正在进行，请稍后再试")?;
+    let mut backend = backend.lock().await;
+    let session = flow.sign_in_password(&phone, password).await?;
+    commit_session(&app, &mut backend, &mut flow, session)
+}
+
+fn commit_session(
+    app: &tauri::AppHandle,
+    backend: &mut crate::Backend,
+    flow: &mut PhoneLogin,
+    session: credentials::Session,
+) -> Result<credentials::SessionStatus> {
     let client = norr_vehicle_core::china::ChinaClient::new()?;
     credentials::save_session(&session)?;
     backend.client = client;
