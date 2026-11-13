@@ -52,6 +52,7 @@ npm run dev -- --port 5174
 | `npm run build:windows` | 构建 Windows x64 NSIS 安装包 |
 | `npm run build:android` | 构建 Android ARM64 APK |
 | `npm run build:ios` | 构建 iOS ARM64 模拟器应用 |
+| `npm run build:ios:unsigned` | 构建 iOS ARM64 未签名真机 IPA，安装前需重新签名 |
 | `npm run check:native` | 运行 Rust 核心与宿主回归测试 |
 
 依赖由根目录 `package-lock.json` 统一锁定。

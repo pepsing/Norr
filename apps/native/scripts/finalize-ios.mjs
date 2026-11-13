@@ -1,8 +1,8 @@
-import { cpSync, mkdirSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-export function finalizeIOSSimulator() {
+export function finalizeIOS(device = false) {
   const source = fileURLToPath(
     new URL(
       "../src-tauri/gen/apple/build/norr_iOS.xcarchive/Products/Applications/Norr.app",
@@ -16,7 +16,10 @@ export function finalizeIOSSimulator() {
       { encoding: "utf8" },
     ),
   );
-  if (!info.CFBundleSupportedPlatforms?.includes("iPhoneSimulator")) return;
+  const platform = device ? "iPhoneOS" : "iPhoneSimulator";
+  if (!info.CFBundleSupportedPlatforms?.includes(platform)) {
+    throw new Error(`Expected ${platform} archive`);
+  }
 
   const directory = fileURLToPath(
     new URL("../../../target/ios/", import.meta.url),
@@ -25,6 +28,17 @@ export function finalizeIOSSimulator() {
   const architecture = execFileSync("/usr/bin/lipo", ["-archs", `${source}/Norr`], {
     encoding: "utf8",
   }).trim().replaceAll(" ", "-");
+  if (device) {
+    if (architecture !== "arm64") throw new Error("Expected ARM64 iOS device app");
+    const buildInfo = execFileSync("/usr/bin/xcrun", ["vtool", "-show-build", `${source}/Norr`], {
+      encoding: "utf8",
+    });
+    if (!/^\s*platform IOS\s*$/m.test(buildInfo)) {
+      throw new Error("Expected Mach-O built for iOS devices");
+    }
+    packageUnsignedIPA(source, directory, info.CFBundleShortVersionString);
+    return;
+  }
   const archive = `${directory}Norr_${info.CFBundleShortVersionString}_ios-${architecture}-simulator.zip`;
   mkdirSync(directory, { recursive: true });
   rmSync(app, { recursive: true, force: true });
@@ -39,4 +53,35 @@ export function finalizeIOSSimulator() {
     stdio: "inherit",
   });
   console.log(`iOS 模拟器应用：${app}\n模拟器压缩包：${archive}`);
+}
+
+function packageUnsignedIPA(source, directory, version) {
+  mkdirSync(directory, { recursive: true });
+  const staging = mkdtempSync(`${directory}.unsigned-`);
+  const archive = `${directory}Norr_${version}_ios-arm64-unsigned.ipa`;
+  try {
+    const payload = `${staging}/Payload`;
+    const app = `${payload}/Norr.app`;
+    mkdirSync(payload);
+    cpSync(source, app, { recursive: true });
+    const nestedCode = readdirSync(app, { recursive: true }).filter(
+      (path) => path.endsWith(".dylib") || path.endsWith(".framework"),
+    );
+    for (const code of [...nestedCode.map((path) => `${app}/${path}`), app]) {
+      execFileSync("/usr/bin/codesign", ["--remove-signature", code]);
+      const signature = spawnSync("/usr/bin/codesign", ["--display", code], {
+        encoding: "utf8",
+      });
+      if (signature.status !== 1 || !signature.stderr.includes("not signed at all")) {
+        throw new Error(`Could not verify unsigned code: ${code}`);
+      }
+    }
+    rmSync(`${app}/embedded.mobileprovision`, { force: true });
+    execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", "--norsrc", payload, `${staging}/unsigned.ipa`]);
+    execFileSync("/usr/bin/unzip", ["-tq", `${staging}/unsigned.ipa`]);
+    renameSync(`${staging}/unsigned.ipa`, archive);
+    console.log(`未签名 iOS IPA：${archive}\n安装前需使用有效证书与描述文件重新签名。`);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }

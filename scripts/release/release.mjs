@@ -69,6 +69,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl) {
     '| `windows-x64-setup.exe` | Windows 10/11 x64 安装程序 |',
     '| `android-arm64.apk` | Android ARM64，沿用当前测试证书 |',
     '| `ios-arm64-simulator.zip` | Apple Silicon Mac 上的 iOS 模拟器 |',
+    '| `ios-arm64-unsigned.ipa` | iPhone / iPad 真机包，安装前需使用有效证书与描述文件重新签名 |',
     '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
     '', '本版通过自动测试与四端构建，新包的登录、系统功能和实车操作按进度表继续验收。',
     '', `[构建记录](${runUrl}) · [验证范围](https://github.com/${repository}/blob/${plan.sha}/docs/PROGRESS.md)`,
@@ -156,6 +157,7 @@ export function prepareAssets(version, directory) {
     ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe'],
     ['Norr-android-arm64', '.apk', 'android-arm64.apk'],
     ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip'],
+    ['Norr-ios-arm64-unsigned', '-unsigned.ipa', 'ios-arm64-unsigned.ipa'],
   ];
   const output = join(directory, 'release');
   mkdirSync(output, { recursive: true });

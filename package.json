@@ -21,6 +21,7 @@
     "build:windows": "npm run build --workspace @norr/native -- windows",
     "build:android": "npm run build --workspace @norr/native -- android",
     "build:ios": "npm run build --workspace @norr/native -- ios",
+    "build:ios:unsigned": "npm run build --workspace @norr/native -- ios --device",
     "check:native": "cargo test --workspace"
   }
 }

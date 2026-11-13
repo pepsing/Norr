@@ -64,9 +64,10 @@ test('notes include actual changes and issue links without claiming open issues 
   assert.doesNotMatch(notes, /skip ci/);
   assert.match(notes, /macos-arm64.zip/);
   assert.match(notes, /macos-x64.zip.*Intel Mac/);
+  assert.match(notes, /ios-arm64-unsigned.ipa.*重新签名/);
 });
 
-test('release requires both Mac architectures and checksums all five packages', () => {
+test('release requires both Mac architectures and both iOS packages, with checksums', () => {
   const directory = mkdtempSync(join(tmpdir(), 'norr-assets-'));
   try {
     const packages = [
@@ -75,6 +76,7 @@ test('release requires both Mac architectures and checksums all five packages', 
       ['Norr-windows-x64', 'windows-x64-setup.exe'],
       ['Norr-android-arm64', 'android-arm64.apk'],
       ['Norr-ios-arm64-simulator', 'ios-arm64-simulator.zip'],
+      ['Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'],
     ];
     for (const [artifact, suffix] of packages) {
       mkdirSync(join(directory, artifact));
@@ -90,6 +92,9 @@ test('release requires both Mac architectures and checksums all five packages', 
       assert.equal(files[index].digest, `sha256:${digest}`);
       assert.ok(checksums.includes(`${digest}  ${files[index].name}\n`));
     }
+    rmSync(join(directory, 'Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'));
+    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package in Norr-ios-arm64-unsigned/);
+    writeFileSync(join(directory, 'Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'), 'Norr-ios-arm64-unsigned');
     rmSync(join(directory, 'Norr-macos-x64'), { recursive: true });
     assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /Norr-macos-x64/);
     mkdirSync(join(directory, 'Norr-macos-x64'));

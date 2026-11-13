@@ -16,6 +16,13 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
 
+## 2026-11-13 iOS 未签名真机 IPA
+
+- 新增 `npm run build:ios:unsigned`，使用 iPhoneOS SDK 和 `aarch64-apple-ios` 构建，输出 `Payload/Norr.app` 结构的未签名 IPA。安装前需使用有效证书与匹配的描述文件重新签名。
+- GitHub iOS 任务分别构建模拟器 ZIP 和真机未签名 IPA，Release 要求六个包齐全，并将 IPA 纳入 SHA-256 校验。发布说明标明重新签名要求。
+- 本地真机归档、IPA 压缩包完整性、ARM64 架构、Mach-O `IOS` 平台与无签名状态检查通过，模拟器与真机归档混用会报错。10 项发布脚本测试、actionlint 和差异检查通过。云端首次发布结果随后补记，重签名安装及真机运行待验证。
+- 文案 Hard Gate PASS，签名与待测范围明确。Purpose Gate PASS，命令和附件名称对应实际用途。Craftsmanship PASS，上述构建与校验结果已记录。Liveliness 为本轮构建流程改动的非适用项。
+
 ## 2026-11-13 alpha.3 发布
 
 - `v0.1.0-alpha.3` 已发布，源提交为 `7039607`，构建号为 1003。包含国行手机号密码登录和 Android 桌面图标 N 占比与留白调整。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.3)

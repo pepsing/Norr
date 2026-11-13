@@ -22,6 +22,19 @@ npm run build:ios
 
 `build:ios` 默认生成 ARM64 模拟器的 release 构建，归档后生成 `target/ios/Norr.app` 与 `target/ios/Norr_0.1.0_ios-arm64-simulator.zip`，进行本地 ad-hoc 签名校验。模拟器钥匙串权限通过专用 `simulator.entitlements` 嵌入可执行文件，限定于模拟器链接配置；实体设备仍使用 Xcode 开发团队与设备签名。iOS 工程位于 `apps/native/src-tauri/gen/apple`，Swift 桥接位于 `apps/native/src-tauri/ios`。
 
+### 未签名真机 IPA
+
+在装有完整 Xcode 和 iOS SDK 的 Mac 上执行以下命令，登录配置与模拟器构建共用。
+
+```sh
+rustup target add aarch64-apple-ios
+npm run build:ios:unsigned
+```
+
+产物为 `target/ios/Norr_0.1.0_ios-arm64-unsigned.ipa`，内容为 `Payload/Norr.app`。构建使用 iPhoneOS SDK，校验 ARM64 架构和 Mach-O 真机平台，移除签名与描述文件，并检查 ZIP 完整性。此步骤无需 Apple 签名证书。真机安装前需要使用有效证书与匹配的描述文件重新签名，按签名方式满足设备登记要求。重新签名后的安装、钥匙串和车辆功能待真机验证。
+
+GitHub Release 同时提供模拟器 ZIP 与未签名 IPA，两类产物分别纳入上传校验与 `SHA256SUMS.txt`。本机连续构建两种目标时依次执行命令，它们共用 Xcode 归档目录。
+
 在 Xcode 的模拟器窗口中启动一台 iPhone 后，从仓库根目录安装并打开应用。本机 Xcode 27.2 使用 Device Hub 提供模拟器窗口。
 
 ```sh
@@ -122,6 +135,7 @@ GitHub 定时任务可能因负载延迟，公开仓库连续 60 天无活动时
 | `Norr-windows-x64` | Windows 10/11 x64 NSIS 安装程序 |
 | `Norr-android-arm64` | Android ARM64 APK，包含签名与 16 KB 对齐检查 |
 | `Norr-ios-arm64-simulator` | Apple Silicon iOS 模拟器应用 ZIP |
+| `Norr-ios-arm64-unsigned` | iPhone / iPad ARM64 未签名 IPA，安装前需重新签名 |
 
 仓库管理员在 Settings → Secrets and variables → Actions 配置以下 Secrets。
 
