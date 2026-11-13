@@ -16,6 +16,14 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
 
+## 2026-11-13 密码登录 ACL 与 Windows 滑块回调修复
+
+- `alpha.3` 和 `alpha.4` 的密码登录命令漏加主窗口 ACL，导致请求在原生权限检查时被拒绝。已补齐共用 `main-app` 权限，四端随新包取得修复。
+- Windows 官方滑块页面的默认回调仅处理 Android / iOS 浏览器标识，Windows 验证成功后无法返回结果。验证窗口改用官方 `?from=webview` 回调，接收同来源、当前主框架的消息，再提交给原生验证处理。失败显示重试提示，重复回调仅提交一次。
+- 原生测试使用与应用启动相同的 Tauri Context，确认短信与密码登录可从本地主窗口调用，其他窗口与远程来源被拒绝。新增 Windows 验证窗口 ACL 测试，检查带查询参数的官方页面可以提交验证结果。
+- 密码 ACL 回归在修复前复现失败，修复后本机 40 项 Rust 测试和严格 Clippy 通过。4 项 JavaScript 回归覆盖官方回调模式、来源校验、提交失败重试和取消，并接入 CI。使用下载的官方页面脚本离线复现 Windows 默认回调丢失，改用 webview 模式后成功传入原生 IPC。
+- Windows 实机滑块完成后发送短信、收到短信并登录，以及真实密码登录仍待车友复测。云端打包与发布结果随后补记。
+
 ## 2026-11-13 iOS 未签名真机 IPA
 
 - 新增 `npm run build:ios:unsigned`，使用 iPhoneOS SDK 和 `aarch64-apple-ios` 构建，输出 `Payload/Norr.app` 结构的未签名 IPA。安装前需使用有效证书与匹配的描述文件重新签名。

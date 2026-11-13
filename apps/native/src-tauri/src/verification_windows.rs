@@ -3,7 +3,8 @@ use std::sync::Mutex;
 use tauri::{Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tokio::sync::oneshot;
 
-const PAGE: &str = "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html";
+const PAGE: &str =
+    "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html?from=webview";
 type Completion = oneshot::Sender<Option<Verification>>;
 
 #[derive(Default)]
@@ -66,35 +67,7 @@ pub async fn submit_verification(
     Ok(())
 }
 
-const BRIDGE: &str = r#"
-if (window === window.top && location.origin === 'https://h5.app.polestar-auto.com') {
-  const submit = payload => window.__TAURI_INTERNALS__.invoke('submit_verification', { payload });
-  const receive = message => submit(String(message)).catch(() => {
-    const status = document.getElementById('norr-verification-status');
-    if (status) status.textContent = '验证结果无效，请重新加载后重试。';
-  });
-  window.chromium = { postMessage: receive };
-  const handlers = { chinaVerification: { postMessage: receive }, dispatch: { postMessage: receive } };
-  window.webkit = { messageHandlers: handlers };
-  document.addEventListener('DOMContentLoaded', () => {
-    const controls = document.createElement('div');
-    controls.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:#f7f7f5;color:#20221f;font:14px system-ui;z-index:2147483647;';
-    const status = document.createElement('p');
-    status.id = 'norr-verification-status';
-    status.textContent = '完成验证后会向所填手机号发送短信。';
-    controls.appendChild(status);
-    for (const [label, action] of [['重新加载', () => location.reload()], ['取消', () => submit(null)]]) {
-      const button = document.createElement('button');
-      button.textContent = label;
-      button.style.cssText = 'padding:8px 16px;margin-right:12px;font:inherit;cursor:pointer;';
-      button.addEventListener('click', action);
-      controls.appendChild(button);
-    }
-    document.body.appendChild(controls);
-  });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') submit(null); });
-}
-"#;
+const BRIDGE: &str = include_str!("verification_windows.js");
 
 pub async fn verify(parent: &WebviewWindow) -> Result<Option<Verification>> {
     let app = parent.app_handle();

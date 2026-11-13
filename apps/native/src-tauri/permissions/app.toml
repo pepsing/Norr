@@ -2,7 +2,7 @@
 identifier = "main-app"
 description = "Local Norr window commands"
 commands.allow = [
-  "session_status", "request_login_code", "sign_in_phone", "import_hisingen",
+  "session_status", "request_login_code", "sign_in_phone", "sign_in_password", "import_hisingen",
   "connect", "refresh", "history", "history_report", "preview_history_import",
   "commit_history_import", "cancel_history_import", "set_refresh_interval",
   "desktop_status", "set_desktop_option", "open_system_settings",

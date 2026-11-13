@@ -923,7 +923,7 @@ pub fn run() {
             ];
             handler(invoke)
         })
-        .build(tauri::generate_context!())
+        .build(app_context())
         .expect("Norr could not start")
         .run(|_app, _event| {
             #[cfg(target_os = "macos")]
@@ -936,12 +936,91 @@ pub fn run() {
         });
 }
 
+fn app_context() -> tauri::Context<tauri::Wry> {
+    tauri::generate_context!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn login_commands_are_allowed_only_from_the_local_main_window() {
+        let mut context = app_context();
+        let authority = context.runtime_authority_mut();
+        let remote = tauri::ipc::Origin::Remote {
+            url: "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html"
+                .parse()
+                .unwrap(),
+        };
+        for command in ["request_login_code", "sign_in_phone", "sign_in_password"] {
+            assert!(
+                authority
+                    .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
+                    .is_some(),
+                "{command} must be allowed from the local main window"
+            );
+            assert!(authority
+                .resolve_access(
+                    command,
+                    "phone-verification-1",
+                    "phone-verification-1",
+                    &remote
+                )
+                .is_none());
+            assert!(authority
+                .resolve_access(command, "main", "main", &remote)
+                .is_none());
+            assert!(authority
+                .resolve_access(command, "other", "other", &tauri::ipc::Origin::Local)
+                .is_none());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn verification_callback_is_allowed_only_from_its_official_window() {
+        let mut context = app_context();
+        let authority = context.runtime_authority_mut();
+        let remote = tauri::ipc::Origin::Remote {
+            url: "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html?from=webview"
+                .parse()
+                .unwrap(),
+        };
+        assert!(authority
+            .resolve_access(
+                "submit_verification",
+                "phone-verification-1",
+                "phone-verification-1",
+                &remote
+            )
+            .is_some());
+        assert!(authority
+            .resolve_access("submit_verification", "main", "main", &remote)
+            .is_none());
+        assert!(authority
+            .resolve_access(
+                "submit_verification",
+                "phone-verification-1",
+                "phone-verification-1",
+                &tauri::ipc::Origin::Local
+            )
+            .is_none());
+        let other_origin = tauri::ipc::Origin::Remote {
+            url: "https://example.org/".parse().unwrap(),
+        };
+        assert!(authority
+            .resolve_access(
+                "submit_verification",
+                "phone-verification-1",
+                "phone-verification-1",
+                &other_origin
+            )
+            .is_none());
+    }
 
     #[cfg(not(debug_assertions))]
     #[test]

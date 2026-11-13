@@ -46,6 +46,7 @@ jobs:
           BUILD_NUMBER: ${{ inputs.build_number }}
       - run: npm ci
       - run: node --test scripts/release/*.test.mjs
+      - run: node --test apps/native/scripts/*.test.mjs
       - run: npm run test --workspace @norr/web
       - run: npm run build
 
