@@ -1,6 +1,6 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.5`，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前 Windows 预发行版为 `v0.1.0-alpha.6`，全平台预发行版为 `v0.1.0-alpha.5`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
 
@@ -20,14 +20,16 @@ Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macO
 
 - 手动发布新增 `platform` 选择，`windows` 只执行前端检查、Windows 测试与打包，上传 Windows x64 安装程序和 SHA-256 清单。`all` 与每日定时任务生成全平台包。
 - 发布元数据记录平台范围，全平台任务以上次全平台版本为基线，Windows 单平台发布后仍可补齐其他平台。草稿重试同时匹配源提交与平台。
-- 13 项发布脚本回归、actionlint 与差异检查通过，本次登录修复按用户要求仅发布 Windows，云端结果随后补记。
+- `v0.1.0-alpha.6` 已发布 Windows x64 安装程序和 `SHA256SUMS.txt`，源提交为 `62414c9`，构建号为 1006。前端检查、43 项 Windows Rust 测试、严格 Clippy 与 NSIS 打包通过。
+- 云端自动发布遇到单个构建产物直接解压到根目录的差异。已补齐单产物目录处理与回归，14 项发布脚本测试、actionlint 和差异检查通过。复用本次 CI 安装包，由本机发布脚本完成上传并核对远端 SHA-256 与大小，未重新编译安装包。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.6) · [构建记录](https://github.com/pepsing/Norr/actions/runs/43438726666)
+- 本轮文案交付检查的 Hard Gate、Purpose Gate、Liveliness、Craftsmanship 均为 PASS，发布范围、恢复过程与实机待测状态按实际结果记录。
 
 ## 2026-11-13 Windows 验证结果提交权限修复
 
 - `alpha.5` 已收到官方滑块回调，但 Tauri 自定义协议 IPC 按 HTTP `Origin` 校验权限，来源仅含 `https://h5.app.polestar-auto.com/`。先前权限只匹配完整验证页面，导致结果提交继续被 ACL 拦截。
 - 验证窗口权限新增官方域名来源，保留完整页面匹配用于 postMessage 传输。原生命令继续核对窗口当前完整地址、待处理窗口标识和验证字段。
 - ACL 回归改为读取构建生成的权限与能力配置，使用 Tauri 的 Windows 解析器测试域名来源与完整页面来源，在 Mac 上也可执行。新增来源用例修复前失败，修复后通过。
-- 提交错误按权限拦截、连接未就绪和已知原生校验原因显示提示，未知错误使用通用提示。41 项 Rust 测试、6 项 JavaScript 回归、严格 Clippy 通过。Windows 真机滑块完成后继续发送短信仍待复测，云端发布结果随后补记。
+- 提交错误按权限拦截、连接未就绪和已知原生校验原因显示提示，未知错误使用通用提示。41 项 Rust 测试、6 项 JavaScript 回归、严格 Clippy 通过。Windows 的 43 项 Rust 测试也已通过，修复已随 `alpha.6` Windows 包发布。Windows 真机滑块完成后继续发送短信仍待复测。
 
 ## 2026-11-13 密码登录 ACL 与 Windows 滑块回调修复
 

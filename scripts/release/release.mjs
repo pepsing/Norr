@@ -1,4 +1,4 @@
-import { appendFileSync, copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -169,7 +169,8 @@ export function prepareAssets(version, directory, platform = 'all') {
   mkdirSync(output, { recursive: true });
   const files = [];
   for (const [artifact, extension, suffix] of patterns) {
-    const folder = join(directory, artifact);
+    const artifactFolder = join(directory, artifact);
+    const folder = patterns.length === 1 && !existsSync(artifactFolder) ? directory : artifactFolder;
     const candidates = readdirSync(folder).filter((name) => name.endsWith(extension));
     if (candidates.length !== 1) throw new Error(`Expected exactly one package in ${artifact}`);
     const path = join(output, `Norr_${version}_${suffix}`);

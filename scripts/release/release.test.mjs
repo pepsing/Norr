@@ -179,3 +179,19 @@ test('version injection updates locked workspace packages and platform build num
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+
+test('single Windows artifact can be downloaded directly into the artifact root', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'norr-single-artifact-'));
+  try {
+    writeFileSync(join(directory, 'norr-setup.exe'), 'windows installer');
+    const files = prepareAssets('0.1.0-alpha.6', directory, 'windows');
+    assert.equal(files.length, 2);
+    assert.equal(readFileSync(files[0].path, 'utf8'), 'windows installer');
+    assert.throws(() => prepareAssets('0.1.0-alpha.6', directory, 'all'), /Norr-macos-arm64/);
+    writeFileSync(join(directory, 'duplicate-setup.exe'), 'duplicate');
+    assert.throws(() => prepareAssets('0.1.0-alpha.6', directory, 'windows'), /exactly one package/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
