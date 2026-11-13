@@ -4,6 +4,12 @@
 
 ## 当前状态
 
+### macOS Intel 自动构建
+
+- GitHub Actions 新增 `macos-15-intel` 任务，与 ARM64 分别运行测试、Clippy 和原生打包，归档前校验主程序架构与签名。
+- 每日 alpha 发布要求同时具备 `macos-arm64.zip` 与 `macos-x64.zip`，Release 下载表与 SHA-256 清单覆盖两种 Mac 架构。
+- 本地 actionlint 与 10 项发布脚本测试通过。Intel 云端构建和安装运行待验证。
+
 Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本地车辆核心，各设备直接访问厂商服务。当前原生车辆适配覆盖中国区 Polestar 2 的 ICUP / AccountLinking 平台。Polestar 4 的外观素材已内置，HUANFU / Geely 服务适配与实车验证待完成。
 
 | 平台 | 已完成实现 | 已取得的验证结果 | 仍待验证或实现 |

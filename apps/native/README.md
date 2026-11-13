@@ -116,6 +116,7 @@ GitHub 定时任务可能因负载延迟，公开仓库连续 60 天无活动时
 | Artifact 名称 | 内容 |
 | --- | --- |
 | `Norr-macos-arm64` | Apple Silicon 的 Norr.app ZIP，ad-hoc 签名 |
+| `Norr-macos-x64` | Intel 的 Norr.app ZIP，ad-hoc 签名 |
 | `Norr-windows-x64` | Windows 10/11 x64 NSIS 安装程序 |
 | `Norr-android-arm64` | Android ARM64 APK，包含签名与 16 KB 对齐检查 |
 | `Norr-ios-arm64-simulator` | Apple Silicon iOS 模拟器应用 ZIP |

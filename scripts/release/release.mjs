@@ -65,6 +65,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl) {
   lines.push('', '## 安装包', '',
     '| 文件后缀 | 适用平台 |', '| --- | --- |',
     '| `macos-arm64.zip` | Apple Silicon Mac，解压后安装 Norr.app |',
+    '| `macos-x64.zip` | Intel Mac，解压后安装 Norr.app |',
     '| `windows-x64-setup.exe` | Windows 10/11 x64 安装程序 |',
     '| `android-arm64.apk` | Android ARM64，沿用当前测试证书 |',
     '| `ios-arm64-simulator.zip` | Apple Silicon Mac 上的 iOS 模拟器 |',
@@ -148,9 +149,10 @@ function collectChanges(plan, repository) {
   return { changes, issues };
 }
 
-function prepareAssets(version, directory) {
+export function prepareAssets(version, directory) {
   const patterns = [
     ['Norr-macos-arm64', '.zip', 'macos-arm64.zip'],
+    ['Norr-macos-x64', '.zip', 'macos-x64.zip'],
     ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe'],
     ['Norr-android-arm64', '.apk', 'android-arm64.apk'],
     ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip'],

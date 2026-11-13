@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { planRelease, referencedIssues, renderNotes } from './release.mjs';
+import { planRelease, prepareAssets, referencedIssues, renderNotes } from './release.mjs';
 import { validateVersion } from './version.mjs';
 
 const initial = { sha: 'a'.repeat(40), baseVersion: '0.1.0', releases: [], tags: [] };
@@ -61,6 +62,43 @@ test('notes include actual changes and issue links without claiming open issues 
   assert.match(notes, /compare\//);
   assert.doesNotMatch(notes, /首个 alpha/);
   assert.doesNotMatch(notes, /skip ci/);
+  assert.match(notes, /macos-arm64.zip/);
+  assert.match(notes, /macos-x64.zip.*Intel Mac/);
+});
+
+test('release requires both Mac architectures and checksums all five packages', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'norr-assets-'));
+  try {
+    const packages = [
+      ['Norr-macos-arm64', 'macos-arm64.zip'],
+      ['Norr-macos-x64', 'macos-x64.zip'],
+      ['Norr-windows-x64', 'windows-x64-setup.exe'],
+      ['Norr-android-arm64', 'android-arm64.apk'],
+      ['Norr-ios-arm64-simulator', 'ios-arm64-simulator.zip'],
+    ];
+    for (const [artifact, suffix] of packages) {
+      mkdirSync(join(directory, artifact));
+      writeFileSync(join(directory, artifact, suffix), artifact);
+    }
+    const files = prepareAssets('0.1.0-alpha.2', directory);
+    assert.deepEqual(files.map((file) => file.name), [
+      ...packages.map(([, suffix]) => `Norr_0.1.0-alpha.2_${suffix}`), 'SHA256SUMS.txt',
+    ]);
+    const checksums = readFileSync(files.at(-1).path, 'utf8');
+    for (const [index, [artifact]] of packages.entries()) {
+      const digest = createHash('sha256').update(artifact).digest('hex');
+      assert.equal(files[index].digest, `sha256:${digest}`);
+      assert.ok(checksums.includes(`${digest}  ${files[index].name}\n`));
+    }
+    rmSync(join(directory, 'Norr-macos-x64'), { recursive: true });
+    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /Norr-macos-x64/);
+    mkdirSync(join(directory, 'Norr-macos-x64'));
+    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package/);
+    for (const name of ['first.zip', 'second.zip']) writeFileSync(join(directory, 'Norr-macos-x64', name), name);
+    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('invalid versions and native build numbers fail before writing files', () => {

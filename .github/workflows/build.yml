@@ -50,18 +50,26 @@ jobs:
       - run: npm run build
 
   desktop:
-    name: ${{ matrix.platform }} checks and package
+    name: ${{ matrix.platform }} ${{ matrix.arch }} checks and package
     needs: web
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos
+            arch: arm64
             runner: macos-15
             build: mac
             artifact: Norr-macos-arm64
             path: target/packages/*-macos-arm64.zip
+          - platform: macos
+            arch: x86_64
+            runner: macos-15-intel
+            build: mac
+            artifact: Norr-macos-x64
+            path: target/packages/*-macos-x64.zip
           - platform: windows
+            arch: x86_64
             runner: windows-2025
             build: windows
             artifact: Norr-windows-x64
@@ -104,10 +112,14 @@ jobs:
       - name: Archive macOS app
         if: matrix.platform == 'macos' && inputs.version != '' && github.ref == 'refs/heads/main'
         run: |
-          test "$(uname -m)" = arm64
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          test "$(lipo -archs target/release/bundle/macos/Norr.app/Contents/MacOS/norr)" = "$EXPECTED_ARCH"
           codesign --verify --strict target/release/bundle/macos/Norr.app
           mkdir -p target/packages
-          ditto -c -k --keepParent target/release/bundle/macos/Norr.app target/packages/Norr-macos-arm64.zip
+          ditto -c -k --keepParent target/release/bundle/macos/Norr.app "target/packages/$ARTIFACT_NAME.zip"
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          ARTIFACT_NAME: ${{ matrix.artifact }}
       - uses: actions/upload-artifact@v7.0.2
         if: inputs.version != '' && github.ref == 'refs/heads/main'
         with:
