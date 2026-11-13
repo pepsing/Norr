@@ -246,9 +246,9 @@ cargo run -p norr -- --import-hisingen --config /path/to/Hisingen/.env.secrets
 
 ## 车辆位置
 
-高德提供官方免 Key 嵌入地址 `https://www.amap.com/ssr/embed/place`。用户点击“显示高德地图”后，将位置传给高德并加载交互地图。地图保留高德署名和服务链接，GitHub Release 的地图功能无需配置地图 API key。Google Maps 使用官方免 Key URL 在外部打开车辆位置，Apple 地图提供相同入口。[高德嵌入地图](https://lbs.amap.com/api/uri-api/guide/embedded-map/summarize) · [单点参数](https://lbs.amap.com/api/uri-api/guide/embedded-map/single-location) · [Google Maps URLs](https://developers.google.com/maps/documentation/urls/get-started)
+高德提供官方免 Key 嵌入地址 `https://www.amap.com/ssr/embed/place`。收到有效车辆位置后自动加载交互地图，将位置提供给高德，用户可收起并重新显示。地图保留高德署名和服务链接，GitHub Release 的地图功能无需配置地图 API key。Google Maps 使用官方免 Key URL 在外部打开车辆位置，Apple 地图提供相同入口。[高德嵌入地图](https://lbs.amap.com/api/uri-api/guide/embedded-map/summarize) · [单点参数](https://lbs.amap.com/api/uri-api/guide/embedded-map/single-location) · [Google Maps URLs](https://developers.google.com/maps/documentation/urls/get-started)
 
-车辆接口未标注坐标系，当前默认 GPS / WGS84。高德使用转换后的 GCJ-02，Google 和 Apple 使用 WGS84。若标记偏离实际停车位置，可在“坐标与显示设置”切换车辆原始坐标系并核对。转换依赖 `coordtransform`，MIT 许可随应用打包。位置准确性仍需用户核对。地图本身依赖网络与提供方服务，外部地图入口始终可用。
+车辆接口未标注坐标系。2026-11-13 用户确认高德直接使用车辆原始坐标后位置准确，本地验证版默认按 GCJ-02 处理。高德嵌入页与外部跳转共用同一组坐标，外部链接显式声明 `coordinate=gaode`。Apple 跳转单独将 GCJ-02 转成 WGS84，Google 沿用此前的 URL 与旧坐标偏好。“坐标与显示设置 → 高德与 Apple 坐标来源”按车辆保存，选择 GPS / WGS84 时，高德执行转换，Apple 直接使用原始值。转换依赖 `coordtransform`，MIT 许可随应用打包。用户已在 macOS 验证高德和 Apple 的实际停车点。地图本身依赖网络与提供方服务，外部地图入口始终可用。
 
 ## 首次安装与分发状态
 

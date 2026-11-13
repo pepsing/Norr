@@ -16,6 +16,21 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
 
+## 2026-11-13 Apple 地图坐标修正
+
+- 用户确认上一版本高德位置已修复，Apple 地图可以打开但存在位置偏移。Apple 此前与 Google 共用旧坐标偏好，默认把车辆 GCJ-02 值直接传入链接。
+- Apple 改为独立按车辆坐标来源输出 WGS84，GCJ-02 执行一次逆转换，WGS84 直接传递。界面标注为“高德与 Apple 坐标来源”，按车辆保存。高德及 Google 的链接通过回归比对。
+- 14 项前端测试、类型检查及生产前端构建通过，覆盖 GCJ-02、WGS84、境外坐标与旧 Google 偏好组合。macOS release 已替换 `/Applications/Norr.app`，签名和安装后二进制 SHA-256 比对通过。点击原生页面 Apple 地图按钮已打开网页，接收到转换后的经纬度。用户随后确认 Apple 地图位置修复有效。
+- 本地验证包为 `target/map-check/Norr_0.1.0_macos-arm64-apple-map-check.zip`，用户已确认提交到 GitHub 并触发全平台发布。适用交付项 Hard Gate、Purpose Gate、Liveliness、Craftsmanship 均为 PASS，采用原有视觉与交互，坐标选择说明已覆盖高德和 Apple 的实际作用范围。
+
+## 2026-11-13 高德位置偏移本地验证
+
+- 用户确认 Google Maps 中位置准确，高德内嵌图存在偏移。当前前端对原始坐标执行 WGS84 转 GCJ-02，本机缓存坐标经转换约向东南偏移 500 米。检查高德嵌入页脚本确认其直接使用传入坐标，用户随后确认取消重复转换后高德位置准确。
+- 本地验证版将高德默认改为直接标注车辆坐标。高德内嵌与跳转共用坐标结果，GPS 转换选项独立按车辆保存，旧 Google / Apple URL 与坐标偏好通过回归核对。
+- 13 项前端测试及类型检查、生产前端构建通过。新增回归覆盖两种高德模式、嵌入与跳转一致性、Google / Apple URL、境外坐标、车辆偏好、存储不可用和无效读数。
+- macOS release 已本地构建并替换 `/Applications/Norr.app`，签名校验与安装后二进制 SHA-256 比对通过。应用恢复已有会话，原生窗口确认高德默认直接标注、地图成功显示，外部高德落点与内嵌参数一致。验证包位于 `target/map-check/Norr_0.1.0_macos-arm64-map-check.zip`，用户已核对实际停车点并确认修复有效。
+- 本轮适用交付项 Hard Gate、Purpose Gate、Liveliness、Craftsmanship 均为 PASS，沿用原有页面视觉，地图设置表达实际作用范围，验证结果与坐标系推断分别记录。
+
 ## 2026-11-13 Windows 单平台发布
 
 - 手动发布新增 `platform` 选择，`windows` 只执行前端检查、Windows 测试与打包，上传 Windows x64 安装程序和 SHA-256 清单。`all` 与每日定时任务生成全平台包。

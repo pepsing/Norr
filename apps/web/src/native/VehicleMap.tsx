@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { MapPin, ExternalLink } from "lucide-react";
-import coordinates from "coordtransform";
 import { native, numeric, readingText } from "./client";
 import type { Snapshot } from "./client";
+import { vehicleMapLinks } from "./mapLinks";
+import type { CoordinateSystem } from "./mapLinks";
 
 export function VehicleMap({
   snapshot,
@@ -14,13 +15,22 @@ export function VehicleMap({
   const vin = snapshot?.vehicle.vin ?? "";
   const [visible, setVisible] = useState(true);
   const [showLoading, setShowLoading] = useState(false);
-  const [system, setSystem] = useState(() => {
+  const [googleSystem] = useState<CoordinateSystem>(() => {
     try {
       return localStorage.getItem(`norr-coordinate-${vin}`) === "gcj02"
         ? "gcj02"
         : "wgs84";
     } catch {
       return "wgs84";
+    }
+  });
+  const [vehicleSystem, setVehicleSystem] = useState<CoordinateSystem>(() => {
+    try {
+      return localStorage.getItem(`norr-amap-coordinate-${vin}`) === "wgs84"
+        ? "wgs84"
+        : "gcj02";
+    } catch {
+      return "gcj02";
     }
   });
   const lat = numeric(snapshot, "location", "latitude");
@@ -31,17 +41,13 @@ export function VehicleMap({
     lon !== null &&
     Math.abs(lat) <= 90 &&
     Math.abs(lon) <= 180;
-  const [mapLon, mapLat] = valid
-    ? system === "wgs84"
-      ? coordinates.wgs84togcj02(lon, lat)
-      : [lon, lat]
-    : [0, 0];
-  const [gpsLon, gpsLat] = valid
-    ? system === "gcj02"
-      ? coordinates.gcj02towgs84(lon, lat)
-      : [lon, lat]
-    : [0, 0];
-  const embed = `https://www.amap.com/ssr/embed/place?lng=${mapLon.toFixed(6)}&lat=${mapLat.toFixed(6)}&name=Norr%20Polestar&zoom=16&platform=pc&src=Norr`;
+  const links = vehicleMapLinks(
+    valid ? lon : 0,
+    valid ? lat : 0,
+    vehicleSystem,
+    googleSystem,
+  );
+  const embed = links.embed;
   useEffect(() => {
     setShowLoading(visible && valid);
     if (!visible || !valid) return;
@@ -50,14 +56,8 @@ export function VehicleMap({
     return () => window.clearTimeout(timer);
   }, [embed, visible, valid]);
   function open(provider: "amap" | "google" | "apple") {
-    const url =
-      provider === "amap"
-        ? `https://uri.amap.com/marker?position=${mapLon},${mapLat}&name=Polestar&coordinate=gaode&src=Norr&callnative=1`
-        : provider === "google"
-          ? `https://www.google.com/maps/search/?api=1&query=${gpsLat},${gpsLon}`
-          : `https://maps.apple.com/?ll=${gpsLat},${gpsLon}&q=Polestar`;
     void native
-      .openMapLink(url)
+      .openMapLink(links[provider])
       .catch((problem: unknown) => onError(String(problem)));
   }
   return (
@@ -120,28 +120,29 @@ export function VehicleMap({
           <details className="native-map-options">
             <summary>坐标与显示设置</summary>
             <label className="native-field">
-              车辆坐标系
+              高德与 Apple 坐标来源
               <select
-                value={system}
+                value={vehicleSystem}
                 onChange={(event) => {
-                  setSystem(event.target.value);
+                  const value = event.target.value === "wgs84" ? "wgs84" : "gcj02";
+                  setVehicleSystem(value);
                   try {
                     localStorage.setItem(
-                      `norr-coordinate-${vin}`,
-                      event.target.value,
+                      `norr-amap-coordinate-${vin}`,
+                      value,
                     );
                   } catch {
                     onError("坐标系选择暂时无法保存");
                   }
                 }}
               >
-                <option value="wgs84">GPS / WGS84</option>
-                <option value="gcj02">高德 / GCJ-02</option>
+                <option value="gcj02">车辆坐标为 GCJ-02</option>
+                <option value="wgs84">车辆坐标为 GPS / WGS84</option>
               </select>
             </label>
             <p className="muted">
-              接口未标注坐标系，默认按 GPS
-              坐标转换。可切换后核对停车位置。地图加载受网络状况影响，也可使用上方入口打开地图。
+              默认按 GCJ-02 处理车辆坐标，高德直接标注，Apple 转换为 WGS84。
+              若车辆返回 GPS 坐标，请选择 WGS84。此选择按车辆保存。
             </p>
             {visible && (
               <button className="text-button" onClick={() => setVisible(false)}>
