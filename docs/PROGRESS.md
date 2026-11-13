@@ -1,6 +1,6 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前 Windows 预发行版为 `v0.1.0-alpha.6`，全平台预发行版为 `v0.1.0-alpha.5`，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前全平台预发行版为 `v0.1.0-alpha.7`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
 
@@ -15,6 +15,12 @@ Norr 北行采用 React + TypeScript 共用界面、Tauri 2 宿主和 Rust 本�
 | 原生 HarmonyOS | 已准备 `apps/harmonyos` 目录与 ArkTS + ArkWeb 接入说明，明确模拟器先行路径 | 已检查本机基础工具，工程与运行验证待开展 | DevEco 与 SDK 配置、模拟器工程、Rust 协议适配、原生桥接，后续真机验收 |
 
 Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macOS 和 Windows 提供关闭窗口后留驻菜单栏或托盘的实现。平台的具体构建方式与历次验证证据见宿主说明。[原生应用记录](../apps/native/README.md)
+
+## 2026-11-13 alpha.7 全平台发布
+
+- 高德和 Apple 地图位置经用户在本地 macOS 验证通过后，源提交 `febccdd` 已推送到 main，发布 `v0.1.0-alpha.7`，构建号为 1007。
+- macOS Apple Silicon、macOS Intel、Windows x64、Android ARM64、iOS ARM64 模拟器和 iOS ARM64 未签名 IPA 六个包全部构建成功。前端与各桌面端测试、严格 Clippy、附件上传及 SHA-256 校验通过，发布后的六项摘要已与 GitHub 文件摘要逐项核对。
+- 全平台更新说明以上次全平台 `alpha.5` 为基线，包含 `alpha.6` 的 Windows 验证回调权限修复及本次地图坐标修复。各端新包的实机安装与登录按已有待测范围继续验证。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.7) · [完整构建记录](https://github.com/pepsing/Norr/actions/runs/43445504044)
 
 ## 2026-11-13 Apple 地图坐标修正
 
