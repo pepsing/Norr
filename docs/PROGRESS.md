@@ -1,6 +1,6 @@
 # Norr 开发进展
 
-更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.3`，工程位于独立的 `Norr` 仓库。
+更新日期为 2026-11-13，记录时区为 Asia/Jakarta（UTC+07:00）。基础版本为 0.1.0，当前预发行版为 `v0.1.0-alpha.4`，工程位于独立的 `Norr` 仓库。
 
 ## 当前状态
 
@@ -20,7 +20,8 @@ Android 与 iOS 自动采集在应用前台运行，进入后台后暂停。macO
 
 - 新增 `npm run build:ios:unsigned`，使用 iPhoneOS SDK 和 `aarch64-apple-ios` 构建，输出 `Payload/Norr.app` 结构的未签名 IPA。安装前需使用有效证书与匹配的描述文件重新签名。
 - GitHub iOS 任务分别构建模拟器 ZIP 和真机未签名 IPA，Release 要求六个包齐全，并将 IPA 纳入 SHA-256 校验。发布说明标明重新签名要求。
-- 本地真机归档、IPA 压缩包完整性、ARM64 架构、Mach-O `IOS` 平台与无签名状态检查通过，模拟器与真机归档混用会报错。10 项发布脚本测试、actionlint 和差异检查通过。云端首次发布结果随后补记，重签名安装及真机运行待验证。
+- 本地真机归档、IPA 压缩包完整性、ARM64 架构、Mach-O `IOS` 平台与无签名状态检查通过，模拟器与真机归档混用会报错。模拟器重新构建与签名验证、10 项发布脚本测试、actionlint 和差异检查通过。重签名安装及真机运行待验证。
+- `v0.1.0-alpha.4` 已发布，源提交为 `7470b4e`，构建号为 1004。云端六个包全部构建成功，附件与 SHA-256 上传校验通过。下载后的 IPA 已独立核对真机平台、ARM64、构建号及无签名状态。[Release 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.4) · [构建记录](https://github.com/pepsing/Norr/actions/runs/43419885890)
 - 文案 Hard Gate PASS，签名与待测范围明确。Purpose Gate PASS，命令和附件名称对应实际用途。Craftsmanship PASS，上述构建与校验结果已记录。Liveliness 为本轮构建流程改动的非适用项。
 
 ## 2026-11-13 alpha.3 发布
