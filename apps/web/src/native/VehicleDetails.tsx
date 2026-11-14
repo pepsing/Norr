@@ -108,57 +108,52 @@ export function VehicleDetails({
             ])}
         />
       </section>
-      <div>
-        {includeMap && (
-          <VehicleMap
-            key={snapshot?.vehicle.vin}
-            snapshot={snapshot}
-            onError={onError}
-          />
-        )}
-        <section className="native-section">
-          <h2>行程读数</h2>
-          <p className="muted">{readingText(snapshot, "odometer")}</p>
-          <Metrics
-            items={[
-              ["总里程", text(numeric(snapshot, "odometer", "km"), " km")],
-              [
-                "手动行程",
-                text(numeric(snapshot, "odometer", "tripKm"), " km"),
-              ],
-              [
-                "自动行程",
-                text(numeric(snapshot, "odometer", "automaticTripKm"), " km"),
-              ],
-              [
-                "充电后行程",
-                text(numeric(snapshot, "odometer", "sinceChargeTripKm"), " km"),
-              ],
-              [
-                "手动行程均速",
-                text(
-                  numeric(snapshot, "odometer", "manualAverageSpeed"),
-                  " km/h",
-                ),
-              ],
-              [
-                "自动行程均速",
-                text(
-                  numeric(snapshot, "odometer", "automaticAverageSpeed"),
-                  " km/h",
-                ),
-              ],
-              [
-                "充电后均速",
-                text(
-                  numeric(snapshot, "odometer", "sinceChargeAverageSpeed"),
-                  " km/h",
-                ),
-              ],
-            ]}
-          />
-        </section>
-      </div>
+      <section className="native-section">
+        <h2>行程读数</h2>
+        <p className="muted">{readingText(snapshot, "odometer")}</p>
+        <Metrics
+          items={[
+            ["总里程", text(numeric(snapshot, "odometer", "km"), " km")],
+            ["手动行程", text(numeric(snapshot, "odometer", "tripKm"), " km")],
+            [
+              "自动行程",
+              text(numeric(snapshot, "odometer", "automaticTripKm"), " km"),
+            ],
+            [
+              "充电后行程",
+              text(numeric(snapshot, "odometer", "sinceChargeTripKm"), " km"),
+            ],
+            [
+              "手动行程均速",
+              text(
+                numeric(snapshot, "odometer", "manualAverageSpeed"),
+                " km/h",
+              ),
+            ],
+            [
+              "自动行程均速",
+              text(
+                numeric(snapshot, "odometer", "automaticAverageSpeed"),
+                " km/h",
+              ),
+            ],
+            [
+              "充电后均速",
+              text(
+                numeric(snapshot, "odometer", "sinceChargeAverageSpeed"),
+                " km/h",
+              ),
+            ],
+          ]}
+        />
+      </section>
+      {includeMap && (
+        <VehicleMap
+          key={snapshot?.vehicle.vin}
+          snapshot={snapshot}
+          onError={onError}
+        />
+      )}
     </div>
   );
 }
