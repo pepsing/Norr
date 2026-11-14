@@ -7,17 +7,23 @@ export function VehicleArtwork({
   appearance,
   view = "side",
   priority = false,
+  darkStage = false,
 }: {
   appearance: VehicleAppearance;
   view?: "side" | "front";
   priority?: boolean;
+  darkStage?: boolean;
 }) {
-  const src = artworkPath(appearance, view);
+  const cutout = darkStage && view === "side";
+  const studioSource = artworkPath(appearance, view);
+  const src = cutout
+    ? studioSource.replace(/\.jpg$/, "-cutout.webp")
+    : studioSource;
   const { model, variant, color } = appearanceDetails(appearance);
   const [failedSource, setFailedSource] = useState("");
   const [attempt, setAttempt] = useState(0);
   return (
-    <div className="vehicle-artwork">
+    <div className={`vehicle-artwork${cutout ? " vehicle-artwork-cutout" : ""}`}>
       {failedSource === src ? (
         <div className="art-placeholder" role="status">
           <CarFront size={48} strokeWidth={1} />

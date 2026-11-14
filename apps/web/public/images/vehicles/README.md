@@ -1,6 +1,6 @@
 # Polestar vehicle artwork
 
-Downloaded from Polestar on 2026-11-12. The library contains 176 official images, totaling 10,929,214 bytes. Every image is stored locally. The preview loads the selected image on demand.
+Downloaded from Polestar on 2026-11-12. The library contains 176 official images and 80 locally derived transparent images, totaling 22,458,790 bytes. Every image is stored locally. The preview loads the selected image on demand.
 
 ## Coverage
 
@@ -30,6 +30,14 @@ Polestar retains rights to its imagery. Publication and redistribution permissio
 
 `src/vehicle-catalog.ts` defines model, version, colour and cladding choices. `VehicleArtwork` resolves local image paths. `VehicleAppearancePicker` is shared by connection and garage editing. Native clients can consume the JSON manifest and bundle the same files.
 
-Studio files use JPEG at 1440 × 810. Transparent overview files use PNG at 1600 × 1200. The studio stage keeps its light background in both interface themes to preserve the paint render's original appearance.
+Studio files use JPEG at 1440 × 810. Transparent overview files retain their original PNG or WebP format. The dark homepage uses a charcoal stage and a matching derived transparent WebP for all 80 configurations. Derived images retain the studio dimensions and framing, keeping vehicle placement consistent across themes. The light homepage uses studio images for every configuration.
 
 Example path pattern follows `polestar-2/long-dual/snow-black-side.jpg` and `polestar-4/dual-performance/electron-body-front.jpg`.
+
+## Local transparent derivatives
+
+On 2026-11-14 the user authorized local batch background removal. `scripts/prepare-vehicle-cutouts.py` produces lossless `*-side-cutout.webp` files. U2Net estimates the silhouette from the Space paint of the same trim and cladding, then refines the lower edge against each source photograph. Opaque vehicle pixels retain their source RGB values. Edge pixels are decontaminated and the ground shadow is reconstructed as black with variable opacity.
+
+The manifest marks these files as `derived-cutout` and records their source image, segmentation reference, byte count and SHA-256. All 30 P2 and 50 P4 derivatives were reviewed together on the charcoal homepage background, including white paint, wheel designs and lower cladding.
+
+To reproduce, create a Python virtual environment and install `rembg[cpu]==2.0.87`, `pillow==13.0.0` and `scipy==1.17.1`, then run `python scripts/prepare-vehicle-cutouts.py`. The first run downloads the U2Net model through rembg. These tools are used only for asset preparation.

@@ -264,7 +264,7 @@ function WorkspaceApp() {
         ) : (
           <div key={vehicle.id}>
             {page === "vehicle" && (
-              <VehiclePage onNavigate={navigate} onControl={openDialog} />
+              <VehiclePage onNavigate={navigate} onControl={openDialog} theme={theme} />
             )}
             {page === "details" && <VehicleDetails />}
             {page === "controls" && <Controls onControl={openDialog} />}

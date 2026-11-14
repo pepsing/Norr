@@ -26,9 +26,11 @@ import { appearanceFor, appearanceDetails } from "../vehicle-catalog";
 export function VehiclePage({
   onNavigate,
   onControl,
+  theme,
 }: {
   onNavigate: (page: string) => void;
   onControl: (control: "lock" | "climate") => void;
+  theme: "light" | "dark";
 }) {
   const { vehicle, data, busy, scenario, command, temperature } =
     useWorkspace();
@@ -50,7 +52,7 @@ export function VehiclePage({
           </div>
           <div className="vehicle-art">
             {vehicle.brand === "Polestar" ? (
-              <VehicleArtwork appearance={appearanceFor(vehicle)} priority />
+              <VehicleArtwork appearance={appearanceFor(vehicle)} priority darkStage={theme === "dark"} />
             ) : (
               <div className="art-placeholder">
                 <CarFront size={80} strokeWidth={1} />

@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -98,13 +97,13 @@ object NorrWidgets {
         val stored = preferences(context).getString("vehicle", null)
         val data = stored?.let { runCatching { JSONObject(it) }.getOrNull() }
         val appearance = preferences(context).getString("appearance-$id", "system")
-        val dark = appearance == "dark" || (appearance == "system" &&
-            context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
-        val small = render(context, id, data, dark, 0)
-        val medium = render(context, id, data, dark, 1)
-        val large = render(context, id, data, dark, 2)
-        val compactSmall = render(context, id, data, dark, 0, compact = true)
-        val compactMedium = render(context, id, data, dark, 1, compact = true)
+        val dark = appearance == "dark"
+        val followSystem = appearance == "system"
+        val small = render(context, id, data, dark, 0, followSystem = followSystem)
+        val medium = render(context, id, data, dark, 1, followSystem = followSystem)
+        val large = render(context, id, data, dark, 2, followSystem = followSystem)
+        val compactSmall = render(context, id, data, dark, 0, compact = true, followSystem = followSystem)
+        val compactMedium = render(context, id, data, dark, 1, compact = true, followSystem = followSystem)
         val views = if (Build.VERSION.SDK_INT >= 31) {
             RemoteViews(mapOf(
                 SizeF(130f, 110f) to compactSmall,
@@ -129,7 +128,7 @@ object NorrWidgets {
         manager.updateAppWidget(id, views)
     }
 
-    private fun render(context: Context, id: Int, data: JSONObject?, dark: Boolean, size: Int, compact: Boolean = false): RemoteViews {
+    internal fun render(context: Context, id: Int, data: JSONObject?, dark: Boolean, size: Int, compact: Boolean = false, followSystem: Boolean = false): RemoteViews {
         val small = size == 0
         val large = size == 2
         val layout = when {
@@ -138,9 +137,14 @@ object NorrWidgets {
             else -> R.layout.norr_widget_wide
         }
         val views = RemoteViews(context.packageName, layout)
+        fun textColor(view: Int, color: Int) {
+            if (!followSystem) views.setTextColor(view, color)
+        }
         val ink = Color.parseColor(if (dark) "#EEEFE9" else "#20221F")
         val muted = Color.parseColor(if (dark) "#B0B5AA" else "#62665E")
-        views.setInt(R.id.widget_root, "setBackgroundResource", if (dark) R.drawable.widget_background_dark else R.drawable.widget_background_light)
+        if (!followSystem) {
+            views.setInt(R.id.widget_root, "setBackgroundResource", if (dark) R.drawable.widget_background_dark else R.drawable.widget_background_light)
+        }
         val density = context.resources.displayMetrics.density
         val padding = ((if (large) 24 else if (compact && small) 16 else 20) * density).roundToInt()
         val verticalPadding = if (compact && small) (8 * density).roundToInt() else padding
@@ -153,8 +157,8 @@ object NorrWidgets {
             setSpan(ForegroundColorSpan(Color.rgb(243, 132, 70)), 4, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         views.setTextViewText(R.id.widget_brand, brand)
-        for (view in listOf(R.id.widget_brand, R.id.widget_battery, R.id.widget_range, R.id.widget_empty)) views.setTextColor(view, ink)
-        views.setTextColor(R.id.widget_time, muted)
+        for (view in listOf(R.id.widget_brand, R.id.widget_battery, R.id.widget_range, R.id.widget_empty)) textColor(view, ink)
+        textColor(R.id.widget_time, muted)
         views.setViewVisibility(R.id.widget_empty, if (data == null) View.VISIBLE else View.GONE)
         views.setViewVisibility(R.id.widget_content, if (data == null) View.GONE else View.VISIBLE)
         val vin = data?.optString("vin") ?: ""
@@ -171,14 +175,14 @@ object NorrWidgets {
         views.setProgressBar(R.id.widget_battery_bar, 100, data.optDouble("batteryPercent", 0.0).coerceIn(0.0, 100.0).toInt(), false)
         val locked = if (data.isNull("locked")) "门锁未知" else if (data.optBoolean("locked")) "已锁车" else "已解锁"
         views.setTextViewText(R.id.widget_lock, locked)
-        views.setTextColor(R.id.widget_lock, if (small) muted else ink)
+        textColor(R.id.widget_lock, if (small) muted else ink)
         val time = data.optLong("updatedAt", 0)
         val today = android.text.format.DateUtils.isToday(time)
         val timestamp = if (time > 0) SimpleDateFormat(if (today) "HH:mm" else "M/d HH:mm", Locale.getDefault()).format(Date(time)) else "尚未读取"
         views.setTextViewText(R.id.widget_time, if (small || time == 0L) timestamp else "数据于 $timestamp")
         if (!small) {
             views.setTextViewText(R.id.widget_model, data.optString("model"))
-            views.setTextColor(R.id.widget_model, muted)
+            textColor(R.id.widget_model, muted)
             val climate = when (data.optString("climate")) {
                 "active" -> "空调运行中"
                 "starting" -> "空调启动中"
@@ -186,10 +190,12 @@ object NorrWidgets {
                 else -> "空调未知"
             }
             views.setTextViewText(R.id.widget_climate, climate)
-            views.setTextColor(R.id.widget_climate, ink)
-            views.setTextColor(R.id.widget_refresh, muted)
-            for (view in listOf(R.id.widget_lock, R.id.widget_climate)) {
-                views.setInt(view, "setBackgroundResource", if (dark) R.drawable.widget_control_dark else R.drawable.widget_control_light)
+            textColor(R.id.widget_climate, ink)
+            textColor(R.id.widget_refresh, muted)
+            if (!followSystem) {
+                for (view in listOf(R.id.widget_lock, R.id.widget_climate)) {
+                    views.setInt(view, "setBackgroundResource", if (dark) R.drawable.widget_control_dark else R.drawable.widget_control_light)
+                }
             }
             views.setOnClickPendingIntent(R.id.widget_lock, open(context, id, vin, "lock"))
             views.setOnClickPendingIntent(R.id.widget_climate, open(context, id, vin, "climate"))
@@ -216,7 +222,7 @@ object NorrWidgets {
                     else -> "未知"
                 }
                 views.setTextViewText(R.id.widget_charging, "充电状态 · $charging")
-                views.setTextColor(R.id.widget_charging, muted)
+                textColor(R.id.widget_charging, muted)
             }
         }
         return views

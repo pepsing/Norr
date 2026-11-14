@@ -276,6 +276,12 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun postNotification(invoke: Invoke) {
         try {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                invoke.reject("系统已关闭 Norr 通知。")
+                return
+            }
             if (!NotificationManagerCompat.from(activity).areNotificationsEnabled()) {
                 invoke.reject("系统已关闭 Norr 通知。")
                 return

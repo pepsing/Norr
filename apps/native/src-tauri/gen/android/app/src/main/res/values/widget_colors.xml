@@ -1,0 +1,7 @@
+<resources>
+    <color name="widget_ink">#20221F</color>
+    <color name="widget_muted">#62665E</color>
+    <color name="widget_background">#F7F7F5</color>
+    <color name="widget_control">#ECEEE9</color>
+    <color name="widget_ripple">#2062665E</color>
+</resources>

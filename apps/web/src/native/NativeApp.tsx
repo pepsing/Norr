@@ -928,7 +928,7 @@ export default function NativeApp() {
                       </span>
                     </div>
                     <div className="vehicle-art">
-                      <VehicleArtwork appearance={appearance} priority />
+                      <VehicleArtwork appearance={appearance} priority darkStage={theme === "dark"} />
                     </div>
                     <div className="vehicle-stage-footer">
                       <span>VIN ···· {vehicle.vin.slice(-4)}</span>
