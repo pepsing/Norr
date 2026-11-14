@@ -130,6 +130,7 @@ export interface SessionStatus {
 }
 
 export const native = {
+  setAndroidTheme: (dark: boolean) => invoke<void>("set_android_theme", { dark }),
   status: () => invoke<SessionStatus>("session_status"),
   requestLoginCode: (phone: string) =>
     invoke<number | null>("request_login_code", { phone }),

@@ -198,6 +198,15 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun setTheme(invoke: Invoke) {
+        val dark = invoke.getArgs().getBoolean("dark")
+        activity.runOnUiThread {
+            (activity as MainActivity).applyTheme(dark)
+            invoke.resolve()
+        }
+    }
+
+    @Command
     fun lifecycle(invoke: Invoke) {
         invoke.resolve(JSObject().put("active", active).put("generation", generation) as JSObject)
     }

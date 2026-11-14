@@ -1,6 +1,7 @@
 import {
   credentialStorage,
   desktopName,
+  isAndroid,
   isMobile,
   isWindows,
 } from "./platform";
@@ -213,6 +214,11 @@ export default function NativeApp() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    if (isAndroid) {
+      void native.setAndroidTheme(theme === "dark").catch((error) => {
+        console.error("Android 系统栏主题同步失败", error);
+      });
+    }
     try {
       localStorage.setItem("norr-native-theme", theme);
     } catch {

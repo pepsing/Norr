@@ -22,6 +22,12 @@ mod platform;
 #[cfg(target_os = "windows")]
 mod verification_windows;
 
+#[cfg(target_os = "android")]
+#[tauri::command]
+async fn set_android_theme(dark: bool) -> Result<()> {
+    mobile::call_async("setTheme", serde_json::json!({ "dark": dark })).await
+}
+
 #[derive(Clone, Default, Deserialize, Serialize)]
 struct History {
     snapshots: Vec<Snapshot>,
@@ -891,6 +897,12 @@ pub fn run() {
             if invoke.message.webview_ref().label() != "main" {
                 invoke.resolver.reject("请在 Norr 主窗口操作");
                 return true;
+            }
+            #[cfg(target_os = "android")]
+            if invoke.message.command() == "set_android_theme" {
+                let theme_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![set_android_theme];
+                return theme_handler(invoke);
             }
             #[cfg(all(debug_assertions, target_os = "macos"))]
             if invoke.message.command() == "import_hisingen" {

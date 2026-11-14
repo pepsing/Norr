@@ -1,12 +1,16 @@
 package app.norr.mobile
 
 import android.os.Bundle
+import android.os.Build
+import android.content.res.Configuration
+import android.graphics.Color
 import android.view.View
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
 
 class MainActivity : TauriActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +27,28 @@ class MainActivity : TauriActivity() {
             WindowInsetsCompat.CONSUMED
         }
         ViewCompat.requestApplyInsets(content)
+        restoreTheme()
+    }
+
+    fun applyTheme(dark: Boolean) {
+        val background = if (dark) Color.rgb(25, 27, 25) else Color.rgb(247, 247, 245)
+        findViewById<View>(android.R.id.content).setBackgroundColor(background)
+        window.decorView.setBackgroundColor(background)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
+        }
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+        getSharedPreferences("norr-appearance", MODE_PRIVATE).edit().putBoolean("dark", dark).apply()
+    }
+
+    private fun restoreTheme() {
+        applyTheme(getSharedPreferences("norr-appearance", MODE_PRIVATE).getBoolean("dark", false))
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        restoreTheme()
     }
 
     override fun onWebViewCreate(webView: WebView) {

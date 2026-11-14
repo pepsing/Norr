@@ -352,6 +352,17 @@ iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d
 - Liveliness PASS。沿用 DESIGN.md 的 ENERGY 2 / RHYTHM 2 / MOTION 1、Archivo、车辆摄影和橙色状态强调，电量与续航作为首屏主要读数。
 - Craftsmanship PASS。复用原有控制确认、能力判断与 Modal 焦点管理，新增车型与地图分离回归测试，检查数据缺失和读取失败状态。
 
+### Android 系统栏主题同步
+
+2026-11-14 在 vivo V2408A / Android 16 真机确认应用深色页面上下仍有浅色系统区域。现通过主窗口命令同步 Android 内容背景、状态栏及导航栏图标颜色，本机保存主题并在启动和系统配置变化时恢复。应用选择的主题覆盖系统区域外观。实现沿用 [Android 系统栏适配说明](https://developer.android.com/develop/ui/views/layout/edge-to-edge)。
+
+修复 APK 已构建并安装到该手机，真机截图确认深色背景配浅色系统图标、浅色背景配深色系统图标，浅色冷启动恢复通过。浏览器模拟 IPC 检查深浅切换调用和深色刷新恢复。TypeScript 检查、17 项前端测试、41 项 Rust 测试及差异格式检查通过。
+
+- Hard Gate PASS。真机深浅主题下系统图标清晰，首页内容与导航完整可见。
+- Purpose Gate PASS。系统区域背景随应用主题同步，图标颜色与背景保持对比。
+- Liveliness PASS。沿用 DESIGN.md 的配色、车辆摄影、电量读数与橙色选中状态。
+- Craftsmanship PASS。Android 构建安装、双向主题切换、浅色冷启动及 58 项现有测试通过。其他 Android 系统版本的原生系统栏行为尚待真机验证。
+
 ## 验证记录与文档检查
 
 截至 Android 交付，TypeScript 检查、macOS 的 36 项开发回归与 37 项 release 回归、macOS 严格 Clippy 均通过。Windows 专属代码与测试目标通过编译检查。Android release APK 构建、签名与对齐通过。

@@ -5,7 +5,7 @@ commands.allow = [
   "session_status", "request_login_code", "sign_in_phone", "sign_in_password", "import_hisingen",
   "connect", "refresh", "history", "history_report", "preview_history_import",
   "commit_history_import", "cancel_history_import", "set_refresh_interval",
-  "desktop_status", "set_desktop_option", "open_system_settings",
+  "desktop_status", "set_desktop_option", "open_system_settings", "set_android_theme",
   "test_notification", "take_notification_target", "open_location",
   "open_map_link", "export_history", "send_command"
 ]
