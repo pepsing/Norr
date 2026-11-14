@@ -82,6 +82,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl) {
     '| 文件后缀 | 适用平台 |', '| --- | --- |',
     ...releasePackages(plan.platform).map(([, , suffix, description]) => `| \`${suffix}\` | ${description} |`),
     '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。',
+    '', `[iOS 自助签名与安装指南](https://github.com/${repository}/blob/main/docs/ios-self-signing.md)（AltStore Classic、爱思助手、续签与验证状态）。`,
     plan.platform === 'windows' ? 'Windows 安装包尚未进行代码签名。'
       : 'macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
     '', '本版通过所选平台的自动测试与构建，新包的登录、系统功能和实车操作按进度表继续验收。',

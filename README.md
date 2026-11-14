@@ -16,6 +16,10 @@ iOS ARM64 模拟器包已在 iPhone 17 / iOS 27.2 上安装并启动，完成首
 
 ![Norr 车辆概览](docs/preview/norr-overview.jpg)
 
+## iOS 自助签名安装
+
+Release 提供 `ios-arm64-unsigned.ipa` 真机安装包。AltStore Classic 和爱思助手支持用个人 Apple ID 重签，免费签名需每 7 天续签。Norr 的安装、续签、小组件与钥匙串兼容性仍待真机验证。操作步骤、账号限制及官方来源见 [iOS 自助签名与安装](docs/ios-self-signing.md)。
+
 ## 本地运行
 
 使用 Node.js 22.12 或更新版本。安装了 nvm 时，可先运行 `nvm use`。

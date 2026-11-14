@@ -109,6 +109,17 @@ test('notes include actual changes and issue links without claiming open issues 
   assert.match(notes, /ios-arm64-unsigned.ipa.*重新签名/);
 });
 
+test('every release links the current repository self-signing guide once', () => {
+  assert.ok(readFileSync('docs/ios-self-signing.md', 'utf8').includes('NorrWidgets.appex'));
+  for (const platform of ['all', 'windows']) {
+    const plan = { ...planRelease({ ...initial, platform }), previousTag: 'v0.1.0-alpha.1' };
+    const notes = renderNotes(plan, [], [], 'example/Norr', 'https://github.com/example/Norr/actions/runs/1');
+    const guide = 'https://github.com/example/Norr/blob/main/docs/ios-self-signing.md';
+    assert.equal(notes.split(guide).length - 1, 1);
+    assert.match(notes, /AltStore Classic、爱思助手/);
+  }
+});
+
 test('release requires both Mac architectures and both iOS packages, with checksums', () => {
   const directory = mkdtempSync(join(tmpdir(), 'norr-assets-'));
   try {
