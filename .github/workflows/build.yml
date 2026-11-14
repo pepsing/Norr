@@ -35,6 +35,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       desktop_matrix: ${{ steps.targets.outputs.desktop_matrix }}
+      ios_matrix: ${{ steps.targets.outputs.ios_matrix }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -54,7 +55,7 @@ jobs:
       - run: node --test apps/native/scripts/*.test.mjs
       - run: npm run test --workspace @norr/web
       - run: npm run build
-      - name: Select desktop targets
+      - name: Select package targets
         id: targets
         env:
           RELEASE_PLATFORM: ${{ inputs.platform || 'all' }}
@@ -62,7 +63,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { appendFileSync } from 'node:fs';
           const platform = process.env.RELEASE_PLATFORM;
-          if (!['all', 'windows'].includes(platform)) throw new Error('Invalid release platform');
+          if (!['all', 'windows', 'ios-ipa'].includes(platform)) throw new Error('Invalid release platform');
           const targets = [
             { platform: 'macos', arch: 'arm64', runner: 'macos-15', build: 'mac', artifact: 'Norr-macos-arm64', path: 'target/packages/*-macos-arm64.zip' },
             { platform: 'macos', arch: 'x86_64', runner: 'macos-15-intel', build: 'mac', artifact: 'Norr-macos-x64', path: 'target/packages/*-macos-x64.zip' },
@@ -70,11 +71,17 @@ jobs:
           ];
           const include = targets.filter(target => platform === 'all' || target.platform === platform);
           appendFileSync(process.env.GITHUB_OUTPUT, `desktop_matrix=${JSON.stringify({ include })}\n`);
+          const ios = [
+            { variant: 'simulator', target: 'aarch64-apple-ios-sim', sdk: 'iphonesimulator', build: 'ios', artifact: 'Norr-ios-arm64-simulator', path: 'target/ios/*-simulator.zip' },
+            { variant: 'unsigned', target: 'aarch64-apple-ios', sdk: 'iphoneos', build: 'ios:unsigned', artifact: 'Norr-ios-arm64-unsigned', path: 'target/ios/*-unsigned.ipa' },
+          ];
+          appendFileSync(process.env.GITHUB_OUTPUT, `ios_matrix=${JSON.stringify({ include: ios.filter(target => platform === 'all' || (platform === 'ios-ipa' && target.variant === 'unsigned')) })}\n`);
           NODE
 
   desktop:
     name: ${{ matrix.platform }} ${{ matrix.arch }} checks and package
     needs: web
+    if: inputs.platform != 'ios-ipa'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.web.outputs.desktop_matrix) }}
@@ -135,7 +142,7 @@ jobs:
   android:
     name: Android ARM64 package
     needs: web
-    if: inputs.version != '' && github.ref == 'refs/heads/main' && inputs.platform != 'windows'
+    if: inputs.version != '' && github.ref == 'refs/heads/main' && inputs.platform == 'all'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -207,20 +214,7 @@ jobs:
     timeout-minutes: 75
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - variant: simulator
-            target: aarch64-apple-ios-sim
-            sdk: iphonesimulator
-            build: ios
-            artifact: Norr-ios-arm64-simulator
-            path: target/ios/*-simulator.zip
-          - variant: unsigned
-            target: aarch64-apple-ios
-            sdk: iphoneos
-            build: ios:unsigned
-            artifact: Norr-ios-arm64-unsigned
-            path: target/ios/*-unsigned.ipa
+      matrix: ${{ fromJSON(needs.web.outputs.ios_matrix) }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -243,6 +237,11 @@ jobs:
           test "$(uname -m)" = arm64
           xcodebuild -version
           xcrun --sdk "${{ matrix.sdk }}" --show-sdk-version
+      - name: Check widget sharing and IPA entitlements
+        run: |
+          xcrun swiftc apps/native/src-tauri/ios/Sources/NorrWidgetSupport/WidgetStorage.swift apps/native/src-tauri/ios/Tests/WidgetStorageTests.swift -o /tmp/norr-widget-storage-tests
+          /tmp/norr-widget-storage-tests
+          node --test apps/native/scripts/ios-signing.test.mjs
       - name: Build iOS package
         run: |
           node --input-type=module <<'NODE'

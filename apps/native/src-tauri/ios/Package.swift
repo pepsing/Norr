@@ -6,5 +6,8 @@ let package = Package(
   platforms: [.iOS(.v15)],
   products: [.library(name: "NorrMobile", type: .static, targets: ["NorrMobile"])],
   dependencies: [.package(name: "Tauri", path: ".tauri/tauri-api")],
-  targets: [.target(name: "NorrMobile", dependencies: [.byName(name: "Tauri")])]
+  targets: [
+    .target(name: "NorrWidgetSupport"),
+    .target(name: "NorrMobile", dependencies: [.byName(name: "Tauri"), "NorrWidgetSupport"])
+  ]
 )

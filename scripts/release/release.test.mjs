@@ -53,6 +53,63 @@ test('Windows-only publication leaves other platforms eligible for the next full
   assert.equal(plan.version, '0.1.0-alpha.3');
 });
 
+test('single-platform releases only satisfy their own platform and retain the correct baseline', () => {
+  const full = { draft: false, sha: 'b'.repeat(40), tag_name: 'v0.1.0-alpha.10', published_at: '2026-11-14T00:00:00Z' };
+  const ios = { draft: false, sha: initial.sha, tag_name: 'v0.1.0-alpha.11', published_at: '2026-11-14T01:00:00Z',
+    body: '<!-- norr-release {"buildNumber":1011,"platform":"ios-ipa"} -->' };
+  const input = { ...initial, releases: [full, ios] };
+  assert.equal(planRelease({ ...input, platform: 'ios-ipa' }).publish, false);
+  for (const platform of ['all', 'windows']) {
+    const plan = planRelease({ ...input, platform });
+    assert.equal(plan.publish, true);
+    assert.equal(plan.previousTag, full.tag_name);
+  }
+  const windows = { ...ios, body: '<!-- norr-release {"buildNumber":1011,"platform":"windows"} -->' };
+  assert.equal(planRelease({ ...initial, releases: [full, windows], platform: 'ios-ipa' }).previousTag, full.tag_name);
+  assert.equal(planRelease({ ...initial, releases: [{ ...full, sha: initial.sha }], platform: 'ios-ipa' }).publish, false);
+});
+
+test('IPA-only release uploads one IPA and checksums with accurate platform notes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'norr-ipa-release-'));
+  try {
+    writeFileSync(join(directory, 'Norr-unsigned.ipa'), 'ios-package');
+    const files = prepareAssets('0.1.0-alpha.11', directory, 'ios-ipa');
+    assert.deepEqual(files.map(file => file.name), ['Norr_0.1.0-alpha.11_ios-arm64-unsigned.ipa', 'SHA256SUMS.txt']);
+    assert.equal(readFileSync(files[1].path, 'utf8').trim().split('\n').length, 1);
+    const plan = { ...planRelease({ ...initial, platform: 'ios-ipa' }), previousTag: 'v0.1.0-alpha.10' };
+    const notes = renderNotes(plan, [], [], 'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1');
+    assert.match(notes, /ios-arm64-unsigned.ipa/);
+    assert.match(notes, /保留小组件扩展/);
+    assert.doesNotMatch(notes, /macos-arm64.zip|windows-x64|simulator.zip|android-arm64/);
+    assert.match(notes, /"platform":"ios-ipa"/);
+    writeFileSync(join(directory, 'duplicate-unsigned.ipa'), 'duplicate');
+    assert.throws(() => prepareAssets('0.1.0-alpha.11', directory, 'ios-ipa'), /exactly one package/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('workflow selects only the device build for IPA-only dispatches', () => {
+  const workflow = readFileSync('.github/workflows/build.yml', 'utf8');
+  const source = workflow.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\n\s+NODE/)[1];
+  const directory = mkdtempSync(join(tmpdir(), 'norr-matrix-'));
+  try {
+    for (const platform of ['all', 'windows', 'ios-ipa']) {
+      const output = join(directory, platform);
+      execFileSync(process.execPath, ['--input-type=module'], { input: source,
+        env: { ...process.env, RELEASE_PLATFORM: platform, GITHUB_OUTPUT: output } });
+      const matrices = Object.fromEntries(readFileSync(output, 'utf8').trim().split('\n').map(line => {
+        const split = line.indexOf('=');
+        return [line.slice(0, split), JSON.parse(line.slice(split + 1)).include];
+      }));
+      assert.equal(matrices.desktop_matrix.length, platform === 'all' ? 3 : platform === 'windows' ? 1 : 0);
+      assert.deepEqual(matrices.ios_matrix.map(target => target.variant), platform === 'all' ? ['simulator', 'unsigned'] : platform === 'ios-ipa' ? ['unsigned'] : []);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('draft retries retain their selected platform and reject invalid platform names', () => {
   const metadata = { sha: initial.sha, version: '0.1.0-alpha.2', buildNumber: 1002, previousTag: '', platform: 'windows' };
   const draft = { draft: true, tag_name: 'v0.1.0-alpha.2', body: `<!-- norr-release ${JSON.stringify(metadata)} -->` };
@@ -111,7 +168,7 @@ test('notes include actual changes and issue links without claiming open issues 
 
 test('every release links the current repository self-signing guide once', () => {
   assert.ok(readFileSync('docs/ios-self-signing.md', 'utf8').includes('NorrWidgets.appex'));
-  for (const platform of ['all', 'windows']) {
+  for (const platform of ['all', 'windows', 'ios-ipa']) {
     const plan = { ...planRelease({ ...initial, platform }), previousTag: 'v0.1.0-alpha.1' };
     const notes = renderNotes(plan, [], [], 'example/Norr', 'https://github.com/example/Norr/actions/runs/1');
     const guide = 'https://github.com/example/Norr/blob/main/docs/ios-self-signing.md';

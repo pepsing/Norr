@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		05ABD424E8F36900668A4EB1 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 911D2E159DFBDF5C7802D833 /* assets */; };
 		06F0A3B146AA5EA3C69F7696 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 709887AF20A47EDCC3514CFD /* CoreGraphics.framework */; };
+		13FCEDB253E63678CC9B4834 /* WidgetStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA6F62FB50DAA244CC020DF /* WidgetStorage.swift */; };
 		15ACCB9388E281D9C7EC25E9 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 83999D28F72A64A9904BB6D6 /* Metal.framework */; };
 		186B6DEE6D575E8CE0731E0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */; };
 		2B244F7639FFC09B6F179C8E /* Archivo.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */; };
@@ -65,6 +66,7 @@
 		51CF437243902B8C55F57996 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		5783ACEF2EFA386C27FE6C7F /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		5D5DCE0FC7348AEF6704C132 /* exports.rs */ = {isa = PBXFileReference; path = exports.rs; sourceTree = "<group>"; };
+		5DA6F62FB50DAA244CC020DF /* WidgetStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetStorage.swift; sourceTree = "<group>"; };
 		617ABF449ABAC0DE8A67ADF5 /* login.rs */ = {isa = PBXFileReference; path = login.rs; sourceTree = "<group>"; };
 		621E1E381DA4C3D0B4116E0D /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		6DFBFC2C41FF6981D1CA248A /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */,
 				5F78F61D5E8A963BFD82AB41 /* Externals */,
 				48273C557077BF70CCFFD1E5 /* norr_iOS */,
+				6FF9F866FC2AA3B444BB5E05 /* NorrWidgetSupport */,
 				63911ADF33B6872CEAD448E1 /* Sources */,
 				B76023B1477F335437C0133A /* src */,
 				E909E3C6B6A522941FD01DA5 /* Widgets */,
@@ -171,6 +174,15 @@
 				AC069EFEEEE9BE9DB21716FF /* norr */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		6FF9F866FC2AA3B444BB5E05 /* NorrWidgetSupport */ = {
+			isa = PBXGroup;
+			children = (
+				5DA6F62FB50DAA244CC020DF /* WidgetStorage.swift */,
+			);
+			name = NorrWidgetSupport;
+			path = ../../ios/Sources/NorrWidgetSupport;
 			sourceTree = "<group>";
 		};
 		AC069EFEEEE9BE9DB21716FF /* norr */ = {
@@ -378,6 +390,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4DE725A34419E852F71D93A4 /* NorrWidgets.swift in Sources */,
+				13FCEDB253E63678CC9B4834 /* WidgetStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -75,6 +75,8 @@ struct VehicleEntry: TimelineEntry {
   var image: UIImage?
   var darkImage: UIImage?
   var preview = false
+  var unavailableTitle = "等待车辆数据"
+  var unavailableMessage = "打开 Norr 刷新车辆"
 }
 
 struct VehicleProvider: AppIntentTimelineProvider {
@@ -99,11 +101,21 @@ struct VehicleProvider: AppIntentTimelineProvider {
 
   private func load(_ configuration: WidgetOptions) -> VehicleEntry {
     var entry = VehicleEntry(date: .now, configuration: configuration)
-    guard let directory = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: "group.app.norr.widgets"),
-      let bytes = try? Data(contentsOf: directory.appendingPathComponent("vehicle.json")),
-      let stored = try? JSONDecoder().decode(StoredVehicle.self, from: bytes)
-    else { return entry }
+    guard let directory = WidgetStorage.directory() else {
+      entry.unavailableTitle = "共享权限不可用"
+      entry.unavailableMessage = "请重新签名安装，并保留小组件扩展"
+      return entry
+    }
+    let stored: StoredVehicle
+    do {
+      let bytes = try Data(contentsOf: directory.appendingPathComponent("vehicle.json"))
+      stored = try JSONDecoder().decode(StoredVehicle.self, from: bytes)
+    } catch CocoaError.fileReadNoSuchFile {
+      return entry
+    } catch {
+      entry.unavailableTitle = "车辆数据读取失败"
+      return entry
+    }
     entry.data = stored.data
     func croppedImage(_ name: String?) -> UIImage? {
       guard let name, name.hasPrefix("vehicle-"), !name.contains("/") else { return nil }
@@ -147,8 +159,8 @@ struct VehicleWidgetView: View {
         VStack(alignment: .leading, spacing: 12) {
           brand
           Spacer(minLength: 0)
-          Text("打开 Norr").font(.headline)
-          Text("连接车辆后显示状态").font(.caption).foregroundStyle(muted)
+          Text(entry.unavailableTitle).font(.headline)
+          Text(entry.unavailableMessage).font(.caption).foregroundStyle(muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .widgetURL(URL(string: "norr://widget/vehicle")!)

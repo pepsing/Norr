@@ -107,6 +107,7 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources:
+      - path: ../../ios/Sources/NorrWidgetSupport
       - path: ../../ios/Widgets
         excludes: ["*.plist", "*.entitlements"]
     info:

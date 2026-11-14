@@ -137,6 +137,7 @@ export default function NativeApp() {
   const [busy, setBusy] = useState(true);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
+  const [widgetError, setWidgetError] = useState("");
   const [notice, setNotice] = useState<string | Receipt>("");
   const [backgroundError, setBackgroundError] = useState("");
   const [desktopError, setDesktopError] = useState("");
@@ -287,11 +288,20 @@ export default function NativeApp() {
   }, [vehicle?.vin, vehicle?.model]);
 
   useEffect(() => {
-    if (!isMobile || !snapshot || snapshot.vehicle.vin !== vin) return;
+    if (!isMobile || !snapshot || snapshot.vehicle.vin !== vin) {
+      setWidgetError("");
+      return;
+    }
+    let disposed = false;
     const data = widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model));
     widgetSync.current = widgetSync.current
       .then(() => native.updateWidgets(data))
-      .catch((problem) => console.error("小组件数据同步失败", problem));
+      .then(() => { if (!disposed) setWidgetError(""); })
+      .catch((problem) => {
+        console.error("小组件数据同步失败", problem);
+        if (!disposed) setWidgetError(String(problem));
+      });
+    return () => { disposed = true; };
   }, [snapshot, vin, appearance]);
 
   useEffect(() => {
@@ -679,6 +689,11 @@ export default function NativeApp() {
               收起
             </button>
           </div>
+        )}
+        {widgetError && (
+          <p className="native-cache-note" role="status">
+            小组件同步失败 · {widgetError}
+          </p>
         )}
         {backgroundError && (
           <p className="native-cache-note" role="status">

@@ -33,7 +33,7 @@ rustup target add aarch64-apple-ios
 npm run build:ios:unsigned
 ```
 
-产物为 `target/ios/Norr_0.1.0_ios-arm64-unsigned.ipa`，内容为 `Payload/Norr.app`。构建使用 iPhoneOS SDK，校验 ARM64 架构和 Mach-O 真机平台，移除签名与描述文件，并检查 ZIP 完整性。此步骤无需 Apple 签名证书。真机安装前需要使用有效证书与匹配的描述文件重新签名，按签名方式满足设备登记要求。重新签名后的安装、钥匙串和车辆功能待真机验证。
+产物为 `target/ios/Norr_0.1.0_ios-arm64-unsigned.ipa`，内容为 `Payload/Norr.app`。构建使用 iPhoneOS SDK，校验 ARM64 架构和 Mach-O 真机平台，移除描述文件后使用 ad-hoc 签名保留主 App 与小组件的 App Groups 权限声明，并检查嵌套签名及 ZIP 完整性。文件名沿用 `unsigned`，表示尚未使用个人或分发证书签名；打包不需要 Apple 证书，真机安装前仍需重新签名。AltStore 会根据权限声明申请共享组，App 与扩展使用各自配置中的 `ALTAppGroups` 读取重签后的共享目录。alpha.10 的 iPad 安装与登录已验证，小组件修复后的重签验证见[自助签名记录](../../docs/ios-self-signing.md)。
 
 GitHub Release 同时提供模拟器 ZIP 与未签名 IPA，两类产物分别纳入上传校验与 `SHA256SUMS.txt`。本机连续构建两种目标时依次执行命令，它们共用 Xcode 归档目录。
 
@@ -120,7 +120,7 @@ npm run build:windows
 
 - PR 执行前端测试、类型检查与生产构建，以及 macOS、Windows 的 Rust 格式、release 测试和严格 Clippy。
 - 每天北京时间 03:20（UTC 19:20）检查 main。有上次成功发布的全平台版本之后的新提交时生成四端测试包，版本按 `v0.1.0-alpha.1`、`v0.1.0-alpha.2` 递增。提交判断包含文档更新，也会补上此前构建失败而尚未发布的提交。
-- 所选平台与上次成功发布的源提交一致时，只运行提交检查任务。手动发布时，在 `Daily alpha release` 选择 main，`platform` 选 `all` 构建全部平台，选 `windows` 只构建 Windows x64。Windows 单平台发布后，每日任务仍会补齐全平台版本。
+- 所选平台与上次覆盖该平台的成功发布源提交一致时，只运行提交检查任务。手动发布时，在 `Daily alpha release` 选择 main，`platform` 选 `all` 构建全部平台，选 `windows` 只构建 Windows x64，选 `ios-ipa` 只构建 iPhone / iPad 真机 IPA。单平台发布保留前端检查和对应平台验证，每日任务仍会补齐全平台版本。
 - 所选平台检查与打包全部通过后创建预发行版，上传安装包与 `SHA256SUMS.txt`，验证上传文件的 SHA-256 后发布。并发发布串行执行，上传中断后可复用同一提交、同一平台选择的草稿与版本号。
 - 安装包直接附在 Release 页面，Actions 中另保留 14 天的构建产物。[Release 下载](https://github.com/pepsing/Norr/releases) · [每日发布运行](https://github.com/pepsing/Norr/actions/workflows/release.yml)
 

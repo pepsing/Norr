@@ -8,7 +8,7 @@ AltStore Classic 和爱思助手均支持用户用自己的 Apple ID 为 IPA 签
 
 Norr 已提供 iPhone / iPad ARM64 未签名真机 IPA。核查时 `v0.1.0-alpha.10` 的附件为 `Norr_0.1.0-alpha.10_ios-arm64-unsigned.ipa`，同时提供 `SHA256SUMS.txt`。后续版本请选择对应的 `ios-arm64-unsigned.ipa` 附件，`ios-arm64-simulator.zip` 用于 Apple Silicon Mac 的 iOS 模拟器。[alpha.10 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.10)、[原生构建说明](../apps/native/README.md#未签名真机-ipa)
 
-当前工程将主应用最低系统版本设为 iOS 15.0，小组件扩展最低版本为 iOS 17.0。IPA 包含 `NorrWidgets.appex`，主应用和扩展都声明 `group.app.norr.widgets`。个人签名时，工具需要处理扩展和对应权限，保留扩展可能增加 App ID 消耗。本次在 AltStore 选择 Keep App Extensions 后，主应用安装与启动成功。App Group 共享数据、小组件显示及重签后的 Keychain 访问仍待真机验证。签名若在 entitlement 或描述文件处失败，请记录工具版本与完整错误供维护者定位。[iOS 工程配置](../apps/native/src-tauri/gen/apple/project.yml)、[小组件数据写入](../apps/native/src-tauri/ios/Sources/NorrMobile/Widgets.swift)、[AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)
+当前工程将主应用最低系统版本设为 iOS 15.0，小组件扩展最低版本为 iOS 17.0。IPA 包含 `NorrWidgets.appex`。个人签名时，工具需要处理扩展和对应权限，保留扩展可能增加 App ID 消耗。alpha.10 在 AltStore 选择 Keep App Extensions 后安装、启动和车辆登录成功，但设备实际未获得 App Groups 权限，小组件无法显示车辆。修复版保留主 App 与扩展的共享权限声明，并适配重签后的共享标识；真机覆盖安装验证结果见文末。签名若在 entitlement 或描述文件处失败，请记录工具版本与完整错误供维护者定位。[iOS 工程配置](../apps/native/src-tauri/gen/apple/project.yml)、[小组件数据写入](../apps/native/src-tauri/ios/Sources/NorrMobile/Widgets.swift)、[AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)
 
 | 方式 | 所需环境 | 续签方式 | 核查范围 |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ AltServer 可通过同一 Wi-Fi 或 USB 与设备通信。爱思助手提供 App
 
 ## 安装前准备
 
-从 Norr Release 下载目标版本的未签名 IPA 和校验文件。重签前在电脑上核对 IPA 的 SHA-256 与 `SHA256SUMS.txt` 对应行一致。Norr 的打包脚本校验 iPhoneOS 平台与 ARM64 架构，并移除代码签名。个人签名工具需要可重新签名的安装包，爱思助手说明 App Store 下载的加密 IPA 无法再次签名安装。[Norr 下载](https://github.com/pepsing/Norr/releases)、[IPA 打包脚本](../apps/native/scripts/finalize-ios.mjs)、[爱思助手签名错误说明](https://www.i4.cn/news_detail_55902.html)
+从 Norr Release 下载目标版本的 IPA 和校验文件。重签前在电脑上核对 IPA 的 SHA-256 与 `SHA256SUMS.txt` 对应行一致。小组件修复后的打包脚本校验 iPhoneOS 平台与 ARM64 架构，通过无需证书的 ad-hoc 签名保留 App Groups 权限，供 AltStore 申请重签权限。附件名沿用 `ios-arm64-unsigned.ipa`，仍需个人签名后才能安装。爱思助手说明 App Store 下载的加密 IPA 无法再次签名安装。[Norr 下载](https://github.com/pepsing/Norr/releases)、[IPA 打包脚本](../apps/native/scripts/finalize-ios.mjs)、[爱思助手签名错误说明](https://www.i4.cn/news_detail_55902.html)
 
 iOS/iPadOS 16 及以上运行开发签名应用时需要开启开发者模式。在设置中的「隐私与安全性 > 开发者模式」启用后，按系统提示重启并确认。安装后如提示开发者尚未受信任，在「通用 > VPN 与设备管理」中确认自己的开发者身份。[Apple 开发者模式说明](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)、[AltStore 设备信任步骤](https://faq.altstore.io/altstore-classic/how-to-install-altstore-macos)
 
@@ -69,6 +69,7 @@ IPA 分发、刷新与恢复方式参见官方资料。[Classic 分发说明](ht
 | App ID 配额耗尽 | 在 My Apps 查看 App ID 到期时间，等待足够名额到期。 |
 | 爱思助手签名成功但安装失败 | 核对目标 UDID，确认选中签名后的 IPA，并查看工具给出的错误。 |
 | 应用到期后无法打开 | 使用原账号和原工具刷新或重新签名安装。 |
+| App 已有车辆，但组件提示连接车辆或共享权限不可用 | alpha.10 存在 App Groups 打包遗漏。导入包含修复的新版 IPA 覆盖安装，选择 Keep App Extensions，再打开 Norr 刷新车辆。仅刷新旧版签名不会补齐权限。 |
 
 排查入口来自各工具的官方说明。[AltStore 故障指南](https://faq.altstore.io/altstore-classic/troubleshooting-guide)、[App ID 配额](https://faq.altstore.io/altstore-classic/app-ids)、[爱思助手签名 FAQ](https://www.i4.cn/news_detail_40956.html)
 
@@ -89,6 +90,10 @@ IPA 分发、刷新与恢复方式参见官方资料。[Classic 分发说明](ht
 | 手动刷新 | 点击 My Apps 中 Norr 的到期天数按钮，刷新过程结束后恢复显示 7 DAYS，未出现错误 |
 | 启动 | 刷新后从 iPad 主屏幕打开 Norr，正常显示车辆概览及「连接你的 Polestar」登录入口 |
 
-设备查询确认 Norr 为开发者构建，bundle ID 经个人签名增加团队后缀，build 为 1010。`devicectl` 返回的 `appGroupIdentifiers` 为空，App Group 数据共享及小组件功能仍需单独验证。车辆登录、Keychain 凭据保留、后台自动刷新、7 天到期恢复及覆盖升级均待测试。AltStore 官方说明 Classic 应用可能受到系统能力限制。[Classic 能力说明](https://faq.altstore.io/altstore-pal-v.-altstore-classic)
+设备查询确认 Norr 为开发者构建，bundle ID 经个人签名增加团队后缀，build 为 1010。用户随后确认 App 已登录车辆，但组件仍提示连接车辆；再次使用 `devicectl --include-app-group-identifiers` 查询，`appGroupIdentifiers` 仍为空。定位到 IPA 移除签名时丢失 App Groups 声明，且运行时写死原始共享标识。AltStore 按可执行文件的权限声明申请共享组，追加团队后缀后把实际权限写入每个 bundle 的 `ALTAppGroups`。[AltStore 权限申请实现](https://github.com/altstoreio/AltStore/blob/develop/AltStore/Operations/FetchProvisioningProfilesOperation.swift)、[重签配置实现](https://github.com/altstoreio/AltStore/blob/develop/AltStore/Operations/ResignAppOperation.swift)
+
+本地修复版已补齐上述两处，并区分共享权限不可用、等待同步和缓存读取失败。原始/重签标识、无权限和歧义配置、跨端读写回归通过；iOS 模拟器和真机 IPA 构建通过，模拟器显示原有车辆读数。
+
+用户随后通过 AltStore 覆盖安装修复 IPA，打开 Norr 刷新车辆，并确认小组件显示正常。设备查询确认安装包 build 为 `0.1.0`，App Groups 已包含带个人签名团队后缀的 Norr 共享组。此次修复 IPA 的 SHA-256 为 `1dd62e3bbc9aad62b3e6e52de9faafa9e07736c83d174598a3195a4994606996`，为本地验证包。后台自动续签、7 天到期恢复及凭据跨续签保留仍待测试。
 
 维护者在工具安装入口、签名规则或项目 IPA 状态改变时更新本页核查日期与验证结果。GitHub release 发布脚本会自动附上本页链接，链接指向 main 上持续维护的版本，用户可从发布说明查看最新安装条件。[发布脚本](../scripts/release/release.mjs)、[发布维护说明](../apps/native/README.md#github-actions)

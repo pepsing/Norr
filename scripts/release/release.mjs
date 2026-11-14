@@ -16,8 +16,9 @@ const packages = [
 ];
 
 function releasePackages(platform = 'all') {
-  if (!['all', 'windows'].includes(platform)) throw new Error('Invalid release platform');
-  return packages.filter(([artifact]) => platform === 'all' || artifact === 'Norr-windows-x64');
+  if (!['all', 'windows', 'ios-ipa'].includes(platform)) throw new Error('Invalid release platform');
+  const artifact = platform === 'ios-ipa' ? 'Norr-ios-arm64-unsigned' : 'Norr-windows-x64';
+  return packages.filter(([name]) => platform === 'all' || name === artifact);
 }
 
 export function releaseMetadata(release) {
@@ -29,8 +30,10 @@ export function planRelease({ sha, baseVersion, releases, tags, platform = 'all'
   releasePackages(platform);
   const published = releases.filter((release) => !release.draft)
     .sort((left, right) => Date.parse(right.published_at ?? 0) - Date.parse(left.published_at ?? 0));
-  const previous = published.find((release) => platform === 'windows'
-    || (releaseMetadata(release)?.platform ?? 'all') === 'all');
+  const previous = published.find((release) => {
+    const scope = releaseMetadata(release)?.platform ?? 'all';
+    return scope === 'all' || scope === platform;
+  });
   if (previous?.sha === sha) return { publish: false, sha };
   const pending = releases.find((release) => release.draft && releaseMetadata(release)?.sha === sha
     && (releaseMetadata(release)?.platform ?? 'all') === platform);
@@ -84,6 +87,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl) {
     '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。',
     '', `[iOS 自助签名与安装指南](https://github.com/${repository}/blob/main/docs/ios-self-signing.md)（AltStore Classic、爱思助手、续签与验证状态）。`,
     plan.platform === 'windows' ? 'Windows 安装包尚未进行代码签名。'
+      : plan.platform === 'ios-ipa' ? '本版仅提供 iPhone / iPad 真机 IPA。安装前请通过 AltStore 等工具重新签名并保留小组件扩展。'
       : 'macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
     '', '本版通过所选平台的自动测试与构建，新包的登录、系统功能和实车操作按进度表继续验收。',
     '', `[构建记录](${runUrl}) · [验证范围](https://github.com/${repository}/blob/${plan.sha}/docs/PROGRESS.md)`,

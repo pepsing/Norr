@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import NorrWidgetSupport
 import Tauri
 import WidgetKit
 
@@ -30,10 +31,8 @@ struct WidgetUpdate: Decodable {
 extension NorrPlugin {
   @objc func updateWidgets(_ invoke: Invoke) throws {
     let update = try invoke.parseArgs(WidgetUpdate.self)
-    guard let directory = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: "group.app.norr.widgets")
-    else {
-      invoke.reject("小组件共享空间不可用，请检查 App Groups 签名配置。")
+    guard let directory = WidgetStorage.directory() else {
+      invoke.reject("小组件共享权限不可用，请使用新版 IPA 重新签名安装，并保留小组件扩展。")
       return
     }
     do {
