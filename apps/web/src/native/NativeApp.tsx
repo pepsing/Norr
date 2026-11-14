@@ -58,6 +58,8 @@ import type {
   Snapshot,
 } from "./client";
 import "./native.css";
+import { widgetData } from "./widgets";
+import type { WidgetTarget } from "./widgets";
 
 const pages = [
   { id: "vehicle", label: "车辆", title: "车辆概览", icon: CarFront },
@@ -151,6 +153,8 @@ export default function NativeApp() {
     () => window.matchMedia("(max-width: 760px)").matches,
   );
   const [appearance, setAppearance] = useState(defaultAppearance());
+  const [widgetTarget, setWidgetTarget] = useState<WidgetTarget | null>(null);
+  const widgetSync = useRef(Promise.resolve());
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       return localStorage.getItem("norr-native-theme") === "dark"
@@ -281,6 +285,58 @@ export default function NativeApp() {
   useEffect(() => {
     if (vehicle) setAppearance(storedAppearance(vehicle.vin, vehicle.model));
   }, [vehicle?.vin, vehicle?.model]);
+
+  useEffect(() => {
+    if (!isMobile || !snapshot || snapshot.vehicle.vin !== vin) return;
+    const data = widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model));
+    widgetSync.current = widgetSync.current
+      .then(() => native.updateWidgets(data))
+      .catch((problem) => console.error("小组件数据同步失败", problem));
+  }, [snapshot, vin, appearance]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    let disposed = false;
+    const receive = () => {
+      if (disposed) return;
+      void native.takeWidgetTarget().then((target) => {
+        if (!disposed && target) setWidgetTarget(target);
+      }).catch((problem) => console.error("小组件入口读取失败", problem));
+    };
+    const subscription = native.onWidgetOpen(receive);
+    void subscription.then(receive).catch((problem) => console.error("小组件入口监听失败", problem));
+    window.addEventListener("focus", receive);
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", receive);
+      void subscription.then((unlisten) => unlisten()).catch(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!widgetTarget || busy || !connected) return;
+    if (widgetTarget.vin && widgetTarget.vin !== vin) {
+      if (fleet.some((car) => car.vin === widgetTarget.vin)) {
+        void selectVehicle(widgetTarget.vin);
+      } else {
+        setWidgetTarget(null);
+        setError("小组件中的车辆已不在当前账号中，请重新选择车辆。");
+      }
+      return;
+    }
+    setWidgetTarget(null);
+    setPage("vehicle");
+    if (widgetTarget.action === "refresh") {
+      void refresh();
+    } else if (widgetTarget.action === "lock" || widgetTarget.action === "climate") {
+      const action = widgetTarget.action === "lock"
+        ? (snapshot?.readings.exterior?.value?.locked === true ? "unlock" : "lock")
+        : (snapshot?.readings.climate?.value?.activity === "active" ? "climateStop" : "climateStart");
+      const reason = unavailableReason(vehicle, action);
+      if (reason) setError(reason);
+      else openCommand(action);
+    }
+  }, [widgetTarget, busy, connected, vin, fleet]);
 
   useEffect(() => {
     let disposed = false;

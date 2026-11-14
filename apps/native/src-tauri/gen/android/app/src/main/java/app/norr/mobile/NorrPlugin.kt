@@ -45,13 +45,17 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     private var active = true
     private var generation = 0L
     private var target: JSObject? = null
+    private var widgetTarget: JSObject? = null
+    private var webView: WebView? = null
     private var verification: PhoneVerification? = null
     private val preferences by lazy {
         activity.getSharedPreferences("norr-credentials", Context.MODE_PRIVATE)
     }
 
     override fun load(webView: WebView) {
+        this.webView = webView
         captureNotification(activity.intent)
+        captureWidget(activity.intent)
         if (Build.VERSION.SDK_INT >= 26) {
             activity
                 .getSystemService(NotificationManager::class.java)
@@ -71,12 +75,44 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     override fun onDestroy(activity: AppCompatActivity) {
+        webView = null
         verification?.cancel()
         verification = null
     }
 
     override fun onNewIntent(intent: Intent) {
         captureNotification(intent)
+        captureWidget(intent)
+    }
+
+    private fun captureWidget(intent: Intent) {
+        val action = intent.getStringExtra("norrWidgetAction") ?: return
+        if (action !in listOf("vehicle", "lock", "climate", "refresh")) return
+        widgetTarget = JSObject().put("action", action)
+            .put("vin", intent.getStringExtra("norrWidgetVin") ?: "") as JSObject
+        intent.removeExtra("norrWidgetAction")
+        intent.removeExtra("norrWidgetVin")
+        activity.runOnUiThread {
+            webView?.evaluateJavascript("window.dispatchEvent(new Event('norr-widget-open'))", null)
+        }
+    }
+
+    @Command
+    fun takeWidgetTarget(invoke: Invoke) {
+        val result = widgetTarget
+        widgetTarget = null
+        invoke.resolve(result)
+    }
+
+    @Command
+    fun updateWidgets(invoke: Invoke) {
+        try {
+            val args = invoke.getArgs()
+            NorrWidgets.store(activity, args.getJSONObject("data"), File(args.getString("imagePath")))
+            invoke.resolve()
+        } catch (_: Exception) {
+            invoke.reject("小组件数据同步失败，请重试。")
+        }
     }
 
     private fun captureNotification(intent: Intent) {

@@ -43,10 +43,14 @@ export function finalizeIOS(device = false) {
   mkdirSync(directory, { recursive: true });
   rmSync(app, { recursive: true, force: true });
   cpSync(source, app, { recursive: true });
+  const extension = `${app}/PlugIns/NorrWidgets.appex`;
+  execFileSync("/usr/bin/codesign", ["--force", "--sign", "-", extension], {
+    stdio: "inherit",
+  });
   execFileSync("/usr/bin/codesign", ["--force", "--sign", "-", app], {
     stdio: "inherit",
   });
-  execFileSync("/usr/bin/codesign", ["--verify", "--strict", app], {
+  execFileSync("/usr/bin/codesign", ["--verify", "--deep", "--strict", app], {
     stdio: "inherit",
   });
   execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", app, archive], {
@@ -65,8 +69,8 @@ function packageUnsignedIPA(source, directory, version) {
     mkdirSync(payload);
     cpSync(source, app, { recursive: true });
     const nestedCode = readdirSync(app, { recursive: true }).filter(
-      (path) => path.endsWith(".dylib") || path.endsWith(".framework"),
-    );
+      (path) => path.endsWith(".dylib") || path.endsWith(".framework") || path.endsWith(".appex"),
+    ).sort((a, b) => b.split("/").length - a.split("/").length);
     for (const code of [...nestedCode.map((path) => `${app}/${path}`), app]) {
       execFileSync("/usr/bin/codesign", ["--remove-signature", code]);
       const signature = spawnSync("/usr/bin/codesign", ["--display", code], {

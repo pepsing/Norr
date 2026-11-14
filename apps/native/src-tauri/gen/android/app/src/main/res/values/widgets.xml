@@ -1,0 +1,8 @@
+<resources>
+    <string name="widget_small">Norr · 小号</string>
+    <string name="widget_medium">Norr · 中号</string>
+    <string name="widget_large">Norr · 大号</string>
+    <string name="widget_small_description">电量、续航与门锁状态</string>
+    <string name="widget_medium_description">车辆状态与门锁、空调入口</string>
+    <string name="widget_large_description">车辆图片、充电状态与控制入口</string>
+</resources>

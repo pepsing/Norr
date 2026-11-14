@@ -87,7 +87,7 @@ function WorkspaceApp() {
     document.documentElement.dataset.theme = theme;
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", theme === "dark" ? "#191b19" : "#f7f7f5");
+      ?.setAttribute("content", theme === "dark" ? "#000000" : "#f7f7f5");
     try {
       localStorage.setItem("hisingen-preview-theme", theme);
     } catch {

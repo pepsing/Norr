@@ -707,7 +707,7 @@
     --overview-extra-space: clamp(
       0px,
       calc(
-        (100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 700px) *
+        (100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 730px) *
           0.2
       ),
       24px
@@ -745,8 +745,11 @@
     margin: 0 -8px;
   }
   .native-page-vehicle .vehicle-art > .vehicle-artwork {
-    aspect-ratio: 3.8 / 1;
+    aspect-ratio: 3.2 / 1;
     max-width: 380px;
+  }
+  .native-page-vehicle .vehicle-art > .vehicle-artwork img {
+    object-position: center 60%;
   }
   .native-page-vehicle .vehicle-stage-footer {
     flex-direction: row;

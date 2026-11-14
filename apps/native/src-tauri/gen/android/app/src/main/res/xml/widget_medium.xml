@@ -1,0 +1,6 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="280dp" android:minHeight="130dp" android:minResizeWidth="130dp" android:minResizeHeight="110dp"
+    android:targetCellWidth="4" android:targetCellHeight="2" android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0" android:initialLayout="@layout/norr_widget_wide" android:previewLayout="@layout/norr_widget_wide"
+    android:configure="app.norr.mobile.WidgetConfigurationActivity" android:widgetFeatures="reconfigurable"
+    android:widgetCategory="home_screen" android:description="@string/widget_medium_description" />

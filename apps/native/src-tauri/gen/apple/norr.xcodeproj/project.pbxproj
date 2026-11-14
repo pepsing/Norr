@@ -11,22 +11,53 @@
 		06F0A3B146AA5EA3C69F7696 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 709887AF20A47EDCC3514CFD /* CoreGraphics.framework */; };
 		15ACCB9388E281D9C7EC25E9 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 83999D28F72A64A9904BB6D6 /* Metal.framework */; };
 		186B6DEE6D575E8CE0731E0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */; };
+		2B244F7639FFC09B6F179C8E /* Archivo.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */; };
+		2EF68A9CF663A8D70EB95C8D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 621E1E381DA4C3D0B4116E0D /* manifest.json */; };
 		3DC099B96F100201E6B288AD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20B80F5C299309362F1AA9C4 /* MetalKit.framework */; };
+		4DE725A34419E852F71D93A4 /* NorrWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F2BDFB48F552049C857286 /* NorrWidgets.swift */; };
 		612640168E79DDC5422FBE6D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = E0E105FA49D1318464215B6B /* main.mm */; };
+		6896A77A2FFF1E3D4050AC33 /* NorrWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		832A236F5B2E80FBEB4C2359 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DDCD8A06557005125AA4D5D2 /* libapp.a */; };
 		8BF2C6C80D56EDDB48927812 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 51CF437243902B8C55F57996 /* WebKit.framework */; };
+		9A3701A8023028CC3B3206CB /* OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6DFBFC2C41FF6981D1CA248A /* OFL.txt */; };
 		AAB43ED33B0B275C6A8E686D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2E13E69BC441992CB80F844 /* UIKit.framework */; };
 		BE125EB44E1E6FC5BB48C981 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A00C87FB787C7E47EC4135B9 /* QuartzCore.framework */; };
 		C48404FA6EACD0F7E5673BF7 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */; };
 		E021A1B346FF5A05421024A7 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 391DC41C47D76AA1778F5312 /* Security.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		9DD1A5750464E7BDEB053144 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 853DAF80C484E926CA94D03B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2272F34F52E7F840BBF0771A;
+			remoteInfo = NorrWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E1EDED38B31BBC00188D53DF /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6896A77A2FFF1E3D4050AC33 /* NorrWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		00C575573C7D20B50BF42030 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0C9E489416328240BEC4F414 /* widgets.rs */ = {isa = PBXFileReference; path = widgets.rs; sourceTree = "<group>"; };
 		166CA3771D3FDB0C274E7F6C /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		202CAFBD5A3D730A66956891 /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
 		20B80F5C299309362F1AA9C4 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo.ttf; sourceTree = "<group>"; };
 		2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		391DC41C47D76AA1778F5312 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		3CAA78E78A2AA53E52059BC4 /* desktop_mobile.rs */ = {isa = PBXFileReference; path = desktop_mobile.rs; sourceTree = "<group>"; };
@@ -35,13 +66,17 @@
 		5783ACEF2EFA386C27FE6C7F /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		5D5DCE0FC7348AEF6704C132 /* exports.rs */ = {isa = PBXFileReference; path = exports.rs; sourceTree = "<group>"; };
 		617ABF449ABAC0DE8A67ADF5 /* login.rs */ = {isa = PBXFileReference; path = login.rs; sourceTree = "<group>"; };
+		621E1E381DA4C3D0B4116E0D /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		6DFBFC2C41FF6981D1CA248A /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
 		6F329202EF77DD06A98CF44F /* insights.rs */ = {isa = PBXFileReference; path = insights.rs; sourceTree = "<group>"; };
 		709887AF20A47EDCC3514CFD /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		79317387FE03B714B2ACF95E /* macos.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = macos.m; sourceTree = "<group>"; };
+		7A5D6ACB88E2375D401DEDD3 /* verification_windows.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = verification_windows.js; sourceTree = "<group>"; };
 		7C0755AAF6B0529877234FC1 /* platform.rs */ = {isa = PBXFileReference; path = platform.rs; sourceTree = "<group>"; };
 		83999D28F72A64A9904BB6D6 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		911D2E159DFBDF5C7802D833 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		A00C87FB787C7E47EC4135B9 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		A5F2BDFB48F552049C857286 /* NorrWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorrWidgets.swift; sourceTree = "<group>"; };
 		B36B6118EB66506AE3E7E591 /* verification_windows.rs */ = {isa = PBXFileReference; path = verification_windows.rs; sourceTree = "<group>"; };
 		CADC80E8304DA4EF9D4324C3 /* norr_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = norr_iOS.entitlements; sourceTree = "<group>"; };
 		D2E13E69BC441992CB80F844 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
@@ -53,6 +88,7 @@
 		F84E28D508C3604A48C6D5E4 /* notifications.rs */ = {isa = PBXFileReference; path = notifications.rs; sourceTree = "<group>"; };
 		F85F8CC689CC35E85E8EB722 /* desktop_windows.rs */ = {isa = PBXFileReference; path = desktop_windows.rs; sourceTree = "<group>"; };
 		F8B81905D28487FB7C939024 /* norr_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = norr_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NorrWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +128,7 @@
 				48273C557077BF70CCFFD1E5 /* norr_iOS */,
 				63911ADF33B6872CEAD448E1 /* Sources */,
 				B76023B1477F335437C0133A /* src */,
+				E909E3C6B6A522941FD01DA5 /* Widgets */,
 				11C269001C50F16ECF951925 /* Frameworks */,
 				F028DDFC7D06276D91C09A44 /* Products */,
 			);
@@ -161,38 +198,71 @@
 				F0CCEF5BB2BAC50694749846 /* mobile.rs */,
 				F84E28D508C3604A48C6D5E4 /* notifications.rs */,
 				7C0755AAF6B0529877234FC1 /* platform.rs */,
+				7A5D6ACB88E2375D401DEDD3 /* verification_windows.js */,
 				B36B6118EB66506AE3E7E591 /* verification_windows.rs */,
 				4732ABBE7096D31989D940BB /* verification.m */,
+				0C9E489416328240BEC4F414 /* widgets.rs */,
 			);
 			name = src;
 			path = ../../src;
+			sourceTree = "<group>";
+		};
+		E909E3C6B6A522941FD01DA5 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */,
+				621E1E381DA4C3D0B4116E0D /* manifest.json */,
+				A5F2BDFB48F552049C857286 /* NorrWidgets.swift */,
+				6DFBFC2C41FF6981D1CA248A /* OFL.txt */,
+			);
+			name = Widgets;
+			path = ../../ios/Widgets;
 			sourceTree = "<group>";
 		};
 		F028DDFC7D06276D91C09A44 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				F8B81905D28487FB7C939024 /* norr_iOS.app */,
+				FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_4C9F6B76-92C0-46BD-9A95-1BC55C04F337" /* arm64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = arm64;
-			sourceTree = "<group>";
-		};
-		"TEMP_F54753A0-5A29-461F-B615-A3CCC8420B32" /* x86_64 */ = {
+		"TEMP_5D2ED189-13E9-4F79-A456-F4983A58F731" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = x86_64;
 			sourceTree = "<group>";
 		};
+		"TEMP_64FE7982-3A10-448B-9C83-DE0BBDBD77DE" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2272F34F52E7F840BBF0771A /* NorrWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9824900E2E153EFF1451BEED /* Build configuration list for PBXNativeTarget "NorrWidgets" */;
+			buildPhases = (
+				9EBC38154FEDB2826CE8064C /* Sources */,
+				4BB9D9717AC914A547AB3F05 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NorrWidgets;
+			packageProductDependencies = (
+			);
+			productName = NorrWidgets;
+			productReference = FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		4E8D3BC39D495A4ECD631740 /* norr_iOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E49FF554B6474BD0CBB52EE7 /* Build configuration list for PBXNativeTarget "norr_iOS" */;
@@ -201,10 +271,12 @@
 				50C2063BD03EB389CB84E3B7 /* Sources */,
 				5B49DC98AA903519D11FDB15 /* Resources */,
 				D4C2686B9376D7A1D51D70FA /* Frameworks */,
+				E1EDED38B31BBC00188D53DF /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9A4A6AEF7C3E2EBF04A01989 /* PBXTargetDependency */,
 			);
 			name = norr_iOS;
 			packageProductDependencies = (
@@ -239,11 +311,22 @@
 			projectRoot = "";
 			targets = (
 				4E8D3BC39D495A4ECD631740 /* norr_iOS */,
+				2272F34F52E7F840BBF0771A /* NorrWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		4BB9D9717AC914A547AB3F05 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2B244F7639FFC09B6F179C8E /* Archivo.ttf in Resources */,
+				9A3701A8023028CC3B3206CB /* OFL.txt in Resources */,
+				2EF68A9CF663A8D70EB95C8D /* manifest.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5B49DC98AA903519D11FDB15 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -290,9 +373,69 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9EBC38154FEDB2826CE8064C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4DE725A34419E852F71D93A4 /* NorrWidgets.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		9A4A6AEF7C3E2EBF04A01989 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2272F34F52E7F840BBF0771A /* NorrWidgets */;
+			targetProxy = 9DD1A5750464E7BDEB053144 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		059AEDB64A2EB7EE87561814 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../ios/Widgets/Widgets.entitlements;
+				INFOPLIST_FILE = ../../ios/Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.widgets;
+				PRODUCT_NAME = NorrWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = debug;
+		};
+		A35D8E3C12F00D28270775EB /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../ios/Widgets/Widgets.entitlements;
+				INFOPLIST_FILE = ../../ios/Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.widgets;
+				PRODUCT_NAME = NorrWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = release;
+		};
 		B1C6D6F19B05A087EED9C0DF /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -484,6 +627,15 @@
 			buildConfigurations = (
 				D9E4A1D826637D63B6AEE4D5 /* debug */,
 				D48D71A86D370A8188565FFA /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		9824900E2E153EFF1451BEED /* Build configuration list for PBXNativeTarget "NorrWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				059AEDB64A2EB7EE87561814 /* debug */,
+				A35D8E3C12F00D28270775EB /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = debug;

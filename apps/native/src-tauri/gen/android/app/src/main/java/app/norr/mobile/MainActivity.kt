@@ -31,7 +31,7 @@ class MainActivity : TauriActivity() {
     }
 
     fun applyTheme(dark: Boolean) {
-        val background = if (dark) Color.rgb(25, 27, 25) else Color.rgb(247, 247, 245)
+        val background = if (dark) Color.BLACK else Color.rgb(247, 247, 245)
         findViewById<View>(android.R.id.content).setBackgroundColor(background)
         window.decorView.setBackgroundColor(background)
         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -49,6 +49,7 @@ class MainActivity : TauriActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         restoreTheme()
+        NorrWidgets.updateAll(this)
     }
 
     override fun onWebViewCreate(webView: WebView) {

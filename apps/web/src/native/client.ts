@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { WidgetTarget, widgetData } from "./widgets";
+import { isAndroid } from "./platform";
 
 export interface NativeVehicle {
   vin: string;
@@ -130,6 +132,13 @@ export interface SessionStatus {
 }
 
 export const native = {
+  updateWidgets: (data: ReturnType<typeof widgetData>) => invoke<void>("update_widgets", { data }),
+  takeWidgetTarget: () => invoke<WidgetTarget | null>("take_widget_target"),
+  onWidgetOpen: (callback: () => void) => {
+    if (!isAndroid) return listen("widget-open", callback);
+    window.addEventListener("norr-widget-open", callback);
+    return Promise.resolve(() => window.removeEventListener("norr-widget-open", callback));
+  },
   setAndroidTheme: (dark: boolean) => invoke<void>("set_android_theme", { dark }),
   status: () => invoke<SessionStatus>("session_status"),
   requestLoginCode: (phone: string) =>

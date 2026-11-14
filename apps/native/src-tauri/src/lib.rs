@@ -21,6 +21,8 @@ mod notifications;
 mod platform;
 #[cfg(target_os = "windows")]
 mod verification_windows;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+mod widgets;
 
 #[cfg(target_os = "android")]
 #[tauri::command]
@@ -898,6 +900,12 @@ pub fn run() {
                 invoke.resolver.reject("请在 Norr 主窗口操作");
                 return true;
             }
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            if ["update_widgets", "take_widget_target"].contains(&invoke.message.command()) {
+                let widget_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![widgets::update_widgets, widgets::take_widget_target];
+                return widget_handler(invoke);
+            }
             #[cfg(target_os = "android")]
             if invoke.message.command() == "set_android_theme" {
                 let theme_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
@@ -938,6 +946,12 @@ pub fn run() {
         .build(app_context())
         .expect("Norr could not start")
         .run(|_app, _event| {
+            #[cfg(target_os = "ios")]
+            if let tauri::RunEvent::Opened { urls } = &_event {
+                for url in urls {
+                    widgets::open_url(_app, url);
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
                 if let Some(window) = _app.get_webview_window("main") {

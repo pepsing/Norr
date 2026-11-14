@@ -58,9 +58,14 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 0.1.0
         CFBundleVersion: "0.1.0"
+        CFBundleURLTypes:
+          - CFBundleURLName: app.norr.widgets
+            CFBundleURLSchemes: [norr]
         NSFaceIDUsageDescription: 确认车辆控制操作时验证你的身份。
     entitlements:
       path: norr_iOS/norr_iOS.entitlements
+      properties:
+        com.apple.security.application-groups: [group.app.norr.widgets]
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -77,6 +82,8 @@ targets:
         OTHER_LDFLAGS[sdk=iphonesimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/simulator.entitlements
       groups: [app]
     dependencies:
+      - target: NorrWidgets
+        embed: true
       - framework: libapp.a
         embed: false
       - sdk: CoreGraphics.framework
@@ -95,3 +102,32 @@ targets:
         outputFiles:
           - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
           - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+  NorrWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ../../ios/Widgets
+        excludes: ["*.plist", "*.entitlements"]
+    info:
+      path: ../../ios/Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Norr
+        CFBundleShortVersionString: 0.1.0
+        CFBundleVersion: "0.1.0"
+        UIAppFonts: [Archivo.ttf]
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: ../../ios/Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.app.norr.widgets]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.norr.ios.widgets
+        PRODUCT_NAME: NorrWidgets
+        SWIFT_VERSION: "5.0"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        OTHER_LDFLAGS[sdk=iphonesimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements

@@ -24,7 +24,7 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #191b19;
+  --canvas: #000000;
   --surface: #20231f;
   --tile: #2a2e28;
   --tile-hover: #343930;

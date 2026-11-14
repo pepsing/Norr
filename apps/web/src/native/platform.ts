@@ -1,5 +1,6 @@
-const platform = (window as Window & { __NORR_PLATFORM__?: string })
-  .__NORR_PLATFORM__;
+const platform = typeof window === "undefined"
+  ? undefined
+  : (window as Window & { __NORR_PLATFORM__?: string }).__NORR_PLATFORM__;
 
 export const isWindows = platform === "windows";
 export const isAndroid = platform === "android";

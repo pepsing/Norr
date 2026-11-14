@@ -18,6 +18,7 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=LocalAuthentication");
         println!("cargo:rustc-link-lib=framework=UniformTypeIdentifiers");
         println!("cargo:rustc-link-lib=framework=UserNotifications");
+        println!("cargo:rustc-link-lib=framework=WidgetKit");
     }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         cc::Build::new()

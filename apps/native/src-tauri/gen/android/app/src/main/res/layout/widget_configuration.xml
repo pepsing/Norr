@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Norr 桌面组件"
+        android:textSize="24sp" android:textColor="@color/norr_text" android:layout_marginTop="24dp" android:layout_marginBottom="32dp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="外观"
+        android:textSize="16sp" android:textColor="@color/norr_text" android:labelFor="@id/widget_appearance" />
+    <RadioGroup android:id="@+id/widget_appearance" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp">
+        <RadioButton android:id="@+id/widget_system" android:layout_width="match_parent" android:layout_height="56dp" android:text="跟随系统" />
+        <RadioButton android:id="@+id/widget_light" android:layout_width="match_parent" android:layout_height="56dp" android:text="浅色" />
+        <RadioButton android:id="@+id/widget_dark" android:layout_width="match_parent" android:layout_height="56dp" android:text="深色" />
+    </RadioGroup>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="32dp">
+        <Button android:id="@+id/widget_cancel" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="取消" />
+        <Button android:id="@+id/widget_save" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="保存" />
+    </LinearLayout>
+</LinearLayout>
