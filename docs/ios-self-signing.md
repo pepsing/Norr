@@ -1,6 +1,6 @@
 # Norr iOS 自助签名与安装
 
-核查日期为 2026-11-14。本文依据 Apple、AltStore 和爱思助手的官方资料，并核对了本仓库的构建与发布脚本。真机安装、续签和升级保留数据仍待验证。
+核查日期为 2026-11-14。本文依据 Apple、AltStore 和爱思助手的官方资料，并核对了本仓库的构建与发布脚本。Norr alpha.10 已通过 AltStore Classic 在 iPad mini（A17 Pro）上完成个人 Apple ID 签名、安装、当日手动刷新和启动验证，具体环境与待验证项目见文末。
 
 ## 可行性与项目现状
 
@@ -8,11 +8,11 @@ AltStore Classic 和爱思助手均支持用户用自己的 Apple ID 为 IPA 签
 
 Norr 已提供 iPhone / iPad ARM64 未签名真机 IPA。核查时 `v0.1.0-alpha.10` 的附件为 `Norr_0.1.0-alpha.10_ios-arm64-unsigned.ipa`，同时提供 `SHA256SUMS.txt`。后续版本请选择对应的 `ios-arm64-unsigned.ipa` 附件，`ios-arm64-simulator.zip` 用于 Apple Silicon Mac 的 iOS 模拟器。[alpha.10 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.10)、[原生构建说明](../apps/native/README.md#未签名真机-ipa)
 
-当前工程将主应用最低系统版本设为 iOS 15.0，小组件扩展最低版本为 iOS 17.0。IPA 包含 `NorrWidgets.appex`，主应用和扩展都声明 `group.app.norr.widgets`。个人签名时，工具需要处理扩展和对应权限，保留扩展可能增加 App ID 消耗。主应用安装、App Group 共享数据、小组件显示及重签后的 Keychain 访问均待真机验证。签名若在 entitlement 或描述文件处失败，请记录工具版本与完整错误供维护者定位。[iOS 工程配置](../apps/native/src-tauri/gen/apple/project.yml)、[小组件数据写入](../apps/native/src-tauri/ios/Sources/NorrMobile/Widgets.swift)、[AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)
+当前工程将主应用最低系统版本设为 iOS 15.0，小组件扩展最低版本为 iOS 17.0。IPA 包含 `NorrWidgets.appex`，主应用和扩展都声明 `group.app.norr.widgets`。个人签名时，工具需要处理扩展和对应权限，保留扩展可能增加 App ID 消耗。本次在 AltStore 选择 Keep App Extensions 后，主应用安装与启动成功。App Group 共享数据、小组件显示及重签后的 Keychain 访问仍待真机验证。签名若在 entitlement 或描述文件处失败，请记录工具版本与完整错误供维护者定位。[iOS 工程配置](../apps/native/src-tauri/gen/apple/project.yml)、[小组件数据写入](../apps/native/src-tauri/ios/Sources/NorrMobile/Widgets.swift)、[AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)
 
 | 方式 | 所需环境 | 续签方式 | 核查范围 |
 | --- | --- | --- | --- |
-| AltStore Classic + AltServer | Mac 或 Windows 电脑、iPhone/iPad、Apple ID、IPA | AltStore 尝试后台刷新，也可手动 Refresh All | 官方支持，Norr 真机待测 |
+| AltStore Classic + AltServer | Mac 或 Windows 电脑、iPhone/iPad、Apple ID、IPA | AltStore 尝试后台刷新，也可手动 Refresh All | alpha.10 已完成 iPad 安装、当日手动刷新和启动 |
 | 爱思助手个人签 | 带 IPA 签名工具的电脑端、目标设备、Apple ID、IPA | 到期前重新签名并安装 | 官方教程以 Windows 操作为依据，其他桌面端的签名功能待测 |
 | 爱思助手证书签名 | 证书、私钥及匹配的 provisioning profile | 按证书与描述文件有效期重新签名 | 安装范围取决于描述文件，Norr 真机待测 |
 
@@ -42,11 +42,13 @@ iOS/iPadOS 16 及以上运行开发签名应用时需要开启开发者模式。
 
 电脑端安装步骤随工具版本调整，以官方指南为准。[macOS 安装指南](https://faq.altstore.io/altstore-classic/how-to-install-altstore-macos)、[Windows 安装指南](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows)
 
-4. 将 IPA 保存到设备「文件」中，在 AltStore Classic 的 My Apps 页面通过添加入口选择 IPA，按提示完成签名安装。导入入口的位置需随实际客户端版本核对。
+4. 将 IPA 保存到设备「文件」中，在 AltStore Classic 的 My Apps 页面通过左上角加号选择 IPA，也可在「文件」中共享 IPA 并选择 AltStore。首次签名需在 iPad 上登录安装 AltStore 时使用的同一个 Apple ID。包含扩展时，Keep App Extensions 会保留小组件供签名，Remove App Extensions 会移除它们。
 5. 在 My Apps 检查应用与 AltStore 的到期时间。续签时保持 AltServer 运行，并通过同一 Wi-Fi 或 USB 连接电脑，点击 Refresh All。
 6. AltStore 已过期时，可使用 AltServer 覆盖安装 AltStore，官方说明支持保留原有 AltStore 安装后恢复刷新。
 
 IPA 分发、刷新与恢复方式参见官方资料。[Classic 分发说明](https://faq.altstore.io/developers/distribute-with-altstore-classic)、[刷新说明](https://faq.altstore.io/altstore-classic/your-altstore)、[AltServer 与到期恢复](https://faq.altstore.io/altstore-classic/altserver)
+
+本次通过隔空投送直接发送 IPA 后，AltStore 未出现导入记录。可将 IPA 装入 ZIP 后传送，将 ZIP 保存到「文件 > 我的 iPad」，长按 ZIP 选择「解压缩」，再共享解压出的 IPA 至 AltStore。本次使用该路径完成导入。
 
 ## 使用爱思助手
 
@@ -70,10 +72,23 @@ IPA 分发、刷新与恢复方式参见官方资料。[Classic 分发说明](ht
 
 排查入口来自各工具的官方说明。[AltStore 故障指南](https://faq.altstore.io/altstore-classic/troubleshooting-guide)、[App ID 配额](https://faq.altstore.io/altstore-classic/app-ids)、[爱思助手签名 FAQ](https://www.i4.cn/news_detail_40956.html)
 
-项目后续需要验证同一 Apple ID、同一工具覆盖升级时的历史与设置保留，以及 Keychain 中车辆登录凭据的可读性。切换账号或签名工具后的数据迁移也需要单独实测。现有 iOS 模拟器验证记录见开发进展，个人签名真机的兼容性结论待测试后补充。[开发进展](PROGRESS.md)
+项目后续需要验证同一 Apple ID、同一工具覆盖升级时的历史与设置保留，以及 Keychain 中车辆登录凭据的可读性。切换账号或签名工具后的数据迁移也需要单独实测。现有 iOS 模拟器验证记录见开发进展。[开发进展](PROGRESS.md)
 
 ## 真机验证与文档维护
 
-首次自助签名真机验证需记录 IPA 文件名、系统版本、设备型号、工具版本和账号类型，并验证安装、启动、车辆登录、续签、到期恢复及覆盖升级。当前小组件和 App Group 需验证个人账号下的能力可用性。AltStore 官方说明 Classic 应用可能受到系统能力限制。[Classic 能力说明](https://faq.altstore.io/altstore-pal-v.-altstore-classic)
+### 2026-11-14 AltStore Classic 实测
+
+| 项目 | 环境与结果 |
+| --- | --- |
+| 设备 | iPad mini（A17 Pro），iPadOS 27.0（24A437），USB 连接 Mac |
+| 工具 | AltServer 1.8.4，AltStore Classic 2.3.3（75） |
+| 账号 | 个人 Apple ID，AltStore 显示签名剩余 7 天 |
+| 安装包 | `Norr_0.1.0-alpha.10_ios-arm64-unsigned.ipa`，应用版本 0.1.0，build 1010 |
+| SHA-256 | `9b28b3d6646723aec0f4a0f91d8eddb2e4c1d81b7e8fc5c3030ed7955a36c02f`，与 release 的 `SHA256SUMS.txt` 一致 |
+| 安装 | 开启开发者模式并完成重启后的开启确认，信任个人开发者后打开 AltStore。导入 IPA 时选择 Keep App Extensions，签名安装成功 |
+| 手动刷新 | 点击 My Apps 中 Norr 的到期天数按钮，刷新过程结束后恢复显示 7 DAYS，未出现错误 |
+| 启动 | 刷新后从 iPad 主屏幕打开 Norr，正常显示车辆概览及「连接你的 Polestar」登录入口 |
+
+设备查询确认 Norr 为开发者构建，bundle ID 经个人签名增加团队后缀，build 为 1010。`devicectl` 返回的 `appGroupIdentifiers` 为空，App Group 数据共享及小组件功能仍需单独验证。车辆登录、Keychain 凭据保留、后台自动刷新、7 天到期恢复及覆盖升级均待测试。AltStore 官方说明 Classic 应用可能受到系统能力限制。[Classic 能力说明](https://faq.altstore.io/altstore-pal-v.-altstore-classic)
 
 维护者在工具安装入口、签名规则或项目 IPA 状态改变时更新本页核查日期与验证结果。GitHub release 发布脚本会自动附上本页链接，链接指向 main 上持续维护的版本，用户可从发布说明查看最新安装条件。[发布脚本](../scripts/release/release.mjs)、[发布维护说明](../apps/native/README.md#github-actions)
