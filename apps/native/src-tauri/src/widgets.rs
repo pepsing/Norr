@@ -88,16 +88,29 @@ pub async fn update_widgets(app: tauri::AppHandle, data: WidgetData) -> Result<(
     let directory = crate::mobile::data_directory()?;
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let image_path = directory.join("widget-vehicle.jpg");
-    let asset = app
-        .asset_resolver()
-        .get(path.clone())
-        .ok_or("小组件车辆图片不可用")?;
-    let temporary = directory.join("widget-vehicle.tmp");
-    std::fs::write(&temporary, asset.bytes).map_err(|error| error.to_string())?;
-    std::fs::rename(temporary, &image_path).map_err(|error| error.to_string())?;
-    crate::mobile::call_async(
-        "updateWidgets",
-        serde_json::json!({"data": data, "imagePath": image_path}),
-    )
-    .await
+    #[cfg(target_os = "ios")]
+    let dark_image_path = directory.join("widget-vehicle-dark.webp");
+    #[cfg(target_os = "ios")]
+    let dark_artwork = path.replace("-side.jpg", "-side-cutout.webp");
+    for (source, destination) in [
+        (path, &image_path),
+        #[cfg(target_os = "ios")]
+        (&dark_artwork, &dark_image_path),
+    ] {
+        let asset = app
+            .asset_resolver()
+            .get(source.clone())
+            .ok_or("小组件车辆图片不可用")?;
+        let temporary = destination.with_extension("tmp");
+        std::fs::write(&temporary, asset.bytes).map_err(|error| error.to_string())?;
+        std::fs::rename(temporary, destination).map_err(|error| error.to_string())?;
+    }
+    let payload = serde_json::json!({"data": data, "imagePath": image_path});
+    #[cfg(target_os = "ios")]
+    let payload = {
+        let mut payload = payload;
+        payload["darkImagePath"] = serde_json::json!(dark_image_path);
+        payload
+    };
+    crate::mobile::call_async("updateWidgets", payload).await
 }

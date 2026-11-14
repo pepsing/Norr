@@ -65,6 +65,7 @@ struct VehicleData: Decodable {
 struct StoredVehicle: Decodable {
   let data: VehicleData
   let imageName: String
+  let darkImageName: String?
 }
 
 struct VehicleEntry: TimelineEntry {
@@ -72,6 +73,7 @@ struct VehicleEntry: TimelineEntry {
   let configuration: WidgetOptions
   var data: VehicleData?
   var image: UIImage?
+  var darkImage: UIImage?
   var preview = false
 }
 
@@ -103,18 +105,21 @@ struct VehicleProvider: AppIntentTimelineProvider {
       let stored = try? JSONDecoder().decode(StoredVehicle.self, from: bytes)
     else { return entry }
     entry.data = stored.data
-    if stored.imageName.hasPrefix("vehicle-") && !stored.imageName.contains("/") {
-      let original = UIImage(contentsOfFile: directory.appendingPathComponent(stored.imageName).path)
+    func croppedImage(_ name: String?) -> UIImage? {
+      guard let name, name.hasPrefix("vehicle-"), !name.contains("/") else { return nil }
+      let original = UIImage(contentsOfFile: directory.appendingPathComponent(name).path)
       if let source = original?.cgImage {
         let height = min(CGFloat(source.height), CGFloat(source.width) / 3.2)
         let crop = CGRect(x: 0, y: (CGFloat(source.height) - height) * 0.6,
                           width: CGFloat(source.width), height: height)
         if let cropped = source.cropping(to: crop) {
-          entry.image = UIImage(cgImage: cropped)
+          return UIImage(cgImage: cropped)
         }
       }
-      if entry.image == nil { entry.image = original }
+      return original
     }
+    entry.image = croppedImage(stored.imageName)
+    entry.darkImage = croppedImage(stored.darkImageName)
     return entry
   }
 }
@@ -183,9 +188,10 @@ struct VehicleWidgetView: View {
           Spacer()
           Text(data.model).font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.8)
         }
-        if family == .systemLarge, let image = entry.image {
+        if family == .systemLarge, let image = dark ? (entry.darkImage ?? entry.image) : entry.image {
           Image(uiImage: image).resizable().scaledToFit()
             .frame(maxWidth: .infinity, maxHeight: 90)
+            .background(dark ? tile : Color.clear)
             .accessibilityLabel(data.model)
         }
         HStack(alignment: .firstTextBaseline) {

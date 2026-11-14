@@ -18,11 +18,13 @@ struct WidgetVehicle: Codable {
 struct WidgetRecord: Codable {
   let data: WidgetVehicle
   let imageName: String
+  let darkImageName: String?
 }
 
 struct WidgetUpdate: Decodable {
   let data: WidgetVehicle
   let imagePath: String
+  let darkImagePath: String?
 }
 
 extension NorrPlugin {
@@ -35,14 +37,19 @@ extension NorrPlugin {
       return
     }
     do {
-      let image = try Data(contentsOf: URL(fileURLWithPath: update.imagePath))
-      let digest = SHA256.hash(data: image).map { String(format: "%02x", $0) }.joined()
-      let imageName = "vehicle-\(digest).jpg"
-      let imageURL = directory.appendingPathComponent(imageName)
-      if !FileManager.default.fileExists(atPath: imageURL.path) {
-        try image.write(to: imageURL, options: .atomic)
+      func storeImage(_ path: String, extension suffix: String) throws -> String {
+        let image = try Data(contentsOf: URL(fileURLWithPath: path))
+        let digest = SHA256.hash(data: image).map { String(format: "%02x", $0) }.joined()
+        let name = "vehicle-\(digest).\(suffix)"
+        let url = directory.appendingPathComponent(name)
+        if !FileManager.default.fileExists(atPath: url.path) {
+          try image.write(to: url, options: .atomic)
+        }
+        return name
       }
-      let record = WidgetRecord(data: update.data, imageName: imageName)
+      let imageName = try storeImage(update.imagePath, extension: "jpg")
+      let darkImageName = try update.darkImagePath.map { try storeImage($0, extension: "webp") }
+      let record = WidgetRecord(data: update.data, imageName: imageName, darkImageName: darkImageName)
       try JSONEncoder().encode(record).write(
         to: directory.appendingPathComponent("vehicle.json"), options: .atomic)
       WidgetCenter.shared.reloadTimelines(ofKind: "NorrVehicle")
