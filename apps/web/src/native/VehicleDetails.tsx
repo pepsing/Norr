@@ -25,9 +25,11 @@ function Metrics({ items }: { items: [string, string][] }) {
 export function VehicleDetails({
   snapshot,
   onError,
+  includeMap = true,
 }: {
   snapshot?: Snapshot;
   onError: (message: string) => void;
+  includeMap?: boolean;
 }) {
   const health = snapshot?.readings.health?.value;
   const tyres = (health?.tyres ?? []) as {
@@ -68,30 +70,31 @@ export function VehicleDetails({
             ["距保养里程", text(health?.kmToService, " km")],
           ]}
         />
-        {tyres.length > 0 && (
-          <div className="native-table-wrap">
-            <table className="native-table">
-              <thead>
-                <tr>
-                  <th>轮胎</th>
-                  <th>实测压力</th>
-                  <th>参考压力</th>
-                  <th>状态</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tyres.map((tyre) => (
-                  <tr key={tyre.wheel}>
-                    <td>{wheelLabels[tyre.wheel] ?? tyre.wheel}</td>
-                    <td>{text(tyre.kpa, " kPa")}</td>
-                    <td>{text(tyre.referenceKpa, " kPa")}</td>
-                    <td>{tyreWarnings[tyre.warning ?? 0] ?? "未知"}</td>
+        {!/^polestar\s*2(?:\b|$)/i.test(snapshot?.vehicle.model ?? "") &&
+          tyres.length > 0 && (
+            <div className="native-table-wrap">
+              <table className="native-table">
+                <thead>
+                  <tr>
+                    <th>轮胎</th>
+                    <th>实测压力</th>
+                    <th>参考压力</th>
+                    <th>状态</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {tyres.map((tyre) => (
+                    <tr key={tyre.wheel}>
+                      <td>{wheelLabels[tyre.wheel] ?? tyre.wheel}</td>
+                      <td>{text(tyre.kpa, " kPa")}</td>
+                      <td>{text(tyre.referenceKpa, " kPa")}</td>
+                      <td>{tyreWarnings[tyre.warning ?? 0] ?? "未知"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         <Metrics
           items={Object.entries(warnings)
             .filter(([key]) => key !== "oil")
@@ -106,16 +109,19 @@ export function VehicleDetails({
         />
       </section>
       <div>
-        <VehicleMap
-          key={snapshot?.vehicle.vin}
-          snapshot={snapshot}
-          onError={onError}
-        />
+        {includeMap && (
+          <VehicleMap
+            key={snapshot?.vehicle.vin}
+            snapshot={snapshot}
+            onError={onError}
+          />
+        )}
         <section className="native-section">
           <h2>行程读数</h2>
           <p className="muted">{readingText(snapshot, "odometer")}</p>
           <Metrics
             items={[
+              ["总里程", text(numeric(snapshot, "odometer", "km"), " km")],
               [
                 "手动行程",
                 text(numeric(snapshot, "odometer", "tripKm"), " km"),

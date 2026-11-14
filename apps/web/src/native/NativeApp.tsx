@@ -4,16 +4,18 @@ import {
   isMobile,
   isWindows,
 } from "./platform";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
   BatteryCharging,
   CarFront,
+  ChevronRight,
   Fan,
   History as HistoryIcon,
   KeyRound,
   LockKeyhole,
+  MapPin,
   Moon,
   RefreshCw,
   Settings2,
@@ -32,6 +34,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
 import { ChargeLocations, VehicleDetails } from "./VehicleDetails";
+import { VehicleMap } from "./VehicleMap";
 import { defaultAppearance, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
@@ -115,6 +118,9 @@ function valueText(value: number | null, unit = "", digits = 0): string {
 
 export default function NativeApp() {
   const [page, setPage] = useState("vehicle");
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page]);
   const [chargingTab, setChargingTab] = useState("充电状态");
   const [settingsTab, setSettingsTab] = useState("偏好");
   const [fleet, setFleet] = useState<NativeVehicle[]>([]);
@@ -137,6 +143,12 @@ export default function NativeApp() {
   } | null>(null);
   const [configPath, setConfigPath] = useState("");
   const [dialog, setDialog] = useState<Command | null>(null);
+  const [vehicleSheet, setVehicleSheet] = useState<
+    "details" | "location" | null
+  >(null);
+  const [compact, setCompact] = useState(
+    () => window.matchMedia("(max-width: 760px)").matches,
+  );
   const [appearance, setAppearance] = useState(defaultAppearance());
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
@@ -191,6 +203,13 @@ export default function NativeApp() {
   useEffect(() => {
     document.title = `Norr 北行 · ${pages.find((item) => item.id === page)?.label}`;
   }, [page]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const update = () => setCompact(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -496,15 +515,20 @@ export default function NativeApp() {
   const target = numeric(snapshot, "target", "percent");
   const lockAction = locked === true ? "unlock" : "lock";
   const climateAction = climate === "active" ? "climateStop" : "climateStart";
-  const openingActions = ["windowsOpen", "windowsClose"].includes(dialog?.action ?? "")
+  const openingActions = ["windowsOpen", "windowsClose"].includes(
+    dialog?.action ?? "",
+  )
     ? ["windowsOpen", "windowsClose"]
-    : ["unlockTrunk", "tailgateOpen", "tailgateClose"].includes(dialog?.action ?? "")
+    : ["unlockTrunk", "tailgateOpen", "tailgateClose"].includes(
+          dialog?.action ?? "",
+        )
       ? ["unlockTrunk", "tailgateOpen", "tailgateClose"]
       : [];
   const noticeReceipt =
     typeof notice === "string"
       ? null
-      : (history.receipts.find((receipt) => receipt.id === notice.id) ?? notice);
+      : (history.receipts.find((receipt) => receipt.id === notice.id) ??
+        notice);
   const noticeText = noticeReceipt
     ? [
         actionLabels[noticeReceipt.command.action],
@@ -520,7 +544,7 @@ export default function NativeApp() {
       <a className="skip-link" href="#main">
         跳到内容
       </a>
-      <header className="app-header">
+      <header className="app-header native-header">
         <button
           className="wordmark"
           aria-label="Norr 北行 车辆首页"
@@ -868,13 +892,24 @@ export default function NativeApp() {
                         numeric(snapshot, "battery", "chargeState") ?? 0
                       ] ?? "充电状态未知"
                     }
-                    detail={<small>{readingText(snapshot, "battery")}</small>}
+                    detail={
+                      <small title={readingText(snapshot, "battery")}>
+                        {readingText(snapshot, "battery", compact)}
+                      </small>
+                    }
                     actions={
                       <button
                         className="light-button"
                         onClick={() => setPage("charging")}
                       >
-                        查看充电数据
+                        {compact ? (
+                          <>
+                            充电详情
+                            <ChevronRight size={16} aria-hidden="true" />
+                          </>
+                        ) : (
+                          "查看充电数据"
+                        )}
                       </button>
                     }
                   />
@@ -947,31 +982,64 @@ export default function NativeApp() {
                       <span>{actionLabels[climateAction]}</span>
                     </div>
                   </button>
-                  <button
-                    className="control-tile"
-                    onClick={() => {
-                      detailsRef.current?.focus();
-                      detailsRef.current?.scrollIntoView({ block: "start" });
-                    }}
-                  >
-                    <div className="tile-heading">
-                      <h3>车辆详情</h3>
-                      <ArrowUpRight size={21} aria-hidden="true" />
-                    </div>
-                    <p>
-                      总里程{" "}
-                      {valueText(numeric(snapshot, "odometer", "km"), " km", 1)}
-                    </p>
-                    <div className="tile-bottom">
-                      <Shield size={35} strokeWidth={1.2} aria-hidden="true" />
-                      <span>状态与健康</span>
-                    </div>
-                  </button>
+                  {!compact && (
+                    <button
+                      className="control-tile"
+                      onClick={() => {
+                        detailsRef.current?.focus();
+                        detailsRef.current?.scrollIntoView({
+                          block: "start",
+                        });
+                      }}
+                    >
+                      <div className="tile-heading">
+                        <h3>车辆详情</h3>
+                        <ArrowUpRight size={21} aria-hidden="true" />
+                      </div>
+                      <p>
+                        总里程{" "}
+                        {valueText(
+                          numeric(snapshot, "odometer", "km"),
+                          " km",
+                          1,
+                        )}
+                      </p>
+                      <div className="tile-bottom">
+                        <Shield
+                          size={35}
+                          strokeWidth={1.2}
+                          aria-hidden="true"
+                        />
+                        <span>状态与健康</span>
+                      </div>
+                    </button>
+                  )}
                 </div>
-                <div ref={detailsRef} tabIndex={-1}>
-                  <VehicleDetails snapshot={snapshot} onError={setError} />
-                </div>
-                <EndpointStatus snapshot={snapshot} />
+                {compact ? (
+                  <div className="native-overview-links">
+                    <button
+                      className="text-button"
+                      onClick={() => setVehicleSheet("details")}
+                    >
+                      <Shield size={18} aria-hidden="true" />
+                      车辆详情
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() => setVehicleSheet("location")}
+                    >
+                      <MapPin size={18} aria-hidden="true" />
+                      车辆位置
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div ref={detailsRef} tabIndex={-1}>
+                      <VehicleDetails snapshot={snapshot} onError={setError} />
+                    </div>
+                    <EndpointStatus snapshot={snapshot} />
+                  </>
+                )}
               </>
             )}
             {page === "controls" && (
@@ -1100,6 +1168,33 @@ export default function NativeApp() {
           <span>{connected ? "中国区车辆服务已连接" : "车辆服务未连接"}</span>
         </footer>
       </main>
+      {vehicleSheet && (
+        <Modal
+          title={vehicleSheet === "details" ? "车辆详情" : "车辆位置"}
+          className="native-vehicle-sheet"
+          onClose={() => setVehicleSheet(null)}
+        >
+          <div className="native-vehicle-sheet-content">
+            {vehicleSheet === "details" ? (
+              <>
+                <VehicleDetails
+                  snapshot={snapshot}
+                  onError={setError}
+                  includeMap={false}
+                />
+                <EndpointStatus snapshot={snapshot} />
+              </>
+            ) : (
+              <VehicleMap key={vin} snapshot={snapshot} onError={setError} />
+            )}
+            {error && (
+              <p role="alert" className="native-inline-error">
+                {error}
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
       {dialog && (
         <Modal
           title={actionLabels[dialog.action]}
@@ -1251,7 +1346,9 @@ export default function NativeApp() {
           {openingActions.length > 0 && (
             <details className="native-command-options">
               <summary>
-                {dialog.action.startsWith("windows") ? "其他车窗操作" : "其他尾门操作"}
+                {dialog.action.startsWith("windows")
+                  ? "其他车窗操作"
+                  : "其他尾门操作"}
               </summary>
               <div className="native-actions">
                 {openingActions

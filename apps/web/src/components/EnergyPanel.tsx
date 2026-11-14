@@ -113,11 +113,13 @@ export function EnergyPanelView({
         <span>预计续航</span>
         <span className="range-value">{range}</span>
       </div>
-      <div className="charge-summary">
-        {status}
-        <span>{detail}</span>
+      <div className="energy-footer">
+        <div className="charge-summary">
+          {status}
+          <span>{detail}</span>
+        </div>
+        <div className="energy-actions">{actions}</div>
       </div>
-      <div className="energy-actions">{actions}</div>
     </section>
   );
 }

@@ -378,6 +378,9 @@ h1 {
   font-size: 12px;
   letter-spacing: 0;
 }
+.energy-footer {
+  display: contents;
+}
 .charge-summary {
   margin: 17px 0 19px;
   display: flex;
@@ -870,7 +873,10 @@ h1 {
   border: 1px solid var(--line);
   width: 460px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - 48px);
+  max-height: calc(
+    100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 48px
+  );
+  inset-block: env(safe-area-inset-top) env(safe-area-inset-bottom);
   background: var(--canvas);
   color: var(--ink);
   padding: 26px 30px;

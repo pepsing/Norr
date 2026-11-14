@@ -193,13 +193,27 @@ export function numeric(
 export function readingText(
   snapshot: Snapshot | undefined,
   endpoint: string,
+  compact = false,
 ): string {
   const reading = snapshot?.readings[endpoint];
   if (!reading) return "尚未读取";
   if (reading.status === "failed") return reading.error ?? "读取失败";
-  const date = new Date(
-    reading.reportedAt ?? reading.observedAt,
-  ).toLocaleString("zh-CN", { hour12: false });
+  const timestamp = new Date(reading.reportedAt ?? reading.observedAt);
+  const date = timestamp.toLocaleString(
+    "zh-CN",
+    compact
+      ? {
+          year: timestamp.getFullYear() === new Date().getFullYear()
+            ? undefined
+            : "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }
+      : { hour12: false },
+  );
   return `${reading.reportedAt ? "车辆上报" : "读取于"} ${date}`;
 }
 

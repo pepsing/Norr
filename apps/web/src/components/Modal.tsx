@@ -6,28 +6,51 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }
 
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  className = "",
+}: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current!;
     const previousFocus = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const bodyStyle = document.body.style;
+    const previousStyle = {
+      overflow: bodyStyle.overflow,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      left: bodyStyle.left,
+      width: bodyStyle.width,
+    };
+    Object.assign(bodyStyle, {
+      overflow: "hidden",
+      position: "fixed",
+      top: `${-scrollY}px`,
+      left: `${-scrollX}px`,
+      width: "100%",
+    });
+    window.scrollTo(0, 0);
     dialog.showModal();
-    document.body.style.overflow = "hidden";
     return () => {
       dialog.close();
-      document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
+      Object.assign(bodyStyle, previousStyle);
+      window.scrollTo(scrollX, scrollY);
+      previousFocus?.focus({ preventScroll: true });
     };
   }, []);
 
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${className}`}
       aria-labelledby="modal-title"
       onCancel={(event) => {
         event.preventDefault();
