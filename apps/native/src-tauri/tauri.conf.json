@@ -31,6 +31,6 @@
     "targets": ["app"],
     "category": "Utilities",
     "shortDescription": "Norr 北行车辆管理",
-    "macOS": { "minimumSystemVersion": "13.0", "signingIdentity": "-" }
+    "macOS": { "minimumSystemVersion": "13.0", "signingIdentity": "-", "infoPlist": "macos/Info.plist" }
   }
 }

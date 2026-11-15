@@ -5,6 +5,7 @@ const platform = typeof window === "undefined"
 export const isWindows = platform === "windows";
 export const isAndroid = platform === "android";
 export const isIOS = platform === "ios";
+export const supportsWidgets = ["android", "ios", "macos"].includes(platform ?? "");
 export const isMobile = isAndroid || isIOS;
 export const desktopName = isAndroid
   ? "Android"

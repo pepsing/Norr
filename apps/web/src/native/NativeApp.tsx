@@ -4,6 +4,7 @@ import {
   isAndroid,
   isMobile,
   isWindows,
+  supportsWidgets,
 } from "./platform";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -288,7 +289,7 @@ export default function NativeApp() {
   }, [vehicle?.vin, vehicle?.model]);
 
   useEffect(() => {
-    if (!isMobile || !snapshot || snapshot.vehicle.vin !== vin) {
+    if (!supportsWidgets || !snapshot || snapshot.vehicle.vin !== vin) {
       setWidgetError("");
       return;
     }
@@ -305,7 +306,7 @@ export default function NativeApp() {
   }, [snapshot, vin, appearance]);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!supportsWidgets) return;
     let disposed = false;
     const receive = () => {
       if (disposed) return;

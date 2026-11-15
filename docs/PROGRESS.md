@@ -4,6 +4,14 @@
 
 ## 当前状态
 
+### macOS 桌面小组件本地预览
+
+2026-11-15 接入 macOS WidgetKit 扩展，复用现有 iOS 小、中、大三种尺寸与浅深主题，保持 ENERGY 2 / RHYTHM 2 / MOTION 1。扩展最低系统为 macOS 14，主程序继续支持 macOS 13。组件随 `npm run build:mac` 嵌入同一个 `.app`，沿用现有 ad-hoc 签名。
+
+主程序通过已有小组件 IPC 写入专用车辆快照目录，组件沙盒只读该目录。Foundation 的用户目录 API 在沙盒内返回容器路径，现改为读取当前用户账户的主目录。真实沙盒探针确认能读车辆 JSON、解码深浅车图，且无法读取上层车辆历史文件。新增沙盒路径回归与小组件 URL 路由测试。组件入口接入 macOS 打开 URL 事件，并显示主窗口及对应控制确认界面。
+
+已通过 macOS 构建、嵌套代码签名校验、43 项 Rust release 测试、严格 Clippy、20 项前端测试、9 项原生脚本测试及 iOS 模拟器构建回归。新版已覆盖 `/Applications/Norr.app`，系统已注册 `app.norr.mac.widgets`，主程序已写入真实车辆快照和深浅车图。旧应用备份位于本机 `/tmp/Norr-before-macos-widgets.zip`。用户添加组件后的桌面截图确认小、中、大三种尺寸均显示真实车辆数据，电量 30%、续航 130 km、门锁与空调状态一致，大号深色车图完整。通过系统 URL 入口验证门锁与空调确认框，空调入口冷启动后也能恢复到确认框，取消操作正常；刷新入口更新了车辆快照。上述入口验证使用系统打开 URL，桌面组件的实际鼠标点击仍待核对。浅色离屏渲染确认读数与车图，ImageRenderer 无法渲染 Link 控件，浅色桌面实显及系统主题双向切换仍待核对。
+
 ### iOS 发布包小组件命令入口修复
 
 2026-11-15 收到 `No command updateWidgets found for plugin norr-mobile` 反馈。检查 GitHub alpha.11 的实际 IPA，发现主程序的 Objective-C 方法名区缺少 `updateWidgets:error:`，调用在进入共享权限检查之前失败。此前本地修复包的真机验收与发布包权限检查未覆盖这个差异。

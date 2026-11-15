@@ -21,6 +21,11 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=WidgetKit");
     }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        #[cfg(target_os = "macos")]
+        tauri_utils::build::link_apple_library("NorrDesktopWidgets", "macos");
+        println!("cargo:rerun-if-changed=macos/Sources");
+        println!("cargo:rerun-if-changed=macos/Package.swift");
+        println!("cargo:rustc-link-lib=framework=WidgetKit");
         cc::Build::new()
             .file("src/macos.m")
             .file("src/verification.m")

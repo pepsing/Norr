@@ -1,6 +1,23 @@
 import AppIntents
+import ImageIO
 import SwiftUI
 import WidgetKit
+
+#if os(macOS)
+typealias WidgetImage = NSImage
+#else
+typealias WidgetImage = UIImage
+#endif
+
+extension Image {
+  init(widgetImage: WidgetImage) {
+    #if os(macOS)
+    self.init(nsImage: widgetImage)
+    #else
+    self.init(uiImage: widgetImage)
+    #endif
+  }
+}
 
 enum WidgetAppearance: String, AppEnum {
   case system, light, dark
@@ -72,8 +89,8 @@ struct VehicleEntry: TimelineEntry {
   let date: Date
   let configuration: WidgetOptions
   var data: VehicleData?
-  var image: UIImage?
-  var darkImage: UIImage?
+  var image: WidgetImage?
+  var darkImage: WidgetImage?
   var preview = false
   var unavailableTitle = "等待车辆数据"
   var unavailableMessage = "打开 Norr 刷新车辆"
@@ -103,7 +120,11 @@ struct VehicleProvider: AppIntentTimelineProvider {
     var entry = VehicleEntry(date: .now, configuration: configuration)
     guard let directory = WidgetStorage.directory() else {
       entry.unavailableTitle = "共享权限不可用"
+      #if os(macOS)
+      entry.unavailableMessage = "打开 Norr 刷新车辆后重试"
+      #else
       entry.unavailableMessage = "请重新签名安装，并保留小组件扩展"
+      #endif
       return entry
     }
     let stored: StoredVehicle
@@ -117,18 +138,20 @@ struct VehicleProvider: AppIntentTimelineProvider {
       return entry
     }
     entry.data = stored.data
-    func croppedImage(_ name: String?) -> UIImage? {
+    func croppedImage(_ name: String?) -> WidgetImage? {
       guard let name, name.hasPrefix("vehicle-"), !name.contains("/") else { return nil }
-      let original = UIImage(contentsOfFile: directory.appendingPathComponent(name).path)
-      if let source = original?.cgImage {
-        let height = min(CGFloat(source.height), CGFloat(source.width) / 3.2)
-        let crop = CGRect(x: 0, y: (CGFloat(source.height) - height) * 0.6,
-                          width: CGFloat(source.width), height: height)
-        if let cropped = source.cropping(to: crop) {
-          return UIImage(cgImage: cropped)
-        }
-      }
-      return original
+      let url = directory.appendingPathComponent(name)
+      guard let image = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let source = CGImageSourceCreateImageAtIndex(image, 0, nil) else { return nil }
+      let height = min(CGFloat(source.height), CGFloat(source.width) / 3.2)
+      let crop = CGRect(x: 0, y: (CGFloat(source.height) - height) * 0.6,
+                        width: CGFloat(source.width), height: height)
+      let cropped = source.cropping(to: crop) ?? source
+      #if os(macOS)
+      return NSImage(cgImage: cropped, size: NSSize(width: cropped.width, height: cropped.height))
+      #else
+      return UIImage(cgImage: cropped)
+      #endif
     }
     entry.image = croppedImage(stored.imageName)
     entry.darkImage = croppedImage(stored.darkImageName)
@@ -201,7 +224,7 @@ struct VehicleWidgetView: View {
           Text(data.model).font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.8)
         }
         if family == .systemLarge, let image = dark ? (entry.darkImage ?? entry.image) : entry.image {
-          Image(uiImage: image).resizable().scaledToFit()
+          Image(widgetImage: image).resizable().scaledToFit()
             .frame(maxWidth: .infinity, maxHeight: 90)
             .background(dark ? tile : Color.clear)
             .accessibilityLabel(data.model)

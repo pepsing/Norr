@@ -1,0 +1,38 @@
+name: NorrWidgets
+options:
+  deploymentTarget:
+    macOS: "14.0"
+targets:
+  NorrWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: ../ios/Widgets/NorrWidgets.swift
+      - path: WidgetStorage.swift
+      - path: ../ios/Widgets/Archivo.ttf
+        buildPhase: resources
+      - path: ../ios/Widgets/OFL.txt
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.norr.mac.widgets
+        PRODUCT_NAME: NorrWidgets
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_ENTITLEMENTS: Widgets.entitlements
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "0.1.0"
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
+    info:
+      path: Widgets-Info.plist
+      properties:
+        CFBundleDisplayName: Norr
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSHumanReadableCopyright: ""
+        ATSApplicationFontsPath: .
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    scheme: {}

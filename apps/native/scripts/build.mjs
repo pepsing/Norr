@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
 import { finalizeIOS } from "./finalize-ios.mjs";
+import { finalizeMacOS } from "./finalize-macos.mjs";
 
 const platform =
   process.argv[2] ?? (process.platform === "win32" ? "windows" : "macos");
@@ -57,4 +58,5 @@ const result = spawnSync(process.execPath, [cli, ...args], {
 if (result.error)
   console.error("构建启动失败。请检查 Tauri 和 Rust 开发环境。");
 if (result.status === 0 && platform === "ios") finalizeIOS(device);
+if (result.status === 0 && platform === "macos") finalizeMacOS(extraArgs);
 process.exit(result.status ?? 1);

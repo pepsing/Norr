@@ -8,6 +8,14 @@ macOS 应用标识为 `app.norr.mac`，Windows 为 `app.norr.windows`，Android 
 
 `alpha.3` 和 `alpha.4` 存在密码命令 ACL 漏项，会报 `Command sign_in_password not allowed by ACL`。`alpha.5` 已补齐权限并通过 Windows 原生权限回归测试。Windows 滑块回调同时改用官方 webview 消息模式，验证成功后继续发送短信，实际短信与密码登录结果待新版实机复测。
 
+## macOS 桌面小组件
+
+`npm run build:mac` 会把 `NorrWidgets.appex` 构建并嵌入 `Norr.app/Contents/PlugIns`，随后重新签名并验证完整应用。主程序最低版本为 macOS 13，小组件最低版本为 macOS 14。组件复用 iOS 的小、中、大号布局和深浅外观，点击车辆、门锁、空调或刷新入口会打开 Norr 对应功能。
+
+当前 ad-hoc 分发使用专用快照目录 `~/Library/Application Support/app.norr.mac/widgets`。主程序写入车辆读数和两种车图，再请求 WidgetKit 更新时间线；组件沙盒仅获得该目录的只读文件例外权限。车辆历史和登录凭据沿用主程序的存储。图片按配置分别命名，车辆快照通过原子替换发布，切换车辆时保持图片与读数对应。
+
+组件 Xcode 工程位于 `src-tauri/macos/NorrWidgets.xcodeproj`，项目声明为同目录的 `project.yml`，修改项目结构时可用 XcodeGen 重新生成。日常构建直接使用已纳入仓库的工程与完整 Xcode。
+
 ## iOS 模拟器版
 
 首版面向 Apple Silicon Mac 上的 iPhone 模拟器，最低部署版本为 iOS 15.0。复用五个主页面与本地车辆核心，随包携带界面、字体和 P2/P4 素材。模拟器构建使用独立的 iOS 数据目录和钥匙串。
