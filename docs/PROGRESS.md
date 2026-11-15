@@ -12,6 +12,8 @@
 
 已通过 macOS 构建、嵌套代码签名校验、43 项 Rust release 测试、严格 Clippy、20 项前端测试、9 项原生脚本测试及 iOS 模拟器构建回归。新版已覆盖 `/Applications/Norr.app`，系统已注册 `app.norr.mac.widgets`，主程序已写入真实车辆快照和深浅车图。旧应用备份位于本机 `/tmp/Norr-before-macos-widgets.zip`。用户添加组件后的桌面截图确认小、中、大三种尺寸均显示真实车辆数据，电量 30%、续航 130 km、门锁与空调状态一致，大号深色车图完整。通过系统 URL 入口验证门锁与空调确认框，空调入口冷启动后也能恢复到确认框，取消操作正常；刷新入口更新了车辆快照。上述入口验证使用系统打开 URL，桌面组件的实际鼠标点击仍待核对。浅色离屏渲染确认读数与车图，ImageRenderer 无法渲染 Link 控件，浅色桌面实显及系统主题双向切换仍待核对。
 
+2026-11-15 全平台发布首轮发现直接 Cargo 检查采用 Swift 桥接默认部署版本 macOS 10.13，CI 的 Xcode 16.4 因 WidgetKit 可用版本检查失败。已在工作区 Cargo 配置中设置默认 `MACOSX_DEPLOYMENT_TARGET=13.0`，与主程序最低系统保持一致。清除外部同名环境变量后重新执行 43 项 Rust release 测试通过，构建日志确认 Swift 目标为 `arm64-apple-macosx13.0`。
+
 ### iOS 发布包小组件命令入口修复
 
 2026-11-15 收到 `No command updateWidgets found for plugin norr-mobile` 反馈。检查 GitHub alpha.11 的实际 IPA，发现主程序的 Objective-C 方法名区缺少 `updateWidgets:error:`，调用在进入共享权限检查之前失败。此前本地修复包的真机验收与发布包权限检查未覆盖这个差异。
