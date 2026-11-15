@@ -20,6 +20,7 @@ export function finalizeIOS(device = false) {
   if (!info.CFBundleSupportedPlatforms?.includes(platform)) {
     throw new Error(`Expected ${platform} archive`);
   }
+  verifyIOSWidgetCommand(`${source}/${info.CFBundleExecutable}`);
 
   const directory = fileURLToPath(
     new URL("../../../target/ios/", import.meta.url),
@@ -57,6 +58,15 @@ export function finalizeIOS(device = false) {
     stdio: "inherit",
   });
   console.log(`iOS 模拟器应用：${app}\n模拟器压缩包：${archive}`);
+}
+
+export function verifyIOSWidgetCommand(executable) {
+  const selectors = execFileSync("/usr/bin/xcrun", [
+    "otool", "-v", "-s", "__TEXT", "__objc_methname", executable,
+  ], { encoding: "utf8" });
+  if (!/^\s*[0-9a-f]+\s+updateWidgets:error:\s*$/m.test(selectors)) {
+    throw new Error("Missing iOS widget command updateWidgets:error: in linked app");
+  }
 }
 
 export function prepareIOSForResigning(app) {

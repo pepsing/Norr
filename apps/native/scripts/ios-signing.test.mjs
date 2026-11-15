@@ -4,7 +4,43 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
-import { prepareIOSForResigning } from "./finalize-ios.mjs";
+import { prepareIOSForResigning, verifyIOSWidgetCommand } from "./finalize-ios.mjs";
+
+test("IPA validation requires the widget Objective-C selector, not a command string", { skip: process.platform !== "darwin" }, () => {
+  const root = mkdtempSync(join(tmpdir(), "norr-widget-command-test-"));
+  try {
+    const sdk = execFileSync("xcrun", ["--sdk", "iphoneos", "--show-sdk-path"], { encoding: "utf8" }).trim();
+    for (const withCommand of [false, true]) {
+      const source = join(root, "main.m");
+      const executable = join(root, "Norr");
+      const declaration = withCommand ? "- (BOOL)updateWidgets:(id)invoke error:(NSError **)error;" : "";
+      const implementation = withCommand ? "- (BOOL)updateWidgets:(id)invoke error:(NSError **)error { return YES; }" : "";
+      writeFileSync(source, `
+#import <Foundation/Foundation.h>
+#include <stdio.h>
+@interface NorrPlugin : NSObject
+${declaration}
+@end
+@implementation NorrPlugin
+${implementation}
+@end
+int main(void) {
+  puts("updateWidgets:error:");
+  return [NorrPlugin new] == nil;
+}
+`);
+      execFileSync("xcrun", ["clang", "-target", "arm64-apple-ios17.0", "-isysroot", sdk,
+        "-fobjc-arc", "-framework", "Foundation", source, "-o", executable]);
+      if (withCommand) {
+        assert.doesNotThrow(() => verifyIOSWidgetCommand(executable));
+      } else {
+        assert.throws(() => verifyIOSWidgetCommand(executable), /Missing iOS widget command/);
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("personal-signing IPA preserves App Groups on both executables without a certificate", { skip: process.platform !== "darwin" }, () => {
   const root = mkdtempSync(join(tmpdir(), "norr-signing-test-"));

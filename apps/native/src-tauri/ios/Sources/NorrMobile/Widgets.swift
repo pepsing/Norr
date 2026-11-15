@@ -29,7 +29,7 @@ struct WidgetUpdate: Decodable {
 }
 
 extension NorrPlugin {
-  @objc func updateWidgets(_ invoke: Invoke) throws {
+  func syncWidgets(_ invoke: Invoke) throws {
     let update = try invoke.parseArgs(WidgetUpdate.self)
     guard let directory = WidgetStorage.directory() else {
       invoke.reject("小组件共享权限不可用，请使用新版 IPA 重新签名安装，并保留小组件扩展。")

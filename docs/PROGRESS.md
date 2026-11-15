@@ -4,6 +4,18 @@
 
 ## 当前状态
 
+### iOS 发布包小组件命令入口修复
+
+2026-11-15 收到 `No command updateWidgets found for plugin norr-mobile` 反馈。检查 GitHub alpha.11 的实际 IPA，发现主程序的 Objective-C 方法名区缺少 `updateWidgets:error:`，调用在进入共享权限检查之前失败。此前本地修复包的真机验收与发布包权限检查未覆盖这个差异。
+
+将 `@objc updateWidgets` 入口放入 `NorrPlugin` 类主体，显式调用独立文件中的数据同步实现，使静态链接保留实现。打包阶段检查最终可执行文件的 Objective-C 方法名区，缺少入口时终止打包。[Apple 静态库动态方法链接说明](https://developer.apple.com/library/archive/qa/qa1490/_index.html)
+
+真机 IPA 和模拟器均已构建通过。解压新 IPA 后确认命令入口、主 App 与扩展的 App Groups、深度代码签名校验通过。26 项原生脚本及发布测试与 Swift 共享组解析、文件读写回归通过；新增校验确认拒绝 alpha.11 原包及仅含同名普通字符串的测试程序，接受包含 Objective-C 入口的程序。
+
+模拟器覆盖安装并启动后，通过 LLDB 对实际运行的 `NorrPlugin` 执行 `instancesRespondToSelector(updateWidgets:error:)` 返回 YES。恢复车辆会话后，共享目录中的 `vehicle.json` 于本次启动后重新写入，电量、续航与深浅车图文件均已核对。反馈者真机重签后的验证待完成。
+
+反馈者随后提供 iOS 27.2.1 环境信息，表示 alpha.11、alpha.12 均出现问题。截图确认 App 已取得车辆数据，错误完整文本为上述命令缺失提示，桌面组件显示占位画面。下载并校验 alpha.12 的 GitHub IPA（build 1012，SHA-256 `c332fcdf96227a1af2dab1924ad238cb4adbb92f16450277cde2473336153779`），确认同样缺少命令入口。alpha.11 与 alpha.12 指向相同源提交 `4f5395f`，均未包含本次入口修复。签名工具和重签后共享权限仍待确认。
+
 ### AltStore 重签后的小组件数据共享修复
 
 2026-11-14 用户在 iPad mini（A17 Pro）通过 AltStore 安装 alpha.10，App 已登录并显示车辆，小组件却提示连接车辆。设备查询确认 build 1010 的 `appGroupIdentifiers` 为空。排查发现发布脚本移除代码签名时丢失 App Groups 权限声明；App 与扩展也写死了原始共享组名称，未适配 AltStore 添加团队后缀后的标识。

@@ -30,6 +30,11 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
   private var document: DocumentOperation?
   private weak var webview: WKWebView?
 
+  // Keep the dynamically dispatched entry on the class so static linking retains the widget code.
+  @objc func updateWidgets(_ invoke: Invoke) throws {
+    try syncWidgets(invoke)
+  }
+
   override func load(webview: WKWebView) {
     self.webview = webview
     active = UIApplication.shared.applicationState == .active
