@@ -2,8 +2,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export function validateVersion(version, buildNumber) {
-  if (!/^\d+\.\d+\.\d+-alpha\.[1-9]\d*$/.test(version)) {
-    throw new Error('Expected an alpha version such as 0.1.0-alpha.1');
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-alpha\.[1-9]\d*)?$/.test(version)) {
+    throw new Error('Expected a version such as 0.1.0 or 0.1.0-alpha.1');
   }
   if (!Number.isSafeInteger(buildNumber) || buildNumber < 1001 || buildNumber > 2_100_000_000) {
     throw new Error('Invalid native build number');

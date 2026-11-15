@@ -124,19 +124,20 @@ npm run build:windows
 
 ## GitHub Actions
 
-`Checks and packages` 在 PR 和主分支代码更新时运行检查。仅文档、issue 表单与许可文件变化时跳过这类即时检查。四端打包由 `Daily alpha release` 调用。
+`Checks and packages` 在 PR 和主分支代码更新时运行检查。仅文档、issue 表单与许可文件变化时跳过这类即时检查。四端打包由 `Release packages` 调用。
 
 - PR 执行前端测试、类型检查与生产构建，以及 macOS、Windows 的 Rust 格式、release 测试和严格 Clippy。
 - 每天北京时间 03:20（UTC 19:20）检查 main。有上次成功发布的全平台版本之后的新提交时生成四端测试包，版本按 `v0.1.0-alpha.1`、`v0.1.0-alpha.2` 递增。提交判断包含文档更新，也会补上此前构建失败而尚未发布的提交。
-- 所选平台与上次覆盖该平台的成功发布源提交一致时，只运行提交检查任务。手动发布时，在 `Daily alpha release` 选择 main，`platform` 选 `all` 构建全部平台，选 `windows` 只构建 Windows x64，选 `ios-ipa` 只构建 iPhone / iPad 真机 IPA。单平台发布保留前端检查和对应平台验证，每日任务仍会补齐全平台版本。
-- 所选平台检查与打包全部通过后创建预发行版，上传安装包与 `SHA256SUMS.txt`，验证上传文件的 SHA-256 后发布。并发发布串行执行，上传中断后可复用同一提交、同一平台选择的草稿与版本号。
+- alpha 发布的所选平台与上次覆盖该平台的成功发布源提交一致时，只运行提交检查任务。手动发布时，在 `Release packages` 选择 main，`platform` 选 `all` 构建全部平台，选 `windows` 只构建 Windows x64，选 `ios-ipa` 只构建 iPhone / iPad 真机 IPA。单平台发布保留前端检查和对应平台验证，每日任务仍会补齐全平台版本。
+- 发布正式版时填写 `version`，例如 `0.1.0`，并选择 `platform=all`。同一提交可从 alpha 晋升正式版，六种包会使用正式版本号与更高的构建号重新构建。版本说明由 `docs/releases/<版本>.md` 提供，检查与上传校验通过后标记为 Latest。留空 `version` 继续发布 alpha；正式版之后的自动 alpha 从下一补丁版本开始，例如 `0.1.1-alpha.1`。
+- 所选平台检查与打包全部通过后创建发布草稿，上传安装包与 `SHA256SUMS.txt`，验证上传文件的 SHA-256 后发布。alpha 标记为预发行版。并发发布串行执行，上传中断后可复用同一提交、同一平台选择的草稿与版本号。
 - 安装包直接附在 Release 页面，Actions 中另保留 14 天的构建产物。[Release 下载](https://github.com/pepsing/Norr/releases) · [每日发布运行](https://github.com/pepsing/Norr/actions/workflows/release.yml)
 
 Release 的更新摘要来自所选平台上次成功发布以来的 PR 标题与直接提交的首行，合并 PR 按编号去重。关联 issue 从提交信息、PR 正文中的 `#编号` 或 issue URL，以及 PR 的关闭关联中收集，显示问题标题、链接和当前状态。首次发布另附当前功能范围说明。
 
 发布说明自动引用 main 上的 [iOS 自助签名指南](../../docs/ios-self-signing.md)，便于查看安装步骤与最新验证状态。
 
-版本号只在构建工作区注入，源码的基础版本由根目录 `package.json` 维护。npm、Cargo 与 Tauri 版本同步为 alpha 版本，Android versionCode 和 Apple bundleVersion 使用独立递增的构建号，从 1001 开始。相同提交的草稿重试沿用构建号。
+版本号只在构建工作区注入，源码的基础版本由根目录 `package.json` 维护。npm、Cargo 与 Tauri 版本同步为所选版本，Android versionCode 和 Apple bundleVersion 使用独立递增的构建号，从 1001 开始。相同提交的草稿重试沿用构建号。
 
 iOS 的系统短版本使用三段数字，例如 `0.1.0`，对应 alpha 迭代由 Release 标签、安装包文件名与 bundleVersion 标识。`v0.1.0-alpha.1` 的原生构建号为 `1001`。
 

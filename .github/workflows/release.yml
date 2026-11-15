@@ -1,10 +1,14 @@
-name: Daily alpha release
+name: Release packages
 
 on:
   schedule:
     - cron: '20 19 * * *'
   workflow_dispatch:
     inputs:
+      version:
+        description: 正式版本号，留空自动发布 alpha
+        type: string
+        default: ''
       platform:
         description: 构建平台
         type: choice
@@ -48,9 +52,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           NORR_RELEASE_PLATFORM: ${{ inputs.platform || 'all' }}
+          NORR_RELEASE_VERSION: ${{ inputs.version }}
 
   build:
-    name: Build alpha packages
+    name: Build packages
     needs: plan
     if: needs.plan.outputs.publish == 'true'
     uses: ./.github/workflows/build.yml
@@ -62,7 +67,7 @@ jobs:
     secrets: inherit
 
   publish:
-    name: Publish verified alpha release
+    name: Publish verified release
     needs: [plan, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -217,10 +217,62 @@ test('release requires both Mac architectures and both iOS packages, with checks
 });
 
 test('invalid versions and native build numbers fail before writing files', () => {
-  assert.throws(() => validateVersion('0.1.0', 1001));
+  assert.doesNotThrow(() => validateVersion('0.1.0', 1001));
+  assert.throws(() => validateVersion('01.1.0', 1001));
+  assert.throws(() => validateVersion('0.1.0-rc.1', 1001));
   assert.throws(() => validateVersion('0.1.0-alpha.0', 1001));
   assert.throws(() => validateVersion('0.1.0-alpha.1', 1000));
   assert.throws(() => validateVersion('0.1.0-alpha.1', 2_100_000_001));
+});
+
+test('stable promotion rebuilds the same alpha source with a higher native build number', () => {
+  const alpha = { draft: false, sha: initial.sha, tag_name: 'v0.1.0-alpha.14',
+    body: '<!-- norr-release {"buildNumber":1014} -->' };
+  const plan = planRelease({ ...initial, releases: [alpha], stableVersion: '0.1.0' });
+  assert.equal(plan.publish, true);
+  assert.equal(plan.version, '0.1.0');
+  assert.equal(plan.tag, 'v0.1.0');
+  assert.equal(plan.buildNumber, 1015);
+  assert.equal(plan.previousTag, alpha.tag_name);
+  for (const platform of ['windows', 'ios-ipa']) {
+    assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0', platform }), /all platforms/);
+  }
+  assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0-alpha.15' }), /plain version/);
+});
+
+test('stable retries preserve draft metadata and cannot overwrite a different source or tag', () => {
+  const metadata = { sha: initial.sha, version: '0.1.0', buildNumber: 1015, previousTag: 'v0.1.0-alpha.14', platform: 'all' };
+  const draft = { draft: true, tag_name: 'v0.1.0', body: `<!-- norr-release ${JSON.stringify(metadata)} -->` };
+  const input = { ...initial, stableVersion: '0.1.0', releases: [draft] };
+  assert.deepEqual(planRelease(input), { ...metadata, publish: true, tag: 'v0.1.0' });
+  assert.equal(planRelease({ ...input, releases: [{ ...draft, draft: false }] }).publish, false);
+  assert.throws(() => planRelease({ ...input, sha: 'b'.repeat(40) }), /another source/);
+  assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0', tags: ['v0.1.0'] }), /tag already exists/);
+  assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0', tags: ['v0.2.0'] }), /newer/);
+  assert.throws(() => planRelease({ ...input, tags: ['v0.2.0'] }), /older/);
+  assert.match(planRelease({ ...initial, releases: [draft] }).version, /-alpha\./);
+});
+
+test('nightly alpha releases advance beyond the latest stable version', () => {
+  const stable = { draft: false, sha: 'b'.repeat(40), tag_name: 'v0.1.0',
+    body: '<!-- norr-release {"buildNumber":1015,"platform":"all"} -->' };
+  const input = { ...initial, releases: [stable], tags: ['v0.1.0'] };
+  assert.equal(planRelease(input).version, '0.1.1-alpha.1');
+  assert.equal(planRelease(input).buildNumber, 1016);
+  assert.equal(planRelease({ ...input, sha: stable.sha }).publish, false);
+  assert.equal(planRelease({ ...input, tags: ['v0.1.0', 'v0.1.1-alpha.2'] }).version, '0.1.1-alpha.3');
+  assert.equal(planRelease({ ...input, baseVersion: '0.2.0' }).version, '0.2.0-alpha.1');
+  assert.equal(planRelease({ ...input, tags: ['v0.9.0', 'v0.10.0'] }).version, '0.10.1-alpha.1');
+});
+
+test('stable notes retain the reviewed release summary and machine-readable metadata', () => {
+  const plan = planRelease({ ...initial, stableVersion: '0.1.0' });
+  const summary = readFileSync('docs/releases/0.1.0.md', 'utf8');
+  const notes = renderNotes(plan, [], [], 'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1', summary);
+  assert.ok(notes.includes(summary.trim()));
+  assert.match(notes, /首个正式版/);
+  assert.doesNotMatch(notes, /首个 alpha/);
+  assert.match(notes, /"version":"0.1.0"/);
 });
 
 test('version injection updates locked workspace packages and platform build numbers', () => {
@@ -243,6 +295,16 @@ test('version injection updates locked workspace packages and platform build num
     assert.match(readFileSync(join(directory, 'Cargo.lock'), 'utf8'), /name = "norr-vehicle-core"\nversion = "0.1.0-alpha.3"/);
     const lock = JSON.parse(readFileSync(join(directory, 'package-lock.json'), 'utf8'));
     for (const path of ['', 'apps/web', 'apps/native']) assert.equal(lock.packages[path].version, config.version);
+    execFileSync(process.execPath, [resolve('scripts/release/version.mjs'), '0.1.0', '1015'], { cwd: directory });
+    const stableConfig = JSON.parse(readFileSync(join(directory, 'apps/native/src-tauri/tauri.conf.json'), 'utf8'));
+    assert.equal(stableConfig.version, '0.1.0');
+    assert.equal(stableConfig.bundle.android.versionCode, 1015);
+    assert.equal(stableConfig.bundle.macOS.bundleVersion, '1015');
+    assert.equal(stableConfig.bundle.iOS.bundleVersion, '1015');
+    for (const path of ['', 'apps/web', 'apps/native']) {
+      assert.equal(JSON.parse(readFileSync(join(directory, path, 'package.json'), 'utf8')).version, '0.1.0');
+    }
+    assert.match(readFileSync(join(directory, 'Cargo.lock'), 'utf8'), /name = "norr"\nversion = "0.1.0"/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

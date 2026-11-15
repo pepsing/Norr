@@ -4,6 +4,19 @@
 
 ## 当前状态
 
+### 0.1.0 正式发布准备
+
+2026-11-15 用户转达 iOS 小组件反馈者已确认问题来自个人签名配置。此前命令入口修复、AltStore 共享权限修复及真实 iPad 同步验证记录保留，GitHub issue 的状态沿用反馈者后续处理。
+
+alpha.14 的六种安装包均已完成 CI 检查与发布。正式发布流程支持指定 `0.1.0`、全平台重建、递增原生构建号、正式版 Latest 标记和版本说明。草稿重试沿用原构建号，正式版后的每日 alpha 自动推进至下一补丁版本。版本说明列出当前支持的车型、签名安装条件及实测范围。
+
+本轮发布文案适用项检查如下。
+
+- Hard Gate PASS。功能与验证状态依据代码、已完成构建及用户反馈，明确标注签名条件和待验证范围。
+- Purpose Gate PASS。版本说明按车辆功能、小组件和安装条件组织，便于下载者选择与安装。
+- Liveliness PASS。沿用 Norr 术语与具体功能描述，界面设计参数保持 ENERGY 2 / RHYTHM 2 / MOTION 1。
+- Craftsmanship PASS。正式版晋升、草稿重试、版本冲突、后续 alpha 与版本注入回归通过，工作流通过 actionlint。
+
 ### macOS 桌面小组件本地预览
 
 2026-11-15 接入 macOS WidgetKit 扩展，复用现有 iOS 小、中、大三种尺寸与浅深主题，保持 ENERGY 2 / RHYTHM 2 / MOTION 1。扩展最低系统为 macOS 14，主程序继续支持 macOS 13。组件随 `npm run build:mac` 嵌入同一个 `.app`，沿用现有 ad-hoc 签名。

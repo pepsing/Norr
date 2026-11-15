@@ -26,7 +26,7 @@ export function releaseMetadata(release) {
   return match ? JSON.parse(match[1]) : undefined;
 }
 
-export function planRelease({ sha, baseVersion, releases, tags, platform = 'all' }) {
+export function planRelease({ sha, baseVersion, releases, tags, platform = 'all', stableVersion = '' }) {
   releasePackages(platform);
   const published = releases.filter((release) => !release.draft)
     .sort((left, right) => Date.parse(right.published_at ?? 0) - Date.parse(left.published_at ?? 0));
@@ -34,20 +34,50 @@ export function planRelease({ sha, baseVersion, releases, tags, platform = 'all'
     const scope = releaseMetadata(release)?.platform ?? 'all';
     return scope === 'all' || scope === platform;
   });
+  const buildNumber = Math.max(1000, ...releases.map((release) => releaseMetadata(release)?.buildNumber ?? 0)) + 1;
+  const stableTags = [...tags, ...published.map(release => release.tag_name)]
+    .filter(tag => /^v\d+\.\d+\.\d+$/.test(tag))
+    .sort((left, right) => right.localeCompare(left, 'en', { numeric: true }));
+  const latestStable = stableTags[0]?.slice(1);
+  if (stableVersion) {
+    validateVersion(stableVersion, buildNumber);
+    if (stableVersion.includes('-') || platform !== 'all') throw new Error('Stable releases require a plain version and all platforms');
+    const tag = `v${stableVersion}`;
+    const existing = releases.find(release => release.tag_name === tag);
+    if (existing) {
+      const metadata = releaseMetadata(existing);
+      if (metadata?.sha !== sha || (metadata.platform ?? 'all') !== 'all') throw new Error('Stable release already belongs to another source');
+      validateVersion(metadata.version, metadata.buildNumber);
+      if (metadata.version !== stableVersion) throw new Error('Stable release version mismatch');
+      if (existing.draft && latestStable && stableVersion.localeCompare(latestStable, 'en', { numeric: true }) < 0) {
+        throw new Error('Stable draft is older than the latest stable release');
+      }
+      return { ...metadata, platform, publish: existing.draft, tag };
+    }
+    if (tags.includes(tag)) throw new Error('Stable tag already exists without a matching release');
+    if (latestStable && stableVersion.localeCompare(latestStable, 'en', { numeric: true }) <= 0) {
+      throw new Error('Stable version must be newer than the latest stable release');
+    }
+    return { publish: true, sha, version: stableVersion, buildNumber, platform, tag, previousTag: previous?.tag_name ?? '' };
+  }
   if (previous?.sha === sha) return { publish: false, sha };
   const pending = releases.find((release) => release.draft && releaseMetadata(release)?.sha === sha
+    && releaseMetadata(release)?.version?.includes('-alpha.')
     && (releaseMetadata(release)?.platform ?? 'all') === platform);
   if (pending) {
     const metadata = releaseMetadata(pending);
     validateVersion(metadata.version, metadata.buildNumber);
     return { ...metadata, platform, publish: true, tag: pending.tag_name };
   }
+  if (latestStable && latestStable.localeCompare(baseVersion, 'en', { numeric: true }) >= 0) {
+    const [major, minor, patch] = latestStable.split('.').map(Number);
+    baseVersion = `${major}.${minor}.${patch + 1}`;
+  }
   const prefix = `v${baseVersion}-alpha.`;
   const numbers = [...tags, ...releases.map((release) => release.tag_name)]
     .filter((tag) => tag.startsWith(prefix) && /^[1-9]\d*$/.test(tag.slice(prefix.length)))
     .map((tag) => Number(tag.slice(prefix.length)));
   const version = `${baseVersion}-alpha.${Math.max(0, ...numbers) + 1}`;
-  const buildNumber = Math.max(1000, ...releases.map((release) => releaseMetadata(release)?.buildNumber ?? 0)) + 1;
   validateVersion(version, buildNumber);
   return { publish: true, sha, version, buildNumber, platform, tag: `v${version}`, previousTag: previous?.tag_name ?? '' };
 }
@@ -63,9 +93,11 @@ function markdownText(text) {
     .replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]<>]/g, '\\$&').replaceAll('@', '@\u200b');
 }
 
-export function renderNotes(plan, changes, issues, repository, runUrl) {
-  const lines = [`Norr ${plan.version}，构建号 ${plan.buildNumber}。`, '', '## 本版更新', ''];
-  if (!plan.previousTag) {
+export function renderNotes(plan, changes, issues, repository, runUrl, summary = '') {
+  const lines = [`Norr ${plan.version}，构建号 ${plan.buildNumber}。`, ''];
+  if (summary) lines.push(summary.trim(), '');
+  lines.push('## 本版更新', '');
+  if (!plan.previousTag && !summary) {
     lines.push(
       '- 首个 alpha 版本，提供中国区 Polestar 2 短信登录、车辆状态、远程控制、充电日程与本地历史。',
       '- 包含共享账号能力判断、控制状态高亮、指令局部回读、高德地图默认展示，以及手机控制页布局修复。',
@@ -192,6 +224,8 @@ export function prepareAssets(version, directory, platform = 'all') {
 function publishRelease(plan, repository, directory) {
   validateVersion(plan.version, plan.buildNumber);
   if (plan.tag !== `v${plan.version}` || git('rev-parse', 'HEAD') !== plan.sha) throw new Error('Release source mismatch');
+  const prerelease = plan.version.includes('-');
+  if (!prerelease && plan.platform !== 'all') throw new Error('Stable releases require all platforms');
   const files = prepareAssets(plan.version, directory, plan.platform);
   let release = getReleases(repository).find((item) => item.tag_name === plan.tag);
   if (release && (releaseMetadata(release)?.sha !== plan.sha
@@ -201,8 +235,9 @@ function publishRelease(plan, repository, directory) {
   if (!release || release.draft) {
     const { changes, issues } = collectChanges(plan, repository);
     const runUrl = `https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-    const body = renderNotes(plan, changes, issues, repository, runUrl);
-    const payload = { tag_name: plan.tag, target_commitish: plan.sha, name: `Norr ${plan.version}`, body, draft: true, prerelease: true, make_latest: 'false' };
+    const summary = prerelease ? '' : readFileSync(`docs/releases/${plan.version}.md`, 'utf8');
+    const body = renderNotes(plan, changes, issues, repository, runUrl, summary);
+    const payload = { tag_name: plan.tag, target_commitish: plan.sha, name: `Norr ${plan.version}`, body, draft: true, prerelease, make_latest: 'false' };
     release = release
       ? api(`repos/${repository}/releases/${release.id}`, 'PATCH', payload)
       : api(`repos/${repository}/releases`, 'POST', payload);
@@ -213,7 +248,7 @@ function publishRelease(plan, repository, directory) {
     const asset = release.assets.find((item) => item.name === file.name);
     if (!asset || asset.size !== file.size || asset.digest !== file.digest) throw new Error(`Release asset verification failed: ${file.name}`);
   }
-  if (release.draft) release = api(`repos/${repository}/releases/${release.id}`, 'PATCH', { draft: false, prerelease: true, make_latest: 'false' });
+  if (release.draft) release = api(`repos/${repository}/releases/${release.id}`, 'PATCH', { draft: false, prerelease, make_latest: prerelease ? 'false' : 'true' });
   console.log(release.html_url);
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `发布完成 [${plan.tag}](${release.html_url})，包含 ${files.length - 1} 个安装包及 SHA256SUMS.txt。\n`);
 }
@@ -225,7 +260,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const baseVersion = JSON.parse(readFileSync('package.json', 'utf8')).version.split('-')[0];
     const releases = getReleases(repository);
     const plan = planRelease({ sha: git('rev-parse', 'HEAD'), baseVersion, releases,
-      tags: git('tag', '--list').split('\n'), platform: process.env.NORR_RELEASE_PLATFORM ?? 'all' });
+      tags: git('tag', '--list').split('\n'), platform: process.env.NORR_RELEASE_PLATFORM ?? 'all',
+      stableVersion: process.env.NORR_RELEASE_VERSION?.trim() ?? '' });
+    if (plan.publish && !plan.version.includes('-')) readFileSync(`docs/releases/${plan.version}.md`, 'utf8');
     for (const [name, value] of Object.entries(plan)) appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, plan.publish
       ? `准备发布 ${plan.tag}，平台 ${plan.platform}，源提交 ${plan.sha}。\n`
