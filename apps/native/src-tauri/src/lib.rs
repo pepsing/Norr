@@ -21,10 +21,10 @@ mod notifications;
 mod platform;
 #[cfg(target_os = "windows")]
 mod verification_windows;
-#[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
-mod widgets;
 #[cfg(target_os = "ios")]
 mod watch;
+#[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
+mod widgets;
 
 #[cfg(target_os = "android")]
 #[tauri::command]
@@ -899,8 +899,11 @@ pub fn run() {
         })
         .invoke_handler(|invoke| {
             #[cfg(target_os = "ios")]
-            if invoke.message.command() == "sync_watch" && invoke.message.webview_ref().label() == "main" {
-                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![watch::sync_watch];
+            if invoke.message.command() == "sync_watch"
+                && invoke.message.webview_ref().label() == "main"
+            {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![watch::sync_watch];
                 return handler(invoke);
             }
             #[cfg(target_os = "windows")]
@@ -995,7 +998,12 @@ mod tests {
                 .parse()
                 .unwrap(),
         };
-        for command in ["request_login_code", "sign_in_phone", "sign_in_password", "sync_watch"] {
+        for command in [
+            "request_login_code",
+            "sign_in_phone",
+            "sign_in_password",
+            "sync_watch",
+        ] {
             assert!(
                 authority
                     .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
