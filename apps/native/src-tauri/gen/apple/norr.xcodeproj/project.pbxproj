@@ -9,25 +9,45 @@
 /* Begin PBXBuildFile section */
 		05ABD424E8F36900668A4EB1 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 911D2E159DFBDF5C7802D833 /* assets */; };
 		06F0A3B146AA5EA3C69F7696 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 709887AF20A47EDCC3514CFD /* CoreGraphics.framework */; };
+		0D8F0CF20E47D6C4D0A1B01C /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = AB5F7DF0F9B0DD36B49471F7 /* manifest.json */; };
+		112B85B897ADA5577B07F003 /* NorrWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 92A910EB866A4C8D306C4D2F /* NorrWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		13FCEDB253E63678CC9B4834 /* WidgetStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA6F62FB50DAA244CC020DF /* WidgetStorage.swift */; };
 		15ACCB9388E281D9C7EC25E9 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 83999D28F72A64A9904BB6D6 /* Metal.framework */; };
 		186B6DEE6D575E8CE0731E0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */; };
+		1AD4D5A5F6E36F14AAB52F12 /* NorrWatchWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E2EE5BC8C6F35E21CBF55 /* NorrWatchWidgets.swift */; };
 		2B244F7639FFC09B6F179C8E /* Archivo.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */; };
 		2EF68A9CF663A8D70EB95C8D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 621E1E381DA4C3D0B4116E0D /* manifest.json */; };
+		30547378A45168904953DD60 /* WatchRemoteClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C82BA3219F8342A4C927AF4B /* WatchRemoteClient.swift */; };
 		3DC099B96F100201E6B288AD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20B80F5C299309362F1AA9C4 /* MetalKit.framework */; };
 		4DE725A34419E852F71D93A4 /* NorrWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F2BDFB48F552049C857286 /* NorrWidgets.swift */; };
+		54F06288C608976C066CF463 /* Archivo.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E9D2787F10AEAFBD2A4BE451 /* Archivo.ttf */; };
 		612640168E79DDC5422FBE6D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = E0E105FA49D1318464215B6B /* main.mm */; };
+		67480A14CAB457226D69F8BC /* WatchWidgetCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8DEC878655F37A827E72EC8 /* WatchWidgetCache.swift */; };
 		6896A77A2FFF1E3D4050AC33 /* NorrWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		69446208743AE132F3518101 /* NorrWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F209F5082B884AE913DBCE /* NorrWatchApp.swift */; };
+		6D76F5E5A38632488E5F67B5 /* Archivo.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E9D2787F10AEAFBD2A4BE451 /* Archivo.ttf */; };
 		832A236F5B2E80FBEB4C2359 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DDCD8A06557005125AA4D5D2 /* libapp.a */; };
+		8AB3D9CEEAD0F29D9ADCFF33 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D6B242042E89CFEDD8D8048 /* Assets.xcassets */; };
 		8BF2C6C80D56EDDB48927812 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 51CF437243902B8C55F57996 /* WebKit.framework */; };
 		9A3701A8023028CC3B3206CB /* OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6DFBFC2C41FF6981D1CA248A /* OFL.txt */; };
 		AAB43ED33B0B275C6A8E686D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2E13E69BC441992CB80F844 /* UIKit.framework */; };
+		BCA13FB5214375EC4D88A057 /* WatchWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = B95B14945F81CC9E1ABB9B0E /* WatchWire.swift */; };
 		BE125EB44E1E6FC5BB48C981 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A00C87FB787C7E47EC4135B9 /* QuartzCore.framework */; };
 		C48404FA6EACD0F7E5673BF7 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */; };
+		D37F0AC2D1E53F8538F5D4DF /* WatchWidgetCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8DEC878655F37A827E72EC8 /* WatchWidgetCache.swift */; };
 		E021A1B346FF5A05421024A7 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 391DC41C47D76AA1778F5312 /* Security.framework */; };
+		EB0B1741B67C9E9BE6D7A3C1 /* WatchSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17028CEC08079B91724CB032 /* WatchSnapshot.swift */; };
+		F5D61A2D68A448BA436F9BF5 /* NorrWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		8FA4CF1B2DD08E4A6145F8C2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 853DAF80C484E926CA94D03B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A90A67EEF70F98B55B26C85;
+			remoteInfo = NorrWatchWidgets;
+		};
 		9DD1A5750464E7BDEB053144 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 853DAF80C484E926CA94D03B /* Project object */;
@@ -35,9 +55,27 @@
 			remoteGlobalIDString = 2272F34F52E7F840BBF0771A;
 			remoteInfo = NorrWidgets;
 		};
+		DA5EB5B3D40CC71AD4FF429D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 853DAF80C484E926CA94D03B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A65CBA663CD063F483800453;
+			remoteInfo = NorrWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		D89E0B04548E76910DF67079 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				112B85B897ADA5577B07F003 /* NorrWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E1EDED38B31BBC00188D53DF /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -49,19 +87,34 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB98AC5ADBCFE86EF7A1DB3D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F5D61A2D68A448BA436F9BF5 /* NorrWatchWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		00C575573C7D20B50BF42030 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0C9E489416328240BEC4F414 /* widgets.rs */ = {isa = PBXFileReference; path = widgets.rs; sourceTree = "<group>"; };
 		166CA3771D3FDB0C274E7F6C /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		17028CEC08079B91724CB032 /* WatchSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshot.swift; sourceTree = "<group>"; };
 		202CAFBD5A3D730A66956891 /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
 		20B80F5C299309362F1AA9C4 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		20F209F5082B884AE913DBCE /* NorrWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorrWatchApp.swift; sourceTree = "<group>"; };
 		2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2CFC93C5F29211E79ECD5F08 /* Archivo.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo.ttf; sourceTree = "<group>"; };
 		2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		37C58CC56FCA78E502D32A57 /* watch.rs */ = {isa = PBXFileReference; path = watch.rs; sourceTree = "<group>"; };
 		391DC41C47D76AA1778F5312 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		3CAA78E78A2AA53E52059BC4 /* desktop_mobile.rs */ = {isa = PBXFileReference; path = desktop_mobile.rs; sourceTree = "<group>"; };
+		3D6B242042E89CFEDD8D8048 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4732ABBE7096D31989D940BB /* verification.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = verification.m; sourceTree = "<group>"; };
 		51CF437243902B8C55F57996 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		5783ACEF2EFA386C27FE6C7F /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
@@ -77,20 +130,29 @@
 		7C0755AAF6B0529877234FC1 /* platform.rs */ = {isa = PBXFileReference; path = platform.rs; sourceTree = "<group>"; };
 		83999D28F72A64A9904BB6D6 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		911D2E159DFBDF5C7802D833 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		92A910EB866A4C8D306C4D2F /* NorrWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NorrWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00C87FB787C7E47EC4135B9 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		A5F2BDFB48F552049C857286 /* NorrWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorrWidgets.swift; sourceTree = "<group>"; };
+		AB5F7DF0F9B0DD36B49471F7 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		B36B6118EB66506AE3E7E591 /* verification_windows.rs */ = {isa = PBXFileReference; path = verification_windows.rs; sourceTree = "<group>"; };
+		B95B14945F81CC9E1ABB9B0E /* WatchWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWire.swift; sourceTree = "<group>"; };
+		C82BA3219F8342A4C927AF4B /* WatchRemoteClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRemoteClient.swift; sourceTree = "<group>"; };
 		CADC80E8304DA4EF9D4324C3 /* norr_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = norr_iOS.entitlements; sourceTree = "<group>"; };
 		D2E13E69BC441992CB80F844 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		D6FAE27ACBE4613198CAA3D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D8DEC878655F37A827E72EC8 /* WatchWidgetCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWidgetCache.swift; sourceTree = "<group>"; };
 		DDCD8A06557005125AA4D5D2 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		E0E105FA49D1318464215B6B /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		E38CD434C157500EDF11207A /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		E9D2787F10AEAFBD2A4BE451 /* Archivo.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo.ttf; sourceTree = "<group>"; };
 		EB96751BE49BE8B7DC6C7B62 /* archive.rs */ = {isa = PBXFileReference; path = archive.rs; sourceTree = "<group>"; };
 		F0CCEF5BB2BAC50694749846 /* mobile.rs */ = {isa = PBXFileReference; path = mobile.rs; sourceTree = "<group>"; };
+		F50E2EE5BC8C6F35E21CBF55 /* NorrWatchWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorrWatchWidgets.swift; sourceTree = "<group>"; };
 		F84E28D508C3604A48C6D5E4 /* notifications.rs */ = {isa = PBXFileReference; path = notifications.rs; sourceTree = "<group>"; };
 		F85F8CC689CC35E85E8EB722 /* desktop_windows.rs */ = {isa = PBXFileReference; path = desktop_windows.rs; sourceTree = "<group>"; };
 		F8B81905D28487FB7C939024 /* norr_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = norr_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NorrWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NorrWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,18 +182,32 @@
 			path = bindings;
 			sourceTree = "<group>";
 		};
+		0EC7F1C557872FCBCBE9426B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E9D2787F10AEAFBD2A4BE451 /* Archivo.ttf */,
+				3D6B242042E89CFEDD8D8048 /* Assets.xcassets */,
+				AB5F7DF0F9B0DD36B49471F7 /* manifest.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		0EDE7C2BE3A4B3F7AFC74036 = {
 			isa = PBXGroup;
 			children = (
 				911D2E159DFBDF5C7802D833 /* assets */,
 				2257B89FD34ABA24FB6BDCCF /* Assets.xcassets */,
 				2D39D15FA558C14D05F9066C /* LaunchScreen.storyboard */,
+				2617F9FB4D4DC76E1EBE7BDA /* App */,
 				5F78F61D5E8A963BFD82AB41 /* Externals */,
+				F8C4F4A96DF2344B1CB30B48 /* Network */,
 				48273C557077BF70CCFFD1E5 /* norr_iOS */,
 				6FF9F866FC2AA3B444BB5E05 /* NorrWidgetSupport */,
+				F286DBC8C255D2E819C4AA1E /* Shared */,
 				63911ADF33B6872CEAD448E1 /* Sources */,
 				B76023B1477F335437C0133A /* src */,
 				E909E3C6B6A522941FD01DA5 /* Widgets */,
+				1F0BE8C6E17093349C7510E8 /* Widgets */,
 				11C269001C50F16ECF951925 /* Frameworks */,
 				F028DDFC7D06276D91C09A44 /* Products */,
 			);
@@ -150,6 +226,26 @@
 				51CF437243902B8C55F57996 /* WebKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		1F0BE8C6E17093349C7510E8 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				F50E2EE5BC8C6F35E21CBF55 /* NorrWatchWidgets.swift */,
+			);
+			name = Widgets;
+			path = ../../watch/Widgets;
+			sourceTree = "<group>";
+		};
+		2617F9FB4D4DC76E1EBE7BDA /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D6FAE27ACBE4613198CAA3D4 /* Info.plist */,
+				20F209F5082B884AE913DBCE /* NorrWatchApp.swift */,
+				0EC7F1C557872FCBCBE9426B /* Resources */,
+			);
+			name = App;
+			path = ../../watch/App;
 			sourceTree = "<group>";
 		};
 		48273C557077BF70CCFFD1E5 /* norr_iOS */ = {
@@ -213,6 +309,7 @@
 				7A5D6ACB88E2375D401DEDD3 /* verification_windows.js */,
 				B36B6118EB66506AE3E7E591 /* verification_windows.rs */,
 				4732ABBE7096D31989D940BB /* verification.m */,
+				37C58CC56FCA78E502D32A57 /* watch.rs */,
 				0C9E489416328240BEC4F414 /* widgets.rs */,
 			);
 			name = src;
@@ -235,19 +332,41 @@
 			isa = PBXGroup;
 			children = (
 				F8B81905D28487FB7C939024 /* norr_iOS.app */,
+				92A910EB866A4C8D306C4D2F /* NorrWatch.app */,
+				FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */,
 				FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_5D2ED189-13E9-4F79-A456-F4983A58F731" /* x86_64 */ = {
+		F286DBC8C255D2E819C4AA1E /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D8DEC878655F37A827E72EC8 /* WatchWidgetCache.swift */,
+			);
+			name = Shared;
+			path = ../../watch/Shared;
+			sourceTree = "<group>";
+		};
+		F8C4F4A96DF2344B1CB30B48 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				C82BA3219F8342A4C927AF4B /* WatchRemoteClient.swift */,
+				17028CEC08079B91724CB032 /* WatchSnapshot.swift */,
+				B95B14945F81CC9E1ABB9B0E /* WatchWire.swift */,
+			);
+			name = Network;
+			path = ../../watch/Network;
+			sourceTree = "<group>";
+		};
+		"TEMP_31731453-1DED-45E6-BEC1-CC67FE164DC8" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = x86_64;
 			sourceTree = "<group>";
 		};
-		"TEMP_64FE7982-3A10-448B-9C83-DE0BBDBD77DE" /* arm64 */ = {
+		"TEMP_79B471FE-836B-4B9C-B79E-766854D213BC" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -284,10 +403,12 @@
 				5B49DC98AA903519D11FDB15 /* Resources */,
 				D4C2686B9376D7A1D51D70FA /* Frameworks */,
 				E1EDED38B31BBC00188D53DF /* Embed Foundation Extensions */,
+				D89E0B04548E76910DF67079 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				297F648406A31BACEC0ED957 /* PBXTargetDependency */,
 				9A4A6AEF7C3E2EBF04A01989 /* PBXTargetDependency */,
 			);
 			name = norr_iOS;
@@ -295,6 +416,44 @@
 			);
 			productName = norr_iOS;
 			productReference = F8B81905D28487FB7C939024 /* norr_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		8A90A67EEF70F98B55B26C85 /* NorrWatchWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3712C913921DB1179EFE2EA1 /* Build configuration list for PBXNativeTarget "NorrWatchWidgets" */;
+			buildPhases = (
+				0C91CE1F40BA3A2B9EC0D276 /* Sources */,
+				C13FF125CCF3B93FB4FDC0D8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NorrWatchWidgets;
+			packageProductDependencies = (
+			);
+			productName = NorrWatchWidgets;
+			productReference = FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A65CBA663CD063F483800453 /* NorrWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C076DF02597166598E8E049 /* Build configuration list for PBXNativeTarget "NorrWatch" */;
+			buildPhases = (
+				184EA1CBB575A37503D5733F /* Sources */,
+				EC8CBA8C97D74A2F68A45404 /* Resources */,
+				FB98AC5ADBCFE86EF7A1DB3D /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ADBBEBB9B96170084510987D /* PBXTargetDependency */,
+			);
+			name = NorrWatch;
+			packageProductDependencies = (
+			);
+			productName = NorrWatch;
+			productReference = 92A910EB866A4C8D306C4D2F /* NorrWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -324,6 +483,8 @@
 			targets = (
 				4E8D3BC39D495A4ECD631740 /* norr_iOS */,
 				2272F34F52E7F840BBF0771A /* NorrWidgets */,
+				A65CBA663CD063F483800453 /* NorrWatch */,
+				8A90A67EEF70F98B55B26C85 /* NorrWatchWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -346,6 +507,24 @@
 				186B6DEE6D575E8CE0731E0B /* Assets.xcassets in Resources */,
 				C48404FA6EACD0F7E5673BF7 /* LaunchScreen.storyboard in Resources */,
 				05ABD424E8F36900668A4EB1 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C13FF125CCF3B93FB4FDC0D8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				54F06288C608976C066CF463 /* Archivo.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC8CBA8C97D74A2F68A45404 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6D76F5E5A38632488E5F67B5 /* Archivo.ttf in Resources */,
+				8AB3D9CEEAD0F29D9ADCFF33 /* Assets.xcassets in Resources */,
+				0D8F0CF20E47D6C4D0A1B01C /* manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +556,27 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0C91CE1F40BA3A2B9EC0D276 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1AD4D5A5F6E36F14AAB52F12 /* NorrWatchWidgets.swift in Sources */,
+				67480A14CAB457226D69F8BC /* WatchWidgetCache.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		184EA1CBB575A37503D5733F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				69446208743AE132F3518101 /* NorrWatchApp.swift in Sources */,
+				30547378A45168904953DD60 /* WatchRemoteClient.swift in Sources */,
+				EB0B1741B67C9E9BE6D7A3C1 /* WatchSnapshot.swift in Sources */,
+				D37F0AC2D1E53F8538F5D4DF /* WatchWidgetCache.swift in Sources */,
+				BCA13FB5214375EC4D88A057 /* WatchWire.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		50C2063BD03EB389CB84E3B7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -397,10 +597,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		297F648406A31BACEC0ED957 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A65CBA663CD063F483800453 /* NorrWatch */;
+			targetProxy = DA5EB5B3D40CC71AD4FF429D /* PBXContainerItemProxy */;
+		};
 		9A4A6AEF7C3E2EBF04A01989 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2272F34F52E7F840BBF0771A /* NorrWidgets */;
 			targetProxy = 9DD1A5750464E7BDEB053144 /* PBXContainerItemProxy */;
+		};
+		ADBBEBB9B96170084510987D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A90A67EEF70F98B55B26C85 /* NorrWatchWidgets */;
+			targetProxy = 8FA4CF1B2DD08E4A6145F8C2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -424,6 +634,88 @@
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = debug;
+		};
+		15C96FFD7D3739A712912502 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ../../watch/Shared/Watch.entitlements;
+				INFOPLIST_FILE = ../../watch/App/Info.plist;
+				"OTHER_LDFLAGS[sdk=watchsimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.watchkitapp;
+				PRODUCT_NAME = NorrWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = release;
+		};
+		1D9EA6F8EEBBC8AB48D29D3F /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../watch/Shared/Watch.entitlements;
+				INFOPLIST_FILE = ../../watch/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"OTHER_LDFLAGS[sdk=watchsimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.watchkitapp.widgets;
+				PRODUCT_NAME = NorrWatchWidgets;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = release;
+		};
+		708135747BB84F69FF0CADD9 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../watch/Shared/Watch.entitlements;
+				INFOPLIST_FILE = ../../watch/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"OTHER_LDFLAGS[sdk=watchsimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.watchkitapp.widgets;
+				PRODUCT_NAME = NorrWatchWidgets;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = debug;
+		};
+		7367ED7634F874C4177086FA /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ../../watch/Shared/Watch.entitlements;
+				INFOPLIST_FILE = ../../watch/App/Info.plist;
+				"OTHER_LDFLAGS[sdk=watchsimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements";
+				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.watchkitapp;
+				PRODUCT_NAME = NorrWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = debug;
 		};
@@ -530,7 +822,6 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -593,7 +884,6 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -635,6 +925,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3712C913921DB1179EFE2EA1 /* Build configuration list for PBXNativeTarget "NorrWatchWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				708135747BB84F69FF0CADD9 /* debug */,
+				1D9EA6F8EEBBC8AB48D29D3F /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		5C076DF02597166598E8E049 /* Build configuration list for PBXNativeTarget "NorrWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7367ED7634F874C4177086FA /* debug */,
+				15C96FFD7D3739A712912502 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
 		790A19055D61A1823ADC526D /* Build configuration list for PBXProject "norr" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

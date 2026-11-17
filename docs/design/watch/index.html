@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Norr Watch · 需求与交互设计</title>
+  <link rel="stylesheet" href="design.css">
+  <script src="design.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Norr Watch 设计稿首页">Norr<span>.</span></a>
+    <nav aria-label="设计稿导航"><a href="#screens">主要画面</a><a href="#states">状态设计</a><a href="#prototype">交互预览</a><a href="#requirements">需求约定</a></nav>
+    <span class="header-note">Apple Watch / 设计稿</span>
+  </header>
+  <main id="top">
+    <section class="intro" aria-labelledby="title">
+      <div><p class="overline">Norr 北行 · watchOS</p><h1 id="title">车辆信息，抬腕可见。</h1><p class="intro-copy">查看电量与续航，解锁、锁车，出发前调好座舱。<br>延续 Norr 的车辆影像、数字层级与暖橙反馈。</p></div>
+      <div class="intro-meta"><span>设计版本 04 · 首页活动状态</span><span>2026.11.17</span><span>中国区 Polestar 2</span><strong>演示数据 · 不连接车辆</strong></div>
+    </section>
+
+    <section id="screens" class="board" aria-labelledby="screens-title">
+      <div class="section-heading"><h2 id="screens-title">日常使用</h2><p>静态画面 · 198 × 242 pt · 点击流程见下方交互预览</p></div>
+      <div class="screen-grid" id="primary-screens"></div>
+      <div class="design-strip">
+        <p><span class="strip-label">同一辆车，同一套视觉</span>复用 Snow 车图与 Archivo 字体。电量横条延续手机端暖橙，车图不裁切车身。</p>
+        <p><span class="strip-label">一屏一个重点</span>概览看能源，空调看温度，充电看进度。操作区保留至少 44 pt 触控高度。</p>
+      </div>
+    </section>
+
+    <section id="locks" class="board locks-board" aria-labelledby="locks-title">
+      <div class="section-heading"><h2 id="locks-title">解锁与锁车</h2><p>先看门锁状态，再确认操作。只有新的车辆回读一致，才显示完成。</p></div>
+      <div class="screen-grid" id="lock-screens"></div>
+      <div class="design-strip"><p><span class="strip-label">确认的是这一辆车</span>解锁和锁车都保留一次确认，显示车型与动作。取消或返回不发送请求。</p><p><span class="strip-label">结果不明时保留操作</span>离开页面后仍能继续核对。请求超时不自动重发，也不推断车辆已经锁定。</p></div>
+    </section>
+
+    <section class="complication-section" aria-labelledby="complications-title">
+      <div class="complication-copy"><p class="overline">表盘与 Smart Stack</p><h2 id="complications-title">不打开，也能看一眼。</h2><p>电量是圆形组件的唯一重点。矩形组件补充续航和更新时间，点击后进入 Norr。</p><p class="small-note">组件为静态内容稿。尺寸及着色由系统容器适配；更新遵循系统调度。</p></div>
+      <div class="complications">
+        <figure><div class="circular-widget" role="img" aria-label="圆形组件，演示电量 78%"><span>78<small>%</small></span><em>电量</em></div><figcaption>圆形 / 电量</figcaption></figure>
+        <figure><div class="rect-widget" role="img" aria-label="矩形组件，演示电量 78%，续航 356 公里，10点08分更新"><div class="widget-brand">Norr<span>.</span><span>Polestar 2</span></div><div class="widget-values">78<small>%</small><span>356 <small>km</small></span></div><div class="energy-track"><i></i></div><div class="widget-time">更新于 10:08</div></div><figcaption>矩形 / 电量与续航</figcaption></figure>
+        <figure><div class="rect-widget monochrome" role="img" aria-label="系统单色模式组件示例"><div class="widget-brand">Norr.<span>Polestar 2</span></div><div class="widget-values">78<small>%</small><span>356 <small>km</small></span></div><div class="energy-track"><i></i></div><div class="widget-time">缓存 · 09:42</div></div><figcaption>系统单色 / 缓存</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="states" class="board states-board" aria-labelledby="states-title">
+      <div class="section-heading"><h2 id="states-title">知道发生了什么</h2><p>服务回执与车辆状态分别表达，保留最后一次有效观测。</p></div>
+      <div class="screen-grid" id="state-screens"></div>
+      <div class="state-footnote"><span>01 发送请求</span><span>02 收到服务回执</span><span>03 独立回读车辆</span><span>04 确认实际状态</span></div>
+    </section>
+
+    <section id="prototype" class="prototype-section" aria-labelledby="prototype-title">
+      <div class="prototype-copy"><p class="overline">可点击预览</p><h2 id="prototype-title">试一次解锁与锁车。</h2><p>进入门锁，确认解锁，再锁车。空调沿用默认舒适温度 22 °C，可开启或关闭。每次操作都会展示请求、服务回执和车辆回读。</p>
+        <div class="preview-fields">
+          <label for="scenario">预览情境</label><select id="scenario"><option value="normal">正常连接</option><option value="active">空调运行、车辆已解锁</option><option value="offline">完全离线，有缓存</option><option value="expired">登录已失效</option><option value="unconfigured">首次使用，未同步</option><option value="partial">部分数据读取失败</option><option value="empty">账号中没有车辆</option><option value="denied">账号没有空调权限</option><option value="lock-denied">账号没有门锁权限</option><option value="lock-unsupported">车辆不支持门锁控制</option><option value="lock-unknown">门锁控制能力未确认</option><option value="timeout">指令发出后超时</option><option value="mismatch">回读状态与指令不一致</option><option value="stale">只有指令前的旧读数</option></select>
+          <label for="size">手表内容尺寸</label><select id="size"><option value="regular">标准 · 198 × 242 pt</option><option value="compact">紧凑 · 162 × 197 pt</option></select>
+        </div>
+        <button class="reset-button" id="reset" type="button">重置演示</button>
+        <p class="small-note">仅模拟界面状态。不会发送短信、访问账号或操作车辆。表冠滚动在这里以鼠标滚轮／触控滚动代替。</p>
+      </div>
+      <div class="simulator-area"><div class="simulator-shell" id="simulator-shell"><div class="watch interactive-watch" id="simulator" aria-label="Norr Watch 交互预览"></div></div><p class="simulator-caption">交互演示 · 可滚动</p><p class="simulation-announcement" id="announcement" aria-live="polite" aria-atomic="true">演示已就绪</p></div>
+      <aside class="interaction-notes" aria-labelledby="notes-title"><h3 id="notes-title">操作与反馈</h3><ol id="event-log"><li>已载入固定演示快照</li></ol><p>没有网络时保留缓存。<br>结果不明时只核对，不重发。</p></aside>
+    </section>
+
+    <section id="requirements" class="requirements-section" aria-labelledby="requirements-title">
+      <div class="section-heading"><h2 id="requirements-title">已确认的产品约定</h2><p>需求已整理；watchOS 原生实现与真机验证待进行。</p></div>
+      <div class="requirements-grid"><div><h3>手表执行请求</h3><p>使用 URLSession。系统可借用 iPhone 网络，也可使用手表 Wi-Fi 或蜂窝；手机 Norr 不必保持前台。</p></div><div><h3>手机同步登录态</h3><p>首次在 iPhone 登录，经 WatchConnectivity 同步必要凭据和车辆。手表单独保存授权，续期策略待极星接口验证。</p></div><div><h3>成功要有车辆证据</h3><p>服务接收不等于车辆完成。车控结合独立回读和时间判断；超时不自动重发。</p></div><div><h3>缓存有自己的时间</h3><p>离线、部分失败与旧读数可识别。表盘随系统机会刷新，不承诺常驻或秒级更新。</p></div></div>
+      <div class="implementation-note"><span>首版包含门锁控制</span><p>解锁与锁车均需确认，权限分别按服务返回判断。仍需在真实 Apple Watch 验证极星 gRPC、token 续期、网络路径及门锁回读；本稿所有操作均为演示。</p></div>
+    </section>
+  </main>
+  <footer><span>Norr 北行 / Apple Watch 设计稿</span><span>现有素材复用 · 所有车辆读数为演示</span></footer>
+</body>
+</html>

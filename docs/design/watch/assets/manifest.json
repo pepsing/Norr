@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-17",
+  "purpose": "Norr Watch design review only",
+  "assets": [
+    {
+      "file": "vehicle.webp",
+      "source": "apps/web/public/images/vehicles/polestar-2/long-dual/snow-black-side-cutout.webp",
+      "sha256": "9c297810f88c5c9d19dd6998d3547c35d30c7fa3a234f70fe0ffd0eb205738d4"
+    },
+    {
+      "file": "archivo.woff2",
+      "source": "node_modules/@fontsource/archivo/files/archivo-latin-400-normal.woff2",
+      "sha256": "07f9160163da2ec0f6376ef9d27a2bb8163f98019ba798da4baafb154e30056e"
+    },
+    {
+      "file": "archivo-OFL.txt",
+      "source": "licenses/archivo-OFL.txt",
+      "sha256": "c3c8402eec0e31dc9a76851235b1c02a0bb821488b2db8e35bcc2ab60ca8fc2b"
+    },
+    {
+      "file": "lucide.txt",
+      "source": "licenses/lucide.txt",
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+    },
+    {
+      "file": "Fan.svg",
+      "source": "lucide-react@1.72.0 / Fan",
+      "sha256": "bd30aa3c2174bef31c04af8fdb7449bccf2cbc5673807f721c3f447e0d5ea434"
+    },
+    {
+      "file": "LockKeyhole.svg",
+      "source": "lucide-react@1.72.0 / LockKeyhole",
+      "sha256": "b1ca77989d4896f4337c0929e5fab14fca6b8dfac5526627b881c1b34bf0011d"
+    },
+    {
+      "file": "LockKeyholeOpen.svg",
+      "source": "lucide-react@1.72.0 / LockKeyholeOpen",
+      "sha256": "c61242b57c4ebc03043e71e80835fa013f302edfe2c5cd78117d340135578b94"
+    },
+    {
+      "file": "ChevronLeft.svg",
+      "source": "lucide-react@1.72.0 / ChevronLeft",
+      "sha256": "93ea5db75422d7c4c13a3847be8efa8eecbbdb3380e74fd092744431f6d130af"
+    },
+    {
+      "file": "ChevronRight.svg",
+      "source": "lucide-react@1.72.0 / ChevronRight",
+      "sha256": "34dbd37a60ca6b7088433101f871f7f3c9e8ce0e057bc2f081f50fb1024cc609"
+    },
+    {
+      "file": "RefreshCw.svg",
+      "source": "lucide-react@1.72.0 / RefreshCw",
+      "sha256": "27d2f7648a1d390304c5faad36c8a622b11b87b84ae27b0af5b1c3a91890df03"
+    },
+    {
+      "file": "PlugZap.svg",
+      "source": "lucide-react@1.72.0 / PlugZap",
+      "sha256": "2dfbb98fa064030c918990e9a114f7c358e2baa9ef5418251f577914dc430510"
+    },
+    {
+      "file": "WifiOff.svg",
+      "source": "lucide-react@1.72.0 / WifiOff",
+      "sha256": "32256ce80f092fca37133faaad1bbc0b115a3999953f8fa5c7e23de78a3d3a8c"
+    },
+    {
+      "file": "Check.svg",
+      "source": "lucide-react@1.72.0 / Check",
+      "sha256": "05943ca0cd4785c6de710f8911a16ffb06e0db21cb6e9390d5ddf2e317a43df2"
+    },
+    {
+      "file": "Smartphone.svg",
+      "source": "lucide-react@1.72.0 / Smartphone",
+      "sha256": "0fa640aa5b5a1fc9676ece218c27c618a52ad60c6c513a11a4d26203a5846c7d"
+    },
+    {
+      "file": "CircleAlert.svg",
+      "source": "lucide-react@1.72.0 / CircleAlert",
+      "sha256": "df39e7b70b00c66fd10fe19fc6ce356a3859cced6fa954fc61256a97d6c3e513"
+    },
+    {
+      "file": "Minus.svg",
+      "source": "lucide-react@1.72.0 / Minus",
+      "sha256": "5563c23c36c8ef707719147d69049b09c7a940114203236f32c4c05e88832538"
+    },
+    {
+      "file": "Plus.svg",
+      "source": "lucide-react@1.72.0 / Plus",
+      "sha256": "c58c8494c96f353126f4f328a4a6a22ab512a2e00e293711b93a8e71f924534b"
+    }
+  ],
+  "vehicleRights": "Unmodified existing Polestar asset. Original sources and rights status remain in apps/web/public/images/vehicles/manifest.json. Public redistribution permission has not been verified."
+}

@@ -82,6 +82,8 @@ targets:
         OTHER_LDFLAGS[sdk=iphonesimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/simulator.entitlements
       groups: [app]
     dependencies:
+      - target: NorrWatch
+        embed: true
       - target: NorrWidgets
         embed: true
       - framework: libapp.a
@@ -132,3 +134,69 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         OTHER_LDFLAGS[sdk=iphonesimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements
+  NorrWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: ../../watch/App
+      - path: ../../watch/Network
+      - path: ../../watch/Shared
+        excludes: ["*.entitlements"]
+    info:
+      path: ../../watch/App/Info.plist
+      properties:
+        CFBundleDisplayName: Norr
+        CFBundleShortVersionString: 0.1.0
+        CFBundleVersion: "0.1.0"
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: app.norr.ios
+        WKRunsIndependentlyOfCompanionApp: false
+        UIAppFonts: [Archivo.ttf]
+        CFBundleURLTypes:
+          - CFBundleURLName: app.norr.watch
+            CFBundleURLSchemes: [norr]
+    settings:
+      base:
+        PRODUCT_NAME: NorrWatch
+        PRODUCT_BUNDLE_IDENTIFIER: app.norr.ios.watchkitapp
+        SUPPORTED_PLATFORMS: watchos watchsimulator
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: YES
+        CODE_SIGN_ENTITLEMENTS: ../../watch/Shared/Watch.entitlements
+        OTHER_LDFLAGS[sdk=watchsimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements
+    dependencies:
+      - target: NorrWatchWidgets
+        embed: true
+    scheme: {}
+  NorrWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: ../../watch/Widgets
+        excludes: ["*.plist"]
+      - path: ../../watch/Shared
+        excludes: ["*.entitlements"]
+      - path: ../../watch/App/Resources/Archivo.ttf
+        buildPhase: resources
+    info:
+      path: ../../watch/Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Norr
+        CFBundleShortVersionString: 0.1.0
+        CFBundleVersion: "0.1.0"
+        UIAppFonts: [Archivo.ttf]
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_NAME: NorrWatchWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: app.norr.ios.watchkitapp.widgets
+        SUPPORTED_PLATFORMS: watchos watchsimulator
+        SWIFT_VERSION: "5.0"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: ../../watch/Shared/Watch.entitlements
+        OTHER_LDFLAGS[sdk=watchsimulator*]: $(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../watch/Shared/Watch.entitlements

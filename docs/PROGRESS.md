@@ -4,6 +4,18 @@
 
 ## 当前状态
 
+### Apple Watch 原生首版与模拟器预览
+
+后续补齐自动授权同步：成功恢复车辆连接、切车读取和定时读取续期时自动提交，重复授权去重；手动清除暂停，手动同步恢复。实际配对模拟器在不点同步按钮的情况下解除 Watch 授权到期提示并读回真实车辆状态。最新 simulator 与 unsigned IPA 已构建并安装；同步策略测试通过。后续按用户要求改为常规字号优先单屏：40mm 首页、空调、门锁和充电主要内容无需滚动，46mm 真实首页同屏；大字号允许滚动，充电及确认取消已补查。最新三个构建和两个 Watch 模拟器安装完成；23:12 完成 46mm 空调、门锁和充电详情末轮复查，主要内容均在首屏完整显示，模拟器保留真实车辆首页。具体证据与边界见 Watch 验收文档。
+
+后续根据小屏内容被挤出首屏的反馈，新增隔离 40mm 模拟器逐页检查：调整首页与确认页的小屏布局、补充底部留白、大字号使用纵向入口及可换行按钮，待核对反馈自动定位到可见区域。常规 / 大字号的实际覆盖与未覆盖状态见 `docs/design/watch/layout-qa.md`。修正版构建和覆盖安装完成，原配对 Watch 保持真实模式；用户完成 iPhone 登录后，已修复 `sync_watch` 遗漏 ACL 权限造成的拦截，重新编译覆盖安装，实际点击同步后 Watch 自动读回 31%、130 km 与已锁车状态，与手机一致。授权命令权限回归通过，未发送真实车控指令。
+
+2026-11-17 新增 watchOS 10+ SwiftUI 配套 App、圆形与矩形 Widget，以及 iPhone 设置中的授权同步和清除入口。支持车辆概览、解锁 / 锁车二次确认、默认 22 °C 空调启停及充电读取。Watch 使用 URLSession 执行请求，WatchConnectivity 同步 access token 到手表 Keychain；不复制 refresh token。待核对命令按账号与 VIN 持久化，超时不重发，切车后切回可恢复。
+
+已下载并安装 watchOS 27.2 官方运行时，在隔离配对的 Series 11 46mm 模拟器中完成明确标记的演示验收：门锁确认 / 取消、空调启停、独立橙色入口、超时只读核对、充电刷新及未配置引导。随后真实联调已将 Device Hub 的 `Norr Watch Preview` 切换到正常模式。车图、字体和 App 图标复用现有素材。
+
+独立 Watch simulator / device SDK、完整 iOS simulator 与设备 unsigned IPA 构建通过；同一 IPA 已包含 Watch App 及 Widget，嵌套签名 / 平台回归和纯 Swift 协议 / 生命周期 / 记录分区测试通过。配对模拟器的真实授权同步和车辆读取已通过；真实车控、真机网络与授权同步、后台、表盘和真机签名安装仍待验收。截图、验证边界及 Hard / Purpose / Liveliness / Craftsmanship 四项 PASS 证据见 `docs/design/watch/native-qa.md`；构建使用说明见 `apps/native/src-tauri/watch/README.md`。
+
 ### HarmonyOS 生产服务测试包
 
 2026-11-17 完成 DevEco Studio 26.0.0 Release 与 SDK 检查，创建 HarmonyOS 5.1 / API 18 的 ARM64 手机模拟器。`apps/harmonyos` 已接入 ArkTS + ArkWeb 宿主和 Rust 中国区 Polestar 核心，共用真实登录与车辆界面。`npm run build:harmonyos` 交叉编译 Rust / C++ 并构建 Release HAP，输出为 `target/harmonyos/entry-default-unsigned.hap`。

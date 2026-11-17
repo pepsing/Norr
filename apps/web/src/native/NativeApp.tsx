@@ -2,6 +2,7 @@ import {
   credentialStorage,
   desktopName,
   isAndroid,
+  isIOS,
   isMobile,
   isWindows,
   supportsWidgets,
@@ -475,6 +476,23 @@ export default function NativeApp() {
     }
   }
 
+  async function syncWatch(clear = false) {
+    setBusy(true);
+    setError("");
+    try {
+      await native.syncWatch(clear ? "" : vin, clear);
+      setNotice(
+        clear
+          ? "清除请求已交给系统，手表连接后生效。自动同步已暂停，点击同步按钮可恢复。"
+          : "登录态与当前车辆已交给系统，手表连接后同步。后续车辆切换和授权更新将自动同步。",
+      );
+    } catch (problem) {
+      setError(String(problem));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function signedIn(status: SessionStatus) {
     setSession(status);
     setFleet([]);
@@ -783,6 +801,28 @@ export default function NativeApp() {
                     onBusyChange={setBusy}
                     onSignedIn={signedIn}
                   />
+                  {isIOS && (
+                    <div className="native-section">
+                      <h3>Apple Watch</h3>
+                      <p className="muted">
+                        恢复车辆连接、切换车辆及更新授权后，自动同步到已配对的手表。手表通过可用网络读取车辆及发送操作。清除手表登录态会暂停自动同步，点击下方同步按钮可恢复。
+                      </p>
+                      <button
+                        className="secondary-button"
+                        disabled={busy || !session?.hasSession || !vin}
+                        onClick={() => void syncWatch()}
+                      >
+                        同步到 Apple Watch
+                      </button>
+                      <button
+                        className="secondary-button"
+                        disabled={busy}
+                        onClick={() => void syncWatch(true)}
+                      >
+                        清除手表登录态
+                      </button>
+                    </div>
+                  )}
                   {import.meta.env.DEV && !isWindows && !isMobile && (
                     <>
                       <label className="native-field">

@@ -132,6 +132,7 @@ export interface SessionStatus {
 
 export const native = {
   updateWidgets: (data: ReturnType<typeof widgetData>) => invoke<void>("update_widgets", { data }),
+  syncWatch: (vin: string, clear = false) => invoke<void>("sync_watch", { vin, clear }),
   takeWidgetTarget: () => invoke<WidgetTarget | null>("take_widget_target"),
   onWidgetOpen: (callback: () => void) => {
     if (!isAndroid) return listen("widget-open", callback);

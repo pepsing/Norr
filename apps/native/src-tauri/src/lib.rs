@@ -23,6 +23,8 @@ mod platform;
 mod verification_windows;
 #[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
 mod widgets;
+#[cfg(target_os = "ios")]
+mod watch;
 
 #[cfg(target_os = "android")]
 #[tauri::command]
@@ -306,7 +308,9 @@ async fn refresh(
 ) -> Result<Snapshot> {
     let mut backend = state.lock().await;
     let snapshot = backend.client.refresh(&vin).await?;
-    backend.history.settings.selected_vin = Some(vin);
+    backend.history.settings.selected_vin = Some(vin.clone());
+    #[cfg(target_os = "ios")]
+    let _ = watch::synchronize(&vin, false, true).await;
     let snapshot = backend.record(snapshot)?;
     #[cfg(desktop)]
     update_tray(&_app, &snapshot);
@@ -625,6 +629,10 @@ async fn collect_in_background(app: tauri::AppHandle) {
                 }
                 #[cfg(desktop)]
                 update_tray(&app, &snapshot);
+                #[cfg(target_os = "ios")]
+                if let Some(vin) = backend.history.settings.selected_vin.as_deref() {
+                    let _ = watch::synchronize(vin, false, true).await;
+                }
                 let _ = app.emit("vehicle-updated", snapshot);
             }
             Err(error) => {
@@ -890,6 +898,11 @@ pub fn run() {
             }
         })
         .invoke_handler(|invoke| {
+            #[cfg(target_os = "ios")]
+            if invoke.message.command() == "sync_watch" && invoke.message.webview_ref().label() == "main" {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![watch::sync_watch];
+                return handler(invoke);
+            }
             #[cfg(target_os = "windows")]
             if invoke.message.command() == "submit_verification" {
                 let verification_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
@@ -974,7 +987,7 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     #[test]
-    fn login_commands_are_allowed_only_from_the_local_main_window() {
+    fn authorization_commands_are_allowed_only_from_the_local_main_window() {
         let mut context = app_context();
         let authority = context.runtime_authority_mut();
         let remote = tauri::ipc::Origin::Remote {
@@ -982,7 +995,7 @@ mod tests {
                 .parse()
                 .unwrap(),
         };
-        for command in ["request_login_code", "sign_in_phone", "sign_in_password"] {
+        for command in ["request_login_code", "sign_in_phone", "sign_in_password", "sync_watch"] {
             assert!(
                 authority
                     .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)

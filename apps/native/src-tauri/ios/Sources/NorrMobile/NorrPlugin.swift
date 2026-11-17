@@ -35,6 +35,10 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
     try syncWidgets(invoke)
   }
 
+  @objc func syncWatch(_ invoke: Invoke) throws {
+    try synchronizeWatch(invoke)
+  }
+
   override func load(webview: WKWebView) {
     self.webview = webview
     active = UIApplication.shared.applicationState == .active

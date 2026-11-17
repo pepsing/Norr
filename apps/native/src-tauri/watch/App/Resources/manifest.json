@@ -1,0 +1,20 @@
+{
+  "assets": [
+    {
+      "file": "Assets.xcassets/vehicle.imageset/vehicle.png",
+      "source": "apps/web/public/images/vehicles/polestar-2/long-dual/snow-black-side-cutout.webp",
+      "conversion": "sips lossless PNG decode",
+      "sha256": "1db3d19bbc324be4b701369188c57412f59ff09ca414e404900e7be45e1cdbb9"
+    },
+    {
+      "file": "Archivo.ttf",
+      "source": "apps/native/src-tauri/ios/Widgets/Archivo.ttf",
+      "sha256": "0e094a7d3c7c4c25cf1310c4b30014f1dae9332220b1c2c88f4fa996f0b05053"
+    },
+    {
+      "file": "Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "source": "apps/native/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "sha256": "3d455fe877ed05cab1cd2c6ee31cb96dfcf1f94b89e30556f84c9da7cdae5390"
+    }
+  ]
+}

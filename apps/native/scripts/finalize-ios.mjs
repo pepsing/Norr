@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +21,8 @@ export function finalizeIOS(device = false) {
     throw new Error(`Expected ${platform} archive`);
   }
   verifyIOSWidgetCommand(`${source}/${info.CFBundleExecutable}`);
+  synchronizeEmbeddedVersions(source);
+  verifyEmbeddedWatch(source, device);
 
   const directory = fileURLToPath(
     new URL("../../../target/ios/", import.meta.url),
@@ -44,16 +46,7 @@ export function finalizeIOS(device = false) {
   mkdirSync(directory, { recursive: true });
   rmSync(app, { recursive: true, force: true });
   cpSync(source, app, { recursive: true });
-  const extension = `${app}/PlugIns/NorrWidgets.appex`;
-  execFileSync("/usr/bin/codesign", ["--force", "--sign", "-", extension], {
-    stdio: "inherit",
-  });
-  execFileSync("/usr/bin/codesign", ["--force", "--sign", "-", app], {
-    stdio: "inherit",
-  });
-  execFileSync("/usr/bin/codesign", ["--verify", "--deep", "--strict", app], {
-    stdio: "inherit",
-  });
+  prepareIOSForResigning(app);
   execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", app, archive], {
     stdio: "inherit",
   });
@@ -71,26 +64,67 @@ export function verifyIOSWidgetCommand(executable) {
 
 export function prepareIOSForResigning(app) {
   const nestedCode = readdirSync(app, { recursive: true }).filter(
-    (path) => path.endsWith(".dylib") || path.endsWith(".framework") || path.endsWith(".appex"),
+    (path) => [".dylib", ".framework", ".appex", ".app"].some((suffix) => path.endsWith(suffix)),
   ).sort((a, b) => b.split("/").length - a.split("/").length);
   const extension = `${app}/PlugIns/NorrWidgets.appex`;
   const entitlements = fileURLToPath(new URL("../src-tauri/ios/Widgets/Widgets.entitlements", import.meta.url));
+  const watch = `${app}/Watch/NorrWatch.app`;
+  const watchExtension = `${watch}/PlugIns/NorrWatchWidgets.appex`;
+  const watchEntitlements = fileURLToPath(new URL("../src-tauri/watch/Shared/Watch.entitlements", import.meta.url));
   for (const code of [...nestedCode.map((path) => `${app}/${path}`), app]) {
     if (!code.endsWith(".dylib")) rmSync(`${code}/embedded.mobileprovision`, { force: true });
     const args = ["--force", "--sign", "-", "--timestamp=none"];
     // AltStore discovers App Groups from code-signing entitlements, even before personal signing.
     if (code === app || code === extension) args.push("--entitlements", entitlements);
+    if (code === watch || code === watchExtension) args.push("--entitlements", watchEntitlements);
     execFileSync("/usr/bin/codesign", [...args, code], { stdio: "pipe" });
   }
   execFileSync("/usr/bin/codesign", ["--verify", "--deep", "--strict", app], { stdio: "pipe" });
-  for (const code of [app, extension]) {
+  const bundles = [[app, "group.app.norr.widgets"], [extension, "group.app.norr.widgets"]];
+  if (existsSync(watch)) bundles.push([watch, "group.app.norr.watch"], [watchExtension, "group.app.norr.watch"]);
+  for (const [code, group] of bundles) {
     const xml = execFileSync("/usr/bin/codesign", ["--display", "--entitlements", ":-", code]);
     const permissions = JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", "-"], {
       input: xml, encoding: "utf8",
     }));
-    if (JSON.stringify(permissions["com.apple.security.application-groups"]) !== JSON.stringify(["group.app.norr.widgets"])) {
+    if (JSON.stringify(permissions["com.apple.security.application-groups"]) !== JSON.stringify([group])) {
       throw new Error(`Missing widget App Group in ${code}`);
     }
+  }
+}
+
+export function synchronizeEmbeddedVersions(app) {
+  const parent = JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", `${app}/Info.plist`], { encoding: "utf8" }));
+  const bundles = readdirSync(app, { recursive: true }).filter(path => path.endsWith(".app") || path.endsWith(".appex"));
+  for (const key of ["CFBundleShortVersionString", "CFBundleVersion"]) {
+    if (typeof parent[key] !== "string" || !parent[key]) throw new Error(`Missing parent ${key}`);
+    for (const bundle of bundles) {
+      execFileSync("/usr/bin/plutil", ["-replace", key, "-string", parent[key], `${app}/${bundle}/Info.plist`]);
+    }
+  }
+}
+
+export function verifyEmbeddedWatch(app, device) {
+  const watch = `${app}/Watch/NorrWatch.app`;
+  const readInfo = (bundle) => JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", `${bundle}/Info.plist`], { encoding: "utf8" }));
+  const parent = readInfo(app);
+  for (const bundle of [watch, `${watch}/PlugIns/NorrWatchWidgets.appex`]) {
+    const info = readInfo(bundle);
+    if (!info.CFBundleSupportedPlatforms?.includes(device ? "WatchOS" : "WatchSimulator")) {
+      throw new Error(`Incorrect watch platform in ${bundle}`);
+    }
+    if (!info.CFBundleIdentifier.startsWith(`${parent.CFBundleIdentifier}.`)) {
+      throw new Error(`Watch identifier does not match companion in ${bundle}`);
+    }
+    for (const key of ["CFBundleShortVersionString", "CFBundleVersion"]) {
+      if (!parent[key] || info[key] !== parent[key]) throw new Error(`Watch ${key} does not match companion in ${bundle}`);
+    }
+    const build = execFileSync("/usr/bin/xcrun", ["vtool", "-show-build", `${bundle}/${info.CFBundleExecutable}`], { encoding: "utf8" });
+    const platform = device ? /^\s*platform WATCHOS\s*$/m : /^\s*platform WATCHOSSIMULATOR\s*$/m;
+    if (!platform.test(build)) throw new Error(`Incorrect watch Mach-O platform in ${bundle}`);
+  }
+  if (readInfo(watch).WKCompanionAppBundleIdentifier !== parent.CFBundleIdentifier) {
+    throw new Error("Watch companion identifier does not match iOS app");
   }
 }
 

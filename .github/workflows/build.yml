@@ -242,6 +242,7 @@ jobs:
           xcrun swiftc apps/native/src-tauri/ios/Sources/NorrWidgetSupport/WidgetStorage.swift apps/native/src-tauri/ios/Tests/WidgetStorageTests.swift -o /tmp/norr-widget-storage-tests
           /tmp/norr-widget-storage-tests
           node --test apps/native/scripts/ios-signing.test.mjs
+          node apps/native/scripts/check-watch.mjs
       - name: Build iOS package
         run: |
           node --input-type=module <<'NODE'
