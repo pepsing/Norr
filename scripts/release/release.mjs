@@ -257,6 +257,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const repository = process.env.GITHUB_REPOSITORY;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? '')) throw new Error('Invalid GitHub repository');
   if (process.argv[2] === 'plan') {
+    if (process.env.GITHUB_EVENT_NAME === 'schedule' && /\[skip release\]/i.test(git('log', '-1', '--format=%B'))) {
+      appendFileSync(process.env.GITHUB_OUTPUT, 'publish=false\n');
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, '源提交标记为 [skip release]，跳过本次定时构建和发布。\n');
+      process.exit(0);
+    }
     const baseVersion = JSON.parse(readFileSync('package.json', 'utf8')).version.split('-')[0];
     const releases = getReleases(repository);
     const plan = planRelease({ sha: git('rev-parse', 'HEAD'), baseVersion, releases,

@@ -10,6 +10,26 @@ import { validateVersion } from './version.mjs';
 
 const initial = { sha: 'a'.repeat(40), baseVersion: '0.1.0', releases: [], tags: [] };
 
+test('scheduled releases skip marked commits before requesting release data', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'norr-skip-release-'));
+  try {
+    execFileSync('git', ['init', '--quiet', directory]);
+    execFileSync('git', ['-c', 'user.name=Norr test', '-c', 'user.email=test@example.com',
+      'commit', '--quiet', '--allow-empty', '-m', 'feat: save work [skip ci] [skip release]'], { cwd: directory });
+    const output = join(directory, 'output');
+    const summary = join(directory, 'summary');
+    execFileSync(process.execPath, [resolve('scripts/release/release.mjs'), 'plan'], {
+      cwd: directory,
+      env: { ...process.env, GITHUB_REPOSITORY: 'example/Norr', GITHUB_EVENT_NAME: 'schedule',
+        GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary },
+    });
+    assert.equal(readFileSync(output, 'utf8'), 'publish=false\n');
+    assert.match(readFileSync(summary, 'utf8'), /\[skip release\]/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('first alpha starts above the installed Android build number', () => {
   const plan = planRelease(initial);
   assert.equal(plan.tag, 'v0.1.0-alpha.1');
