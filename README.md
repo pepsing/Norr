@@ -14,6 +14,8 @@ Android ARM64 测试包已在 Android 16 手机上完成真实短信登录、P2 
 
 iOS ARM64 模拟器包已在 iPhone 17 / iOS 27.2 上安装并启动，完成首次安装登录入口、浅深主题与安全区检查。共享账号的 P2 会话在覆盖安装后恢复，14 类读取成功。空调控制权限判断已修正，用户执行开启空调后，厂商完成回执与车辆运行状态回读均通过。短信流程现场复核、其他车控和实体 iPhone 验证待完成。构建与安装方式见 [iOS 模拟器版](apps/native/README.md#ios-模拟器版)。
 
+HarmonyOS 测试包采用 ArkTS + ArkWeb 与共用 Rust 车辆核心，已在 HarmonyOS 5.1 / API 18 模拟器完成真实短信登录与 P2 车辆概览读取。滑块验证弹框关闭问题已修复，用户于 2026-11-17 完成模拟器测试，反馈暂未发现其他问题。真机签名、Pura 80 Pro 验收、系统通知与桌面卡片仍待完成。构建、安装及验证记录见[鸿蒙宿主说明](apps/harmonyos/README.md)。
+
 ![Norr 车辆概览](docs/preview/norr-overview.jpg)
 
 ## iOS 自助签名安装
@@ -57,11 +59,14 @@ npm run dev -- --port 5174
 | `npm run build:android` | 构建 Android ARM64 APK |
 | `npm run build:ios` | 构建 iOS ARM64 模拟器应用 |
 | `npm run build:ios:unsigned` | 构建 iOS ARM64 未签名真机 IPA，安装前需重新签名 |
+| `npm run build:harmonyos` | 构建 HarmonyOS ARM64 Release HAP，真机安装前需配置签名 |
 | `npm run check:native` | 运行 Rust 核心与宿主回归测试 |
 
 依赖由根目录 `package-lock.json` 统一锁定。
 
 原生应用构建使用 Rust 工具链和各平台 SDK。中国区登录配置通过 `NORR_POLESTAR_CN_SIGNING_KEY` 环境变量或根目录 `.env.secrets` 提供，平台签名配置按宿主说明设置。仓库忽略本地配置、签名文件、调试快照和构建产物。GitHub Actions 检查 PR 和主分支代码更新，每天北京时间 03:20 检查尚未发布的提交，有更新时构建四端并发布 alpha 预发行版。手动填写正式版本号可重建全部平台并发布正式版。[下载安装包](https://github.com/pepsing/Norr/releases) · [构建说明](apps/native/README.md#github-actions)
+
+提交信息中的 `[skip ci]` 跳过推送和 PR 检查。主分支最新提交带有 `[skip release]` 时，定时发布任务跳过构建和发布，手动发布仍可执行。鸿蒙包目前通过本地 DevEco 工具链构建。
 
 ## 反馈问题
 
@@ -73,7 +78,7 @@ npm run dev -- --port 5174
 | --- | --- |
 | `apps/web/` | 可运行的共用 React 界面、演示状态与车型素材 |
 | `apps/native/` | macOS、Windows、Android 与 iOS Tauri 2 宿主、系统能力与指令记录 |
-| `apps/harmonyos/` | ArkTS + ArkWeb 宿主位置，已写入接入说明，工程待实现 |
+| `apps/harmonyos/` | ArkTS + ArkWeb 与 Rust 原生宿主，生产服务登录和 P2 概览已通过模拟器验证 |
 | `crates/vehicle-core/` | 中国区会话续期、服务发现、REST/gRPC、数据解码与核心指令 |
 | `docs/research/` | 技术栈与极星视觉研究 |
 | `docs/preview/` | 已完成界面的截图 |

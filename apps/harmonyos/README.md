@@ -40,7 +40,7 @@ Release 包输出为 `target/harmonyos/entry-default-unsigned.hap`，包含 ARM6
 - 历史备份、SQLite 记录和报表复用已有原生模块。文件选择、导出、系统身份确认、前台定时刷新与回到前台刷新已接入 ArkTS。
 - 系统通知与桌面卡片待接入，界面按平台能力禁用通知设置。
 
-模拟器已完成真实短信登录并显示 P2 车辆概览。其余车辆项目、备份选择、身份确认与前后台恢复需要继续逐项实测。真机用于后续验收安全存储与实际车辆控制。当前范围对齐共用核心的中国区 P2 能力，P4 HUANFU 服务接入列在共用核心待办中。
+模拟器已完成真实短信登录并显示 P2 车辆概览，用户于 2026-11-17 完成模拟器测试并反馈暂未发现其他问题。登录、主题和概览读取已有具体记录，后续继续补充其他车辆项目、备份选择、身份确认与前后台恢复的验收结果。真机用于后续验收安全存储与实际车辆控制。当前范围对齐共用核心的中国区 P2 能力，P4 HUANFU 服务接入列在共用核心待办中。
 
 ## 环境准备
 
@@ -58,17 +58,18 @@ Rust 车辆核心与新宿主已完成 OHOS Release 编译，网络库采用与 
 - `hdc` 覆盖安装 Release HAP 和启动 `EntryAbility` 成功，日志确认原生核心就绪、加密存储读写成功、登录配置存在及浅色主题桥接就绪。
 - DevEco ArkUI 检查器已显示实际运行的「连接你的 Polestar」页面及登录入口。
 - 用户此前已在预览包中确认深浅主题切换正常。当前修复包由用户完成真实短信登录，并确认验证弹框自动关闭、登录成功。检查器已显示 Polestar 2 车辆概览，电量 31%、续航 130 km。
+- 2026-11-17 用户完成后续模拟器测试，反馈暂未发现其他问题。其余逐项操作、长时间运行及 Pura 80 Pro 真机验证继续补充记录。
 
 首次真实登录发现滑块验证成功后弹框持续显示。核对官方页面脚本发现，默认原生回调按 Android / iOS User-Agent 分支处理，鸿蒙未进入这两个分支。现使用官方 `from=webview` 回调，通过同源、同窗口的 `message` 事件交给 ArkTS。弹框结束回调放在清理操作的 `finally` 中，避免 WebView 停止异常阻断关闭。诊断日志仅记录桥接就绪、验证结果接收与弹框关闭状态。
 
 `node --test apps/harmonyos/scripts/verification.test.mjs` 的 4 项回归通过，覆盖官方 WebView 模式、同源与同窗口限制、重复注入和无效消息。修复版 Release 已重新构建、覆盖安装并启动。用户复测确认弹框关闭和登录成功，运行日志依次记录桥接就绪、验证结果接收、弹框关闭。[官方验证页面](https://h5.app.polestar-auto.com/account-components/auth-slider/index.html) · [官方回调脚本](https://h5.app.polestar-auto.com/account-components/jsbridge.js)
 
-本轮适用项检查覆盖共用登录入口、验证码回调修复、构建、模拟器登录与车辆概览读取。其余完整交互验收待完成。
+本轮适用项检查覆盖共用登录入口、验证码回调修复、构建、模拟器登录与车辆概览读取，并纳入用户后续模拟器测试暂未发现其他问题的反馈。逐项操作与真机验收继续补充。
 
 - Hard Gate PASS。用户完成滑块验证与真实登录，弹框已关闭，检查器显示 P2 车辆概览及读数，系统通知呈现明确的能力限制。
 - Purpose Gate PASS。限定来源的桥接承载原生接口，官方验证页面承载短信验证，加载错误提供重试操作。
 - Liveliness PASS。沿用 ENERGY 2 / RHYTHM 2 / MOTION 1、Archivo 与现有间距，登录入口保持单一操作焦点。
-- Craftsmanship PASS。Release 构建、包校验、20 项前端测试、42 项原生测试、4 项验证桥接回归、模拟器覆盖安装及原生存储启动检查通过。真实登录由用户确认，车辆概览通过检查器核对。
+- Craftsmanship PASS。Release 构建、包校验、20 项前端测试、42 项原生测试、4 项验证桥接回归、模拟器覆盖安装及原生存储启动检查通过。真实登录与后续模拟器测试由用户确认，车辆概览通过检查器核对，文档保留逐项操作与真机验收范围。
 
 [官方安装说明](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/ide-software-install/) · [Rust OHOS 配置](https://doc.rust-lang.org/rustc/platform-support/openharmony.html) · [自动签名](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-signing-auto/)
 
