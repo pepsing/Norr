@@ -5,8 +5,9 @@ import "@fontsource/archivo/500.css";
 import App from "./App";
 import { isTauri } from "@tauri-apps/api/core";
 import NativeApp from "./native/NativeApp";
+import { isHarmonyOS } from "./native/platform";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>{isTauri() ? <NativeApp /> : <App />}</React.StrictMode>,
+  <React.StrictMode>{isTauri() || isHarmonyOS ? <NativeApp /> : <App />}</React.StrictMode>,
 );

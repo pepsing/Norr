@@ -2531,6 +2531,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "norr-harmonyos"
+version = "0.1.0"
+dependencies = [
+ "norr-vehicle-core",
+ "ring",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "norr-vehicle-core"
 version = "0.1.0"
 dependencies = [

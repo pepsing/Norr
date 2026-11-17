@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/native/src-tauri", "crates/vehicle-core"]
+members = ["apps/native/src-tauri", "apps/harmonyos/native", "crates/vehicle-core"]
 resolver = "2"
 
 [workspace.package]

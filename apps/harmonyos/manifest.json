@@ -1,0 +1,11 @@
+{
+  "AppScope/resources/base/media/app_icon.png": {
+    "source": "../native/src-tauri/icons/icon.png",
+    "usage": "Norr application icon, copied without modification"
+  },
+  "entry/src/main/resources/rawfile/web": {
+    "source": "../web/dist",
+    "generatedBy": "npm run build:harmonyos",
+    "vehicleSources": "../web/public/images/vehicles/manifest.json"
+  }
+}

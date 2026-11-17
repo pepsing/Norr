@@ -20,6 +20,11 @@ use ios::{read, write};
 pub mod android;
 #[cfg(target_os = "android")]
 use android::{read, write};
+#[cfg(target_env = "ohos")]
+#[path = "credentials/android.rs"]
+pub mod harmonyos;
+#[cfg(target_env = "ohos")]
+use harmonyos::{read, write};
 
 #[cfg(target_os = "macos")]
 const SERVICE: &str = "app.norr.mac";
@@ -29,6 +34,8 @@ const SERVICE: &str = "app.norr.windows";
 const SERVICE: &str = "app.norr.mobile";
 #[cfg(target_os = "ios")]
 const SERVICE: &str = "app.norr.ios";
+#[cfg(target_env = "ohos")]
+const SERVICE: &str = "app.norr.harmonyos";
 #[cfg(all(target_os = "macos", debug_assertions))]
 const LEGACY_SERVICE: &str = "io.kheirallah.hisingen";
 const ACCOUNT: &str = "polestar-china-session";

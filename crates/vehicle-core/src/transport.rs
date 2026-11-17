@@ -44,9 +44,9 @@ impl Decoder for RawCodec {
 }
 
 pub async fn channel(url: &str) -> crate::Result<Channel> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(any(target_os = "android", target_os = "ios", target_env = "ohos"))]
     let tls = ClientTlsConfig::new().with_webpki_roots();
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
     let tls = ClientTlsConfig::new().with_native_roots();
     Endpoint::from_shared(url.to_owned())
         .map_err(|_| "服务发现地址无效")?

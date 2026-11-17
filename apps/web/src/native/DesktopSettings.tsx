@@ -10,6 +10,7 @@ const loginLabels: Record<number, string> = {
   3: "注册需要更新",
 };
 const notificationLabels: Record<number, string> = {
+  [-1]: "此平台版本尚未接入系统通知",
   0: "尚未授权",
   1: "系统已关闭通知",
   2: "系统已允许通知",
@@ -136,7 +137,7 @@ export function DesktopSettings() {
         <input
           type="checkbox"
           checked={data?.settings.notifyCharging ?? false}
-          disabled={busy || !data}
+          disabled={busy || !data || data.status.notifications === -1}
           onChange={(event) =>
             void change("notifyCharging", event.target.checked)
           }
@@ -150,7 +151,7 @@ export function DesktopSettings() {
         <input
           type="checkbox"
           checked={data?.settings.notifyCommands ?? false}
-          disabled={busy || !data}
+          disabled={busy || !data || data.status.notifications === -1}
           onChange={(event) =>
             void change("notifyCommands", event.target.checked)
           }
@@ -165,13 +166,14 @@ export function DesktopSettings() {
       <div className="native-actions">
         <button
           className="secondary-button"
-          disabled={busy}
+          disabled={busy || !data || data.status.notifications === -1}
           onClick={() => void test()}
         >
           发送测试通知
         </button>
         <button
           className="text-button"
+          disabled={!data || data.status.notifications === -1}
           onClick={() => settings("notifications")}
         >
           系统通知设置
