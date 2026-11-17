@@ -28,7 +28,7 @@ export function applyVersion(version, buildNumber) {
   writeFileSync('Cargo.toml', cargo.replace(/^(version = ")[^"]+(")$/m, (_, start, end) => `${start}${version}${end}`));
   const lock = readFileSync('Cargo.lock', 'utf8');
   writeFileSync('Cargo.lock', lock.replace(
-    /(name = "(?:norr|norr-vehicle-core)"\nversion = ")[^"]+(")/g,
+    /(name = "(?:norr|norr-vehicle-core|norr-harmonyos)"\nversion = ")[^"]+(")/g,
     (_, start, end) => `${start}${version}${end}`,
   ));
   updateJson('apps/native/src-tauri/tauri.conf.json', (value) => {
