@@ -44,8 +44,10 @@ private protocol VehicleIntent: AppIntent {
 extension VehicleIntent {
     static var openAppWhenRun: Bool { false }
 
-    @available(iOS 26.0, *)
-    static var supportedModes: IntentModes { .background }
+    #if compiler(>=6.2)
+        @available(iOS 26.0, *)
+        static var supportedModes: IntentModes { .background }
+    #endif
 
     fileprivate func resolveVehicle() async throws -> SiriVehicle {
         let reply = try await SiriBridge.run(.vehicles)
