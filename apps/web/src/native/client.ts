@@ -200,6 +200,35 @@ export function numeric(
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+export function cabinAirSnapshot(vin: string, current: Snapshot | undefined, history: Snapshot[]) {
+  const hasReading = (sample: Snapshot | undefined) =>
+    sample?.vehicle.vin === vin && sample.readings.airQuality?.status === "success" &&
+    (numeric(sample, "airQuality", "pm25") !== null || numeric(sample, "airQuality", "aqi") !== null);
+  if (hasReading(current)) return current;
+  let last: Snapshot | undefined;
+  let latestTime = 0;
+  for (const sample of history) {
+    if (!hasReading(sample)) continue;
+    const air = sample.readings.airQuality;
+    const time = numeric(sample, "airQuality", "measuredAt") || air.reportedAt || air.observedAt;
+    if (time > latestTime) {
+      last = sample;
+      latestTime = time;
+    }
+  }
+  return last;
+}
+
+export function cabinAirTime(sample: Snapshot) {
+  const measured = numeric(sample, "airQuality", "measuredAt");
+  if (!measured || measured <= 0) return readingText(sample, "airQuality", true);
+  const time = new Date(measured);
+  return `测量于 ${time.toLocaleString("zh-CN", {
+    year: time.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+  })}`;
+}
+
 export function readingText(
   snapshot: Snapshot | undefined,
   endpoint: string,

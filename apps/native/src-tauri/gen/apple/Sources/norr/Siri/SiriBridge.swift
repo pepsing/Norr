@@ -1,7 +1,8 @@
 import Foundation
 
 enum SiriVehicleAction: String, Encodable {
-    case vehicles, energy, lockState, lock, climateStart, climateStop
+    case vehicles, energy, lockState, lock, unlock
+    case windowsOpen, windowsClose, tailgateOpen, tailgateClose, climateStart, climateStop
 }
 
 struct SiriVehicleOption: Decodable, Sendable {
@@ -14,10 +15,41 @@ struct SiriReading: Decodable {
         let percent: Double?
         let rangeKm: Double?
         let locked: Bool?
+        let chargeState: UInt64?
+        let powerKw: Double?
+        let minutesToTarget: UInt64?
     }
 
     let value: Value?
     let reportedAt: UInt64?
+
+    var chargingSummary: String {
+        let states: [UInt64: String] = [
+            1: "车辆正在充电。",
+            2: "车辆目前没有在充电。",
+            3: "车辆正在等待预约充电。",
+            4: "车辆正在放电。",
+            5: "车辆报告充电异常。",
+            6: "车辆处于智能充电状态。",
+            7: "充电已暂停。",
+            8: "充电已完成。",
+        ]
+        guard let value, let state = value.chargeState, var summary = states[state] else {
+            return "充电状态未知。"
+        }
+        if state == 1 || state == 6 {
+            if let power = value.powerKw, power.isFinite, power > 0 {
+                let number = power.formatted(.number.precision(.fractionLength(0...1)))
+                summary += "当前充电功率 \(number) 千瓦。"
+            }
+            if let minutes = value.minutesToTarget, minutes > 0 {
+                summary += "预计还有 \(minutes) 分钟达到目标电量。"
+            } else {
+                summary += "暂时无法估算充至目标电量的时间。"
+            }
+        }
+        return summary
+    }
 }
 
 struct SiriVehicleReply: Decodable {

@@ -9,6 +9,7 @@ const server = await createServer({
 });
 let unavailableReason;
 let activeControls;
+let cabinAirSnapshot;
 let openingState;
 let chargingOptions;
 let commandLimits;
@@ -16,6 +17,7 @@ try {
   ({
     unavailableReason,
     activeControls,
+    cabinAirSnapshot,
     openingState,
     chargingOptions,
     commandLimits,
@@ -33,6 +35,21 @@ const sharedVehicle = {
   capabilities: { supportsParkingClimatization: true },
   limits: {},
 };
+
+test("cabin air uses the current vehicle's reported measurement, including zero", () => {
+  const sample = (vin, measuredAt, fields, status = "success") => ({
+    vehicle: { vin },
+    readings: { airQuality: { status, value: { measuredAt, ...fields }, observedAt: 1000 } },
+  });
+  const current = sample("A", 30, { pm25: 0 });
+  const previous = sample("A", 20, { aqi: 12 });
+  const missing = sample("A", 40, { state: 2 });
+  const failed = sample("A", 50, { pm25: 9 }, "failed");
+  const other = sample("B", 60, { pm25: 8 });
+  assert.equal(cabinAirSnapshot("A", current, [previous]), current);
+  assert.equal(cabinAirSnapshot("A", missing, [previous, failed, other, sample("A", 10, { pm25: 5 })]), previous);
+  assert.equal(cabinAirSnapshot("A", failed, [other, missing]), undefined);
+});
 
 test("charging selectors match Hisingen presets and slider increments", () => {
   const target = chargingOptions(sharedVehicle, "target", null);

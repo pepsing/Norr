@@ -60,17 +60,27 @@ function verifyIOSSiriShortcuts(app, executable) {
     "-convert", "json", "-o", "-", `${app}/zh-Hans.lproj/AppShortcuts.strings`,
   ], { encoding: "utf8" }));
   const intentNames = [
-    "GetVehicleEnergyIntent", "GetVehicleLockStateIntent", "LockVehicleIntent",
-    "StartVehicleClimateIntent", "StopVehicleClimateIntent",
+    "GetVehicleEnergyInformationIntent", "GetVehicleLockStateIntent", "ControlVehicleLockIntent",
+    "ControlVehicleWindowsIntent", "ControlVehicleTailgateIntent",
+    "ControlVehicleClimateIntent",
   ];
-  for (const name of intentNames) {
+  const savedShortcutActions = [
+    "GetVehicleEnergyIntent", "LockVehicleIntent", "StartVehicleClimateIntent", "StopVehicleClimateIntent",
+  ];
+  const requiresLocalDeviceAuthentication = 2;
+  for (const name of [...intentNames, ...savedShortcutActions]) {
     const action = metadata.actions?.[name];
-    const shortcut = metadata.autoShortcuts?.find(item => item.actionIdentifier === name);
-    if (!action || !action.authenticationPolicy || action.openAppWhenRun) {
+    if (!action || action.authenticationPolicy !== requiresLocalDeviceAuthentication || action.openAppWhenRun) {
       throw new Error(`Missing background Siri action or authentication policy: ${name}`);
     }
-    if (!shortcut?.phraseTemplates?.length ||
-        !shortcut.phraseTemplates.every(phrase => localized[phrase.key]?.includes("${applicationName}"))) {
+  }
+  for (const name of intentNames) {
+    const shortcut = metadata.autoShortcuts?.find(item => item.actionIdentifier === name);
+    if (!shortcut?.phraseTemplates?.length || !shortcut.phraseTemplates.every(phrase => {
+      const placeholders = phrase.key.match(/\$\{[^}]+\}/g) ?? [];
+      return placeholders.includes("${applicationName}") &&
+        placeholders.every(placeholder => localized[phrase.key]?.includes(placeholder));
+    })) {
       throw new Error(`Missing Chinese Siri phrase for ${name}`);
     }
   }

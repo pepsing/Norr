@@ -1,5 +1,11 @@
-"Check vehicle battery with ${applicationName}" = "用${applicationName}查看车辆电量";
+"Check ${information} with ${applicationName}" = "用${applicationName}查看${information}";
+"Check energy information with ${applicationName}" = "用${applicationName}查询电量与充电";
 "Check vehicle lock with ${applicationName}" = "用${applicationName}查看门锁状态";
-"Lock my car with ${applicationName}" = "用${applicationName}锁车";
-"Start car climate with ${applicationName}" = "用${applicationName}开启空调";
-"Stop car climate with ${applicationName}" = "用${applicationName}关闭空调";
+"${operation} with ${applicationName}" = "用${applicationName}${operation}";
+"Control door locks with ${applicationName}" = "用${applicationName}控制门锁";
+"${operation} the windows with ${applicationName}" = "用${applicationName}${operation}窗";
+"Control the windows with ${applicationName}" = "用${applicationName}控制车窗";
+"${operation} the trunk with ${applicationName}" = "用${applicationName}${operation}后备箱";
+"Control the trunk with ${applicationName}" = "用${applicationName}控制后备箱";
+"${operation} air conditioning with ${applicationName}" = "用${applicationName}${operation}空调";
+"Control air conditioning with ${applicationName}" = "用${applicationName}控制空调";

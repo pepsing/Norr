@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { numeric, readingText } from "./client";
+import { cabinAirTime, numeric, readingText } from "./client";
 import { VehicleMap } from "./VehicleMap";
 import type { Snapshot } from "./client";
 
@@ -160,9 +160,11 @@ export function VehicleDetails({
 
 export function AirQuality({
   snapshot,
+  cabinReading,
   controls,
 }: {
   snapshot?: Snapshot;
+  cabinReading?: Snapshot;
   controls: ReactNode;
 }) {
   const state = numeric(snapshot, "airQuality", "state");
@@ -178,17 +180,20 @@ export function AirQuality({
         )[state ?? 0] ?? "预清洁状态未知"}
       </p>
       <p className="muted">{readingText(snapshot, "airQuality")}</p>
+      {cabinReading && cabinReading !== snapshot && (
+        <p className="muted">车内空气读数来自上次记录 · {cabinAirTime(cabinReading)}</p>
+      )}
       <Metrics
         items={[
           [
             "车内 PM2.5",
-            text(numeric(snapshot, "airQuality", "pm25"), " μg/m³"),
+            text(numeric(cabinReading, "airQuality", "pm25"), " μg/m³"),
           ],
           [
             "车外 PM2.5",
             text(numeric(snapshot, "airQuality", "externalPm25"), " μg/m³"),
           ],
-          ["空气质量指数", text(numeric(snapshot, "airQuality", "aqi"))],
+          ["空气质量指数", text(numeric(cabinReading, "airQuality", "aqi"))],
           [
             "滤芯剩余",
             text(numeric(snapshot, "airQuality", "filterPercent"), "%"),

@@ -1164,6 +1164,8 @@ export default function NativeApp() {
               <NativeControls
                 key={vin}
                 vehicle={vehicle}
+                appearance={appearance}
+                history={history.snapshots}
                 snapshot={snapshot}
                 receipts={history.receipts}
                 disabled={busy || !connected}

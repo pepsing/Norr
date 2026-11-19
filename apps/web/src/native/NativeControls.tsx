@@ -1,13 +1,26 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowRight, Fan, LockKeyhole } from "lucide-react";
+import {
+  AudioLines,
+  Download,
+  Fan,
+  LockKeyhole,
+  LockKeyholeOpen,
+  PanelTop,
+  PanelTopOpen,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { CabinAirPanel, ControlCard, ControlRow } from "../components/VehicleControls";
+import type { VehicleAppearance } from "../vehicle-catalog";
 import { EmptyState, SectionTabs } from "../components/WorkspaceUI";
 import { SchedulePanel } from "./SchedulePanel";
 import { AirQuality, SoftwarePanel } from "./VehicleDetails";
 import {
   actionLabels,
   activeControls,
+  cabinAirSnapshot,
+  cabinAirTime,
   numeric,
   openingState,
   readingText,
@@ -17,6 +30,8 @@ import type { Command, NativeVehicle, Receipt, Snapshot } from "./client";
 
 export function NativeControls({
   vehicle,
+  appearance,
+  history,
   snapshot,
   receipts,
   disabled,
@@ -26,6 +41,8 @@ export function NativeControls({
   openings,
 }: {
   vehicle: NativeVehicle;
+  appearance: VehicleAppearance;
+  history: Snapshot[];
   snapshot?: Snapshot;
   receipts: Receipt[];
   disabled: boolean;
@@ -36,18 +53,21 @@ export function NativeControls({
 }) {
   const [tab, setTab] = useState("即时控制");
   const [panel, setPanel] = useState<string | null>(null);
-  const temperature = numeric(snapshot, "climate", "interiorTemperature");
+  const air = cabinAirSnapshot(vehicle.vin, snapshot, history);
+  const airNote = air
+    ? (air === snapshot ? "" : "上次读数 · ") + cabinAirTime(air)
+    : snapshot?.readings.airQuality?.status === "failed" ? "读取失败" : readingText(snapshot, "airQuality", true);
   const climate = snapshot?.readings.climate?.value?.activity;
   const locked = snapshot?.readings.exterior?.value?.locked;
   const active = activeControls(snapshot);
   const climateLabel =
     climate === "active"
-      ? "空调运行中"
+      ? "运行中"
       : climate === "starting"
-        ? "空调启动中"
+        ? "启动中"
         : climate === "idle"
-          ? "空调已关闭"
-          : "空调状态未知";
+          ? "已关闭"
+          : "状态未知";
   const entries = receipts.filter(
     (receipt) => receipt.command.vin === vehicle.vin,
   );
@@ -76,51 +96,54 @@ export function NativeControls({
   const actions: {
     panel: string;
     title: string;
+    icon: LucideIcon;
     description: string;
     actions: string[];
+    button?: string;
     directAction?: string;
   }[] = [
     {
       panel: "车窗控制",
-      title: windowAction ? actionLabels[windowAction] : "车窗控制",
+      title: "车窗",
+      icon: PanelTop,
       description:
         windows === "closed"
-          ? "当前全部关闭"
+          ? "全部关闭"
           : windows === "open"
-            ? "当前有车窗打开或未关严"
-            : "车窗状态未知，请选择操作",
+            ? "有车窗打开或未关严"
+            : "状态未知",
       actions: ["windowsOpen", "windowsClose"],
       directAction: windowAction,
     },
     {
       panel: "尾门控制",
-      title: tailgateAction ? actionLabels[tailgateAction] : "尾门控制",
-      description: "操作前确认车辆后方空间",
+      title: "尾门",
+      icon: PanelTopOpen,
+      description:
+        tailgate === "closed"
+          ? "已关闭"
+          : tailgate === "open"
+            ? "已打开或未关严"
+            : "状态未知",
       actions: ["unlockTrunk", "tailgateOpen", "tailgateClose"],
       directAction: tailgateAction,
     },
     {
       panel: "鸣笛与闪灯",
       title: "鸣笛与闪灯",
-      description: "帮助寻找停车位置",
+      icon: AudioLines,
+      description: "在停车场寻找车辆",
       actions: ["flash", "honkFlash"],
-    },
-    {
-      panel: "空气净化",
-      title: "空气净化",
-      description:
-        numeric(snapshot, "airQuality", "state") === 1
-          ? "正在预清洁"
-          : "查看空气质量与预清洁状态",
-      actions: ["cleanStart", "cleanStop"],
     },
     {
       panel: "软件更新",
       title: "软件更新",
+      icon: Download,
       description: vehicle.installedVersion
         ? `已安装 ${vehicle.installedVersion}`
-        : "查看版本、安装状态与预约",
+        : "已安装版本未知",
       actions: ["otaSchedule", "otaInstall", "otaCancel"],
+      button: "查看版本",
     },
   ];
   const selectedAction = actions.find((item) => item.panel === panel);
@@ -135,65 +158,64 @@ export function NativeControls({
       {tab === "即时控制" && (
         <>
           <div className="control-lead">
-            <section data-active={active.climate}>
-              <Fan size={28} strokeWidth={1.2} aria-hidden="true" />
-              <div>
-                <span className="muted">座舱温度</span>
-                <p
-                  className={`large-number${temperature === null ? " native-unknown-number" : ""}`}
-                >
-                  {temperature === null
-                    ? "未返回"
-                    : `${temperature.toLocaleString("zh-CN", { maximumFractionDigits: 1 })}°C`}
-                </p>
-                <p>{climateLabel}</p>
-              </div>
+            <CabinAirPanel
+              pm25={numeric(air, "airQuality", "pm25")}
+              aqi={numeric(air, "airQuality", "aqi")}
+              note={airNote}
+              appearance={/polestar|极星/i.test(vehicle.model) ? appearance : undefined}
+              onDetails={() => setPanel("空气净化")}
+            />
+            <ControlCard
+              icon={Fan}
+              title="空调"
+              value={climateLabel}
+              active={active.climate}
+            >
               <button
-                className="primary-button"
+                className="secondary-button"
                 onClick={() => setPanel("调节空调")}
               >
-                调节空调 <ArrowRight size={17} aria-hidden="true" />
+                调节空调
               </button>
-            </section>
-            <section data-active={active.unlocked}>
-              <LockKeyhole size={28} strokeWidth={1.2} aria-hidden="true" />
-              <div>
-                <span className="muted">中央门锁</span>
-                <h2>
-                  {locked === true
-                    ? "车辆已锁定"
-                    : locked === false
-                      ? "车辆已解锁"
-                      : "门锁状态未知"}
-                </h2>
-                <p>
-                  <button
-                    className="text-button native-control-detail-link"
-                    onClick={() => setPanel("车身与门锁")}
-                  >
-                    查看车身开闭状态
-                  </button>
-                </p>
-              </div>
+            </ControlCard>
+            <ControlCard
+              icon={locked === false ? LockKeyholeOpen : LockKeyhole}
+              title="门锁"
+              value={
+                locked === true
+                  ? "已锁定"
+                  : locked === false
+                    ? "已解锁"
+                    : "状态未知"
+              }
+              active={active.unlocked}
+              onDetails={() => setPanel("车身与门锁")}
+            >
               {control(locked === true ? "unlock" : "lock")}
-            </section>
+            </ControlCard>
           </div>
-          <div className="control-list">
+          <section className="control-list" aria-labelledby="vehicle-controls-heading">
+            <h2 id="vehicle-controls-heading">车辆功能</h2>
             {actions.map((item) => {
               const reason = item.directAction
                 ? unavailableReason(vehicle, item.directAction)
                 : null;
+              const label = item.directAction
+                ? actionLabels[item.directAction]
+                : item.button ?? "选择操作";
               return (
-                <div className="list-row" key={item.panel}>
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    {reason && <p>{reason}</p>}
-                  </div>
+                <ControlRow
+                  key={item.panel}
+                  icon={item.icon}
+                  title={item.title}
+                  description={item.description}
+                  reason={reason}
+                >
                   <button
                     className="secondary-button"
-                    data-active={item.panel === "空气净化" && active.cleaning}
-                    aria-label={`${item.panel}操作`}
+                    aria-label={
+                      label === "选择操作" ? `${item.title}：${label}` : undefined
+                    }
                     disabled={disabled || !!reason}
                     onClick={() =>
                       item.directAction
@@ -201,12 +223,12 @@ export function NativeControls({
                         : setPanel(item.panel)
                     }
                   >
-                    操作
+                    {label}
                   </button>
-                </div>
+                </ControlRow>
               );
             })}
-          </div>
+          </section>
         </>
       )}
       {tab === "出发计划" && (
@@ -273,7 +295,7 @@ export function NativeControls({
           {panel === "调节空调" && (
             <>
               <p className="modal-description">
-                {climateLabel} · {readingText(snapshot, "climate")}
+                空调{climateLabel} · {readingText(snapshot, "climate")}
               </p>
               <div className="native-actions">
                 {["climateStart", "climateStop"].map((action) =>
@@ -293,12 +315,16 @@ export function NativeControls({
               </div>
             </>
           )}
-          {["车窗控制", "尾门控制"].includes(panel) && (
+          {panel === "车窗控制" && (
             <p className="modal-description">{selectedAction?.description}</p>
+          )}
+          {panel === "尾门控制" && (
+            <p className="modal-description">操作前请确认车辆后方有足够空间。</p>
           )}
           {panel === "空气净化" ? (
             <AirQuality
               snapshot={snapshot}
+              cabinReading={air}
               controls={["cleanStart", "cleanStop"].map((action) =>
                 control(action, () => setPanel(null)),
               )}

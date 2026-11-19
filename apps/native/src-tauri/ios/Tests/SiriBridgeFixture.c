@@ -28,6 +28,11 @@ void norr_siri_run(const char *request, const void *cancellation, void *context,
         complete(context, "{\"status\":\"reading\",\"reading\":{\"value\":{\"percent\":0},\"reportedAt\":1000}}");
     } else if (strstr(request, "\"lockState\"")) {
         complete(context, "{\"status\":\"error\",\"message\":\"请先在 Norr 登录\"}");
+    } else if (strstr(request, "\"fixture\"") &&
+               (strstr(request, "\"unlock\"") || strstr(request, "\"windowsOpen\"") ||
+                strstr(request, "\"windowsClose\"") ||
+                strstr(request, "\"tailgateOpen\"") || strstr(request, "\"tailgateClose\""))) {
+        complete(context, "{\"status\":\"confirmed\"}");
     } else if (strstr(request, "\"climateStart\"")) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 150 * NSEC_PER_MSEC),
                        dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{

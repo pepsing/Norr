@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CarFront } from "lucide-react";
-import { appearanceDetails, artworkPath } from "../vehicle-catalog";
+import { appearanceDetails, artworkPath, sideCutoutPath } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 
 export function VehicleArtwork({
@@ -17,7 +17,7 @@ export function VehicleArtwork({
   const cutout = darkStage && view === "side";
   const studioSource = artworkPath(appearance, view);
   const src = cutout
-    ? studioSource.replace(/\.jpg$/, "-cutout.webp")
+    ? sideCutoutPath(appearance)
     : studioSource;
   const { model, variant, color } = appearanceDetails(appearance);
   const [failedSource, setFailedSource] = useState("");

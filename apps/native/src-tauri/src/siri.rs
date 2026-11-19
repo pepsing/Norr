@@ -9,7 +9,9 @@ pub(crate) fn unresolved_command<'a>(
     now: u64,
 ) -> Option<&'a Receipt> {
     let group: &[&str] = match command.action.as_str() {
-        "lock" => &["lock", "unlock"],
+        "lock" | "unlock" => &["lock", "unlock"],
+        "windowsOpen" | "windowsClose" => &["windowsOpen", "windowsClose"],
+        "tailgateOpen" | "tailgateClose" => &["tailgateOpen", "tailgateClose"],
         "climateStart" | "climateStop" => &["climateStart", "climateStop"],
         _ => return None,
     };
@@ -50,6 +52,11 @@ mod ios {
         Energy,
         LockState,
         Lock,
+        Unlock,
+        WindowsOpen,
+        WindowsClose,
+        TailgateOpen,
+        TailgateClose,
         ClimateStart,
         ClimateStop,
     }
@@ -180,6 +187,11 @@ mod ios {
                 };
             }
             Action::Lock => "lock",
+            Action::Unlock => "unlock",
+            Action::WindowsOpen => "windowsOpen",
+            Action::WindowsClose => "windowsClose",
+            Action::TailgateOpen => "tailgateOpen",
+            Action::TailgateClose => "tailgateClose",
             Action::ClimateStart => "climateStart",
             Action::ClimateStop => "climateStop",
             Action::Vehicles => unreachable!(),
@@ -385,5 +397,30 @@ mod tests {
         let mut rejected = pending.clone();
         rejected.status = "rejected".into();
         assert!(unresolved_command(&[pending, rejected], &command, "account", 2_000).is_some());
+    }
+
+    #[test]
+    fn pending_opening_commands_block_repeats_and_opposite_actions() {
+        for (first, opposite) in [
+            ("lock", "unlock"),
+            ("windowsOpen", "windowsClose"),
+            ("tailgateOpen", "tailgateClose"),
+        ] {
+            for (pending_action, opposing_action) in [(first, opposite), (opposite, first)] {
+                let receipts = [
+                    receipt("account", "car", pending_action),
+                    receipt("other", "car", opposing_action),
+                ];
+                for action in [pending_action, opposing_action] {
+                    let command = receipt("account", "car", action).command;
+                    let previous =
+                        unresolved_command(&receipts, &command, "account", 2_000).unwrap();
+                    assert_eq!(previous.command.action, pending_action);
+                }
+            }
+        }
+        let window = receipt("account", "car", "windowsClose");
+        let tailgate = receipt("account", "car", "tailgateOpen");
+        assert!(unresolved_command(&[window], &tailgate.command, "account", 2_000).is_none());
     }
 }

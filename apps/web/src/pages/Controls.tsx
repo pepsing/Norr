@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
 import {
-  ArrowRight,
+  AudioLines,
+  Download,
   Fan,
   LockKeyhole,
+  LockKeyholeOpen,
+  PanelTop,
+  PanelTopOpen,
   Plus,
+  Power,
   SlidersHorizontal,
+  Wind,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { CabinAirPanel, ControlCard, ControlRow } from "../components/VehicleControls";
+import { appearanceFor } from "../vehicle-catalog";
 import {
   Confirmation,
   EmptyState,
@@ -184,42 +193,56 @@ export function Controls({
   const disabled = busy || scenario !== "connected";
   const actions: {
     label: string;
+    title: string;
+    icon: LucideIcon;
     description: string;
     capability: Capability;
     changes: Partial<DemoVehicle>;
   }[] = [
     {
       label: vehicle.windowsOpen ? "关闭车窗" : "打开车窗",
-      description: vehicle.windowsOpen ? "当前已打开" : "当前全部关闭",
+      title: "车窗",
+      icon: PanelTop,
+      description: vehicle.windowsOpen ? "已打开" : "全部关闭",
       capability: "windows",
       changes: { windowsOpen: !vehicle.windowsOpen },
     },
     {
       label: vehicle.tailgateOpen ? "关闭尾门" : "打开尾门",
-      description: "操作前确认车辆后方空间",
+      title: "尾门",
+      icon: PanelTopOpen,
+      description: vehicle.tailgateOpen ? "已打开" : "已关闭",
       capability: "tailgate",
       changes: { tailgateOpen: !vehicle.tailgateOpen },
     },
     {
       label: "鸣笛与闪灯",
-      description: "帮助寻找停车位置",
+      title: "鸣笛与闪灯",
+      icon: AudioLines,
+      description: "在停车场寻找车辆",
       capability: "locate",
       changes: {},
     },
     {
       label: vehicle.cleaning ? "停止空气净化" : "开启空气净化",
+      title: "空气净化",
+      icon: Wind,
       description: vehicle.cleaning ? "净化运行中" : "净化已停止",
       capability: "cleaning",
       changes: { cleaning: !vehicle.cleaning },
     },
     {
       label: vehicle.engineOn ? "停止发动机" : "启动发动机",
+      title: "发动机",
+      icon: Power,
       description: "仅适用于支持此能力的 Volvo 示例",
       capability: "engine",
       changes: { engineOn: !vehicle.engineOn },
     },
     {
       label: "安装软件更新",
+      title: "软件更新",
+      icon: Download,
       description:
         vehicle.software === "P4.2.2"
           ? "已安装演示更新 P4.2.2"
@@ -239,39 +262,40 @@ export function Controls({
       {tab === "即时控制" && (
         <>
           <div className="control-lead">
-            <section data-active={vehicle.climateOn === true}>
-              <Fan size={28} strokeWidth={1.2} />
-              <div>
-                <span className="muted">座舱温度</span>
-                <p className="large-number">
-                  {temperature(vehicle.targetTemperature)}
-                </p>
-                <p>{vehicle.climateOn ? "空调运行中" : "空调已关闭"}</p>
-                {!supports(vehicle, "climate") && (
-                  <p className="muted">
-                    {capabilityReason(vehicle, "climate")}
-                  </p>
-                )}
-              </div>
+            <CabinAirPanel
+              pm25={supports(vehicle, "cleaning") && scenario === "connected" ? 8 : null}
+              aqi={supports(vehicle, "cleaning") && scenario === "connected" ? 18 : null}
+              note="演示数据"
+              appearance={vehicle.brand === "Polestar" ? appearanceFor(vehicle) : undefined}
+            />
+            <ControlCard
+              icon={Fan}
+              title="空调"
+              value={vehicle.climateOn ? "运行中" : "已关闭"}
+              active={vehicle.climateOn === true}
+              status={
+                supports(vehicle, "climate")
+                  ? undefined
+                  : capabilityReason(vehicle, "climate")
+              }
+            >
               <button
-                className="primary-button"
+                className="secondary-button"
                 disabled={disabled || !supports(vehicle, "climate")}
                 onClick={() => onControl("climate")}
               >
                 调节空调
-                <ArrowRight size={17} />
               </button>
-            </section>
-            <section data-active={vehicle.locked === false}>
-              <LockKeyhole size={28} strokeWidth={1.2} />
-              <div>
-                <span className="muted">中央门锁</span>
-                <h2>{vehicle.locked ? "车辆已锁定" : "车辆已解锁"}</h2>
-                <p>车身状态在车辆详情中查看</p>
-                {!supports(vehicle, "lock") && (
-                  <p className="muted">{capabilityReason(vehicle, "lock")}</p>
-                )}
-              </div>
+            </ControlCard>
+            <ControlCard
+              icon={vehicle.locked ? LockKeyhole : LockKeyholeOpen}
+              title="门锁"
+              value={vehicle.locked ? "已锁定" : "已解锁"}
+              active={vehicle.locked === false}
+              status={
+                supports(vehicle, "lock") ? undefined : capabilityReason(vehicle, "lock")
+              }
+            >
               <button
                 className="secondary-button"
                 disabled={disabled || !supports(vehicle, "lock")}
@@ -279,20 +303,22 @@ export function Controls({
               >
                 {vehicle.locked ? "解锁车辆" : "锁定车辆"}
               </button>
-            </section>
+            </ControlCard>
           </div>
-          <div className="control-list">
+          <section className="control-list" aria-labelledby="vehicle-controls-heading">
+            <h2 id="vehicle-controls-heading">车辆功能</h2>
             {actions.map((action) => (
-              <div className="list-row" key={action.capability}>
-                <div>
-                  <h3>{action.label}</h3>
-                  <p>{action.description}</p>
-                  {!supports(vehicle, action.capability) && (
-                    <p className="muted">
-                      {capabilityReason(vehicle, action.capability)}
-                    </p>
-                  )}
-                </div>
+              <ControlRow
+                key={action.capability}
+                icon={action.icon}
+                title={action.title}
+                description={action.description}
+                reason={
+                  supports(vehicle, action.capability)
+                    ? null
+                    : capabilityReason(vehicle, action.capability)
+                }
+              >
                 <button
                   className="secondary-button"
                   data-active={action.capability === "cleaning" && vehicle.cleaning === true}
@@ -305,12 +331,12 @@ export function Controls({
                   onClick={() => setPending(action)}
                 >
                   {supports(vehicle, action.capability)
-                    ? "操作"
+                    ? action.label
                     : capabilityStatus(vehicle, action.capability)}
                 </button>
-              </div>
+              </ControlRow>
             ))}
-          </div>
+          </section>
         </>
       )}
       {tab === "出发计划" && <ScheduleList kind="空调" />}
@@ -397,6 +423,9 @@ export function Controls({
           }}
         >
           <p>将对 {vehicle.nickname} 执行此操作。</p>
+          {pending.capability === "tailgate" && (
+            <p>操作前请确认车辆后方有足够空间。</p>
+          )}
           {pending.capability === "software" && (
             <p>安装前需驻车并保证电量充足。预览将模拟更新结果。</p>
           )}

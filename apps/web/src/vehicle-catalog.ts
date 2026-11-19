@@ -141,3 +141,7 @@ export function artworkPath(
 ) {
   return `${import.meta.env.BASE_URL}images/vehicles/${appearance.modelId}/${appearance.variantId}/${appearance.colorId}-${appearance.cladding}-${view}.jpg`;
 }
+
+export function sideCutoutPath(appearance: VehicleAppearance) {
+  return artworkPath(appearance, "side").replace(/\.jpg$/, "-cutout.webp");
+}

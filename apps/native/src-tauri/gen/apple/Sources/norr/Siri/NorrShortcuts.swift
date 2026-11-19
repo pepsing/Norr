@@ -5,9 +5,12 @@ import Foundation
 struct NorrShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: GetVehicleEnergyIntent(),
-            phrases: ["Check vehicle battery with \(.applicationName)"],
-            shortTitle: "车辆电量",
+            intent: GetVehicleEnergyInformationIntent(),
+            phrases: [
+                "Check \(\.$information) with \(.applicationName)",
+                "Check energy information with \(.applicationName)",
+            ],
+            shortTitle: "电量与充电",
             systemImageName: "battery.75percent"
         )
         AppShortcut(
@@ -17,22 +20,40 @@ struct NorrShortcuts: AppShortcutsProvider {
             systemImageName: "lock"
         )
         AppShortcut(
-            intent: LockVehicleIntent(),
-            phrases: ["Lock my car with \(.applicationName)"],
-            shortTitle: "锁车",
+            intent: ControlVehicleLockIntent(),
+            phrases: [
+                "\(\.$operation) with \(.applicationName)",
+                "Control door locks with \(.applicationName)",
+            ],
+            shortTitle: "门锁控制",
             systemImageName: "lock.fill"
         )
         AppShortcut(
-            intent: StartVehicleClimateIntent(),
-            phrases: ["Start car climate with \(.applicationName)"],
-            shortTitle: "开启空调",
-            systemImageName: "fan.fill"
+            intent: ControlVehicleWindowsIntent(),
+            phrases: [
+                "\(\.$operation) the windows with \(.applicationName)",
+                "Control the windows with \(.applicationName)",
+            ],
+            shortTitle: "车窗控制",
+            systemImageName: "window.vertical.closed"
         )
         AppShortcut(
-            intent: StopVehicleClimateIntent(),
-            phrases: ["Stop car climate with \(.applicationName)"],
-            shortTitle: "关闭空调",
-            systemImageName: "fan"
+            intent: ControlVehicleTailgateIntent(),
+            phrases: [
+                "\(\.$operation) the trunk with \(.applicationName)",
+                "Control the trunk with \(.applicationName)",
+            ],
+            shortTitle: "后备箱控制",
+            systemImageName: "car.fill"
+        )
+        AppShortcut(
+            intent: ControlVehicleClimateIntent(),
+            phrases: [
+                "\(\.$operation) air conditioning with \(.applicationName)",
+                "Control air conditioning with \(.applicationName)",
+            ],
+            shortTitle: "空调控制",
+            systemImageName: "fan.fill"
         )
     }
 }

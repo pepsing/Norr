@@ -2,15 +2,6 @@
   padding: 28px 0;
   border-bottom: 1px solid var(--line);
 }
-.native-main .native-unknown-number {
-  font-size: 44px;
-}
-.native-main .native-control-detail-link {
-  color: var(--muted);
-  font: inherit;
-  min-height: 24px;
-  padding: 0;
-}
 .native-preference {
   display: flex;
   align-items: center;
