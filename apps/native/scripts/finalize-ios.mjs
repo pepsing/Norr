@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +21,7 @@ export function finalizeIOS(device = false) {
     throw new Error(`Expected ${platform} archive`);
   }
   verifyIOSWidgetCommand(`${source}/${info.CFBundleExecutable}`);
+  verifyIOSSiriShortcuts(source, info.CFBundleExecutable);
   synchronizeEmbeddedVersions(source);
   verifyEmbeddedWatch(source, device);
 
@@ -39,7 +40,7 @@ export function finalizeIOS(device = false) {
     if (!/^\s*platform IOS\s*$/m.test(buildInfo)) {
       throw new Error("Expected Mach-O built for iOS devices");
     }
-    packageUnsignedIPA(source, directory, info.CFBundleShortVersionString);
+    packageUnsignedIPAs(source, directory, info.CFBundleShortVersionString);
     return;
   }
   const archive = `${directory}Norr_${info.CFBundleShortVersionString}_ios-${architecture}-simulator.zip`;
@@ -51,6 +52,34 @@ export function finalizeIOS(device = false) {
     stdio: "inherit",
   });
   console.log(`iOS 模拟器应用：${app}\n模拟器压缩包：${archive}`);
+}
+
+function verifyIOSSiriShortcuts(app, executable) {
+  const metadata = JSON.parse(readFileSync(`${app}/Metadata.appintents/extract.actionsdata`, "utf8"));
+  const localized = JSON.parse(execFileSync("/usr/bin/plutil", [
+    "-convert", "json", "-o", "-", `${app}/zh-Hans.lproj/AppShortcuts.strings`,
+  ], { encoding: "utf8" }));
+  const intentNames = [
+    "GetVehicleEnergyIntent", "GetVehicleLockStateIntent", "LockVehicleIntent",
+    "StartVehicleClimateIntent", "StopVehicleClimateIntent",
+  ];
+  for (const name of intentNames) {
+    const action = metadata.actions?.[name];
+    const shortcut = metadata.autoShortcuts?.find(item => item.actionIdentifier === name);
+    if (!action || !action.authenticationPolicy || action.openAppWhenRun) {
+      throw new Error(`Missing background Siri action or authentication policy: ${name}`);
+    }
+    if (!shortcut?.phraseTemplates?.length ||
+        !shortcut.phraseTemplates.every(phrase => localized[phrase.key]?.includes("${applicationName}"))) {
+      throw new Error(`Missing Chinese Siri phrase for ${name}`);
+    }
+  }
+  const selectors = execFileSync("/usr/bin/xcrun", [
+    "otool", "-v", "-s", "__TEXT", "__objc_methname", `${app}/${executable}`,
+  ], { encoding: "utf8" });
+  if (!/^\s*[0-9a-f]+\s+refreshShortcuts\s*$/m.test(selectors)) {
+    throw new Error("Missing linked Siri shortcut registration");
+  }
 }
 
 export function verifyIOSWidgetCommand(executable) {
@@ -128,20 +157,30 @@ export function verifyEmbeddedWatch(app, device) {
   }
 }
 
-function packageUnsignedIPA(source, directory, version) {
+function packageUnsignedIPAs(source, directory, version) {
   mkdirSync(directory, { recursive: true });
   const staging = mkdtempSync(`${directory}.unsigned-`);
-  const archive = `${directory}Norr_${version}_ios-arm64-unsigned.ipa`;
+  const variants = ["unsigned.ipa", "no-watch-unsigned.ipa"];
   try {
     const payload = `${staging}/Payload`;
     const app = `${payload}/Norr.app`;
     mkdirSync(payload);
     cpSync(source, app, { recursive: true });
-    prepareIOSForResigning(app);
-    execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", "--norsrc", payload, `${staging}/unsigned.ipa`]);
-    execFileSync("/usr/bin/unzip", ["-tq", `${staging}/unsigned.ipa`]);
-    renameSync(`${staging}/unsigned.ipa`, archive);
-    console.log(`待个人签名 iOS IPA：${archive}\n已使用 ad-hoc 签名保留小组件权限声明，安装前需使用有效证书与描述文件重新签名。`);
+    for (const variant of variants) {
+      if (variant === "no-watch-unsigned.ipa") {
+        rmSync(`${app}/Watch`, { recursive: true });
+      }
+      const archive = `${staging}/${variant}`;
+      prepareIOSForResigning(app);
+      execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", "--norsrc", payload, archive]);
+      execFileSync("/usr/bin/unzip", ["-tq", archive]);
+    }
+    for (const variant of variants) {
+      const archive = `${directory}Norr_${version}_ios-arm64-${variant}`;
+      renameSync(`${staging}/${variant}`, archive);
+      console.log(`待个人签名 iOS IPA：${archive}`);
+    }
+    console.log("已使用 ad-hoc 签名保留小组件权限声明，安装前需使用有效证书与描述文件重新签名。");
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }

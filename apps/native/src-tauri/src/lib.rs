@@ -19,6 +19,10 @@ mod login;
 mod mobile;
 mod notifications;
 mod platform;
+#[cfg(any(target_os = "ios", test))]
+mod siri;
+mod vehicle_service;
+use vehicle_service::VehicleService;
 #[cfg(target_os = "windows")]
 mod verification_windows;
 #[cfg(target_os = "ios")]
@@ -94,9 +98,7 @@ impl Backend {
     }
 
     fn record(&mut self, snapshot: Snapshot) -> Result<Snapshot> {
-        for receipt in &mut self.history.receipts {
-            confirmation::update(receipt, &snapshot);
-        }
+        self.apply_readback(&snapshot);
         self.history.notifications.observe(
             &snapshot,
             self.history.settings.notify_charging,
@@ -147,14 +149,16 @@ impl Backend {
     }
 }
 
-fn pending_readback(history: &History, now: u64) -> Option<Command> {
+fn pending_readback(history: &History, now: u64, account: Option<&str>) -> Option<Command> {
     let mut latest = std::collections::BTreeSet::new();
     history
         .receipts
         .iter()
         .rev()
         .filter(|receipt| {
-            if receipt.status == "rejected" {
+            if receipt.status == "rejected"
+                || (receipt.account_scope.is_some() && receipt.account_scope.as_deref() != account)
+            {
                 return false;
             }
             let Some(endpoint) = confirmation::endpoint(&receipt.command.action) else {
@@ -182,7 +186,7 @@ fn pending_readback(history: &History, now: u64) -> Option<Command> {
 }
 
 #[tauri::command]
-async fn desktop_status(state: State<'_, Mutex<Backend>>) -> Result<serde_json::Value> {
+async fn desktop_status(state: State<'_, VehicleService>) -> Result<serde_json::Value> {
     let status = tauri::async_runtime::spawn_blocking(desktop::status)
         .await
         .map_err(|_| "系统状态读取未完成")?;
@@ -191,7 +195,7 @@ async fn desktop_status(state: State<'_, Mutex<Backend>>) -> Result<serde_json::
 
 #[tauri::command]
 async fn set_desktop_option(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     option: String,
     enabled: bool,
 ) -> Result<()> {
@@ -247,7 +251,7 @@ async fn take_notification_target() -> Option<serde_json::Value> {
 }
 
 #[tauri::command]
-async fn test_notification(state: State<'_, Mutex<Backend>>) -> Result<()> {
+async fn test_notification(state: State<'_, VehicleService>) -> Result<()> {
     let backend = state.lock().await;
     let vin = backend
         .history
@@ -281,7 +285,7 @@ async fn session_status() -> Result<credentials::SessionStatus> {
 #[cfg(all(debug_assertions, target_os = "macos"))]
 #[tauri::command]
 async fn import_hisingen(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     config_path: Option<String>,
 ) -> Result<credentials::SessionStatus> {
     let mut backend = state.lock().await;
@@ -296,14 +300,14 @@ async fn import_hisingen(
 }
 
 #[tauri::command]
-async fn connect(state: State<'_, Mutex<Backend>>) -> Result<Vec<Vehicle>> {
+async fn connect(state: State<'_, VehicleService>) -> Result<Vec<Vehicle>> {
     state.lock().await.client.connect().await
 }
 
 #[tauri::command]
 async fn refresh(
     _app: tauri::AppHandle,
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     vin: String,
 ) -> Result<Snapshot> {
     let mut backend = state.lock().await;
@@ -318,7 +322,7 @@ async fn refresh(
 }
 
 #[tauri::command]
-async fn set_refresh_interval(state: State<'_, Mutex<Backend>>, seconds: u64) -> Result<Settings> {
+async fn set_refresh_interval(state: State<'_, VehicleService>, seconds: u64) -> Result<Settings> {
     if ![0, 60, 120, 300, 600].contains(&seconds) {
         return Err("刷新间隔无效".into());
     }
@@ -333,13 +337,13 @@ async fn set_refresh_interval(state: State<'_, Mutex<Backend>>, seconds: u64) ->
 }
 
 #[tauri::command]
-async fn history(state: State<'_, Mutex<Backend>>) -> Result<History> {
+async fn history(state: State<'_, VehicleService>) -> Result<History> {
     Ok(state.lock().await.history.clone())
 }
 
 #[tauri::command]
 async fn history_report(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     vin: String,
     start: u64,
     end: u64,
@@ -359,7 +363,7 @@ async fn history_report(
 
 #[tauri::command]
 async fn preview_history_import(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     source: String,
 ) -> Result<Option<archive::ImportSummary>> {
     let pending =
@@ -404,7 +408,7 @@ async fn preview_history_import(
 
 #[tauri::command]
 async fn commit_history_import(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     token: String,
 ) -> Result<archive::ImportSummary> {
     let mut backend = state.lock().await;
@@ -421,7 +425,7 @@ async fn commit_history_import(
 }
 
 #[tauri::command]
-async fn cancel_history_import(state: State<'_, Mutex<Backend>>, token: String) -> Result<()> {
+async fn cancel_history_import(state: State<'_, VehicleService>, token: String) -> Result<()> {
     let mut backend = state.lock().await;
     if backend
         .pending_import
@@ -434,7 +438,7 @@ async fn cancel_history_import(state: State<'_, Mutex<Backend>>, token: String) 
 }
 
 #[tauri::command]
-async fn open_location(state: State<'_, Mutex<Backend>>, vin: String) -> Result<()> {
+async fn open_location(state: State<'_, VehicleService>, vin: String) -> Result<()> {
     let backend = state.lock().await;
     let snapshot = backend
         .history
@@ -488,7 +492,7 @@ async fn open_map_link(url: String) -> Result<()> {
 
 #[tauri::command]
 async fn export_history(
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     vin: String,
     format: String,
 ) -> Result<bool> {
@@ -509,7 +513,7 @@ async fn export_history(
 async fn send_command(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
-    state: State<'_, Mutex<Backend>>,
+    state: State<'_, VehicleService>,
     command: Command,
 ) -> Result<Receipt> {
     let mut backend = state
@@ -536,41 +540,19 @@ async fn send_command(
         }
     }
     let prepared = backend.client.prepare(&command).await?;
-    let mut receipt = Receipt {
-        id: uuid::Uuid::new_v4().to_string(),
-        command,
-        time: now_ms(),
-        status: "unknown".into(),
-        message: "指令已开始发送，执行结果待核对".into(),
-        readback_at: None,
-        readback: None,
-        baseline_timer_ids: prepared.baseline_timer_ids.clone(),
-    };
-    backend.history.receipts.push(receipt.clone());
-    if backend.history.receipts.len() > 2000 {
-        backend.history.receipts.remove(0);
+    #[cfg(target_os = "ios")]
+    if let Some(pending) = backend.client.account_scope().and_then(|account| {
+        siri::unresolved_command(&backend.history.receipts, &command, &account, now_ms())
+    }) {
+        app.state::<Notify>().notify_one();
+        return if pending.command.action == command.action && pending.command.value == command.value
+        {
+            Ok(pending.clone())
+        } else {
+            Err("这辆车有一条操作待核对，本次指令尚未发送".into())
+        };
     }
-    backend.save()?;
-    match backend.client.execute(prepared).await {
-        Ok((status, message)) => {
-            receipt.status = status;
-            receipt.message = message;
-        }
-        Err(error) => receipt.message = format!("{error}。执行结果待回读核对"),
-    }
-    if receipt.status != "rejected" && confirmation::endpoint(&receipt.command.action).is_some() {
-        receipt.readback = Some("等待车辆回读".into());
-    }
-    if let Some(saved) = backend
-        .history
-        .receipts
-        .iter_mut()
-        .find(|item| item.id == receipt.id)
-    {
-        *saved = receipt.clone();
-    }
-    backend.update_notifications();
-    backend.save()?;
+    let receipt = backend.submit(command, prepared).await?;
     drop(backend);
     if receipt.readback.is_some() {
         app.state::<Notify>().notify_one();
@@ -594,14 +576,16 @@ async fn collect_in_background(app: tauri::AppHandle) {
             continue;
         }
         deliver_notifications(&app).await;
-        let state = app.state::<Mutex<Backend>>();
+        let state = app.state::<VehicleService>();
         let Ok(mut backend) = state.try_lock() else {
             continue;
         };
         let settings = &backend.history.settings;
         let generation = desktop::wake_generation();
         let waking = settings.refresh_on_wake && generation != handled_wake;
-        let result = if let Some(command) = pending_readback(&backend.history, now_ms()) {
+        let account = backend.client.account_scope();
+        let pending = pending_readback(&backend.history, now_ms(), account.as_deref());
+        let result = if let Some(command) = pending {
             backend.read_command_state(&command).await
         } else {
             let interval = if waking { 2 } else { settings.refresh_seconds };
@@ -643,7 +627,7 @@ async fn collect_in_background(app: tauri::AppHandle) {
 }
 
 async fn deliver_notifications(app: &tauri::AppHandle) {
-    let state = app.state::<Mutex<Backend>>();
+    let state = app.state::<VehicleService>();
     let notice = {
         let Ok(mut backend) = state.try_lock() else {
             return;
@@ -829,10 +813,15 @@ pub fn run() {
             let path = platform::data_directory()
                 .map_err(std::io::Error::other)?
                 .join("vehicle-history.json");
+            #[cfg(target_os = "ios")]
+            let service = vehicle_service::ios_service(path).map_err(std::io::Error::other)?;
+            #[cfg(not(target_os = "ios"))]
             let backend = load_backend(path).map_err(std::io::Error::other)?;
             #[cfg(desktop)]
             let launch_at_login = backend.history.settings.launch_at_login;
-            app.manage(Mutex::new(backend));
+            #[cfg(not(target_os = "ios"))]
+            let service = std::sync::Arc::new(Mutex::new(backend));
+            app.manage(service);
             app.manage(Notify::new());
             app.manage(Mutex::new(
                 norr_vehicle_core::auth::PhoneLogin::new().map_err(std::io::Error::other)?,
@@ -991,39 +980,65 @@ mod tests {
 
     #[test]
     fn authorization_commands_are_allowed_only_from_the_local_main_window() {
-        let mut context = app_context();
-        let authority = context.runtime_authority_mut();
+        use tauri::utils::{acl::resolved::Resolved, platform::Target};
+
         let remote = tauri::ipc::Origin::Remote {
             url: "https://h5.app.polestar-auto.com/account-components/auth-slider/index.html"
                 .parse()
                 .unwrap(),
         };
-        for command in [
-            "request_login_code",
-            "sign_in_phone",
-            "sign_in_password",
-            "sync_watch",
-        ] {
-            assert!(
-                authority
-                    .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
-                    .is_some(),
-                "{command} must be allowed from the local main window"
-            );
-            assert!(authority
-                .resolve_access(
-                    command,
-                    "phone-verification-1",
-                    "phone-verification-1",
-                    &remote
-                )
-                .is_none());
-            assert!(authority
-                .resolve_access(command, "main", "main", &remote)
-                .is_none());
-            assert!(authority
-                .resolve_access(command, "other", "other", &tauri::ipc::Origin::Local)
-                .is_none());
+        let local = tauri::ipc::Origin::Local;
+        for target in [Target::MacOS, Target::Ios] {
+            let manifests = serde_json::from_str(include_str!(concat!(
+                env!("OUT_DIR"),
+                "/acl-manifests.json"
+            )))
+            .unwrap();
+            let capabilities =
+                serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/capabilities.json")))
+                    .unwrap();
+            let resolved = Resolved::resolve(&manifests, capabilities, target).unwrap();
+            let authority = tauri::ipc::RuntimeAuthority::new(manifests, resolved);
+            for command in [
+                "request_login_code",
+                "sign_in_phone",
+                "sign_in_password",
+                "sync_watch",
+            ] {
+                assert_eq!(
+                    authority
+                        .resolve_access(command, "main", "main", &local)
+                        .is_some(),
+                    command != "sync_watch" || target == Target::Ios,
+                    "unexpected access for {command} from the local main window on {target:?}"
+                );
+                assert!(authority
+                    .resolve_access(
+                        command,
+                        "phone-verification-1",
+                        "phone-verification-1",
+                        &remote
+                    )
+                    .is_none());
+                assert!(authority
+                    .resolve_access(command, "main", "main", &remote)
+                    .is_none());
+                assert!(authority
+                    .resolve_access(command, "other", "other", &local)
+                    .is_none());
+            }
+            if target == Target::Ios {
+                for command in ["plugin:event|listen", "plugin:event|unlisten"] {
+                    assert!(authority
+                        .resolve_access(command, "main", "main", &local)
+                        .is_some());
+                }
+                for command in ["plugin:event|emit", "set_android_theme", "import_hisingen"] {
+                    assert!(authority
+                        .resolve_access(command, "main", "main", &local)
+                        .is_none());
+                }
+            }
         }
     }
 
@@ -1129,6 +1144,7 @@ mod tests {
             readback_at: None,
             readback: Some("等待车辆回读".into()),
             baseline_timer_ids: None,
+            account_scope: None,
         };
         let mut history = History {
             receipts: vec![receipt("unlock", "unlock", 1000)],
@@ -1139,28 +1155,34 @@ mod tests {
             },
             ..History::default()
         };
-        let pending = pending_readback(&history, 2000).unwrap();
+        let pending = pending_readback(&history, 2000, None).unwrap();
         assert_eq!(pending.vin, "TEST0000000000001");
         assert_eq!(confirmation::endpoint(&pending.action), Some("exterior"));
 
         history.receipts.push(receipt("lock", "lock", 2000));
-        assert_eq!(pending_readback(&history, 3000).unwrap().action, "lock");
+        assert_eq!(
+            pending_readback(&history, 3000, None).unwrap().action,
+            "lock"
+        );
         history.receipts[1].status = "rejected".into();
-        assert_eq!(pending_readback(&history, 3000).unwrap().action, "unlock");
+        assert_eq!(
+            pending_readback(&history, 3000, None).unwrap().action,
+            "unlock"
+        );
         history.receipts[1].status = "completed".into();
         history.receipts[1].readback = Some(confirmation::CONFIRMED.into());
-        assert!(pending_readback(&history, 3000).is_none());
+        assert!(pending_readback(&history, 3000, None).is_none());
 
         history
             .receipts
             .push(receipt("climate", "climateStart", 3000));
         assert_eq!(
-            confirmation::endpoint(&pending_readback(&history, 4000).unwrap().action),
+            confirmation::endpoint(&pending_readback(&history, 4000, None).unwrap().action),
             Some("climate")
         );
-        assert!(pending_readback(&history, 123_000).is_none());
+        assert!(pending_readback(&history, 123_000, None).is_none());
         history.receipts.push(receipt("flash", "flash", 123_000));
-        assert!(pending_readback(&history, 124_000).is_none());
+        assert!(pending_readback(&history, 124_000, None).is_none());
 
         history.receipts = vec![
             receipt("climate", "climateStart", 1000),
@@ -1180,14 +1202,17 @@ mod tests {
             }))
             .unwrap(),
         );
-        assert_eq!(pending_readback(&history, 4000).unwrap().action, "unlock");
+        assert_eq!(
+            pending_readback(&history, 4000, None).unwrap().action,
+            "unlock"
+        );
         history.snapshots[0]
             .readings
             .get_mut("exterior")
             .unwrap()
             .observed_at = 4000;
         assert_eq!(
-            pending_readback(&history, 5000).unwrap().action,
+            pending_readback(&history, 5000, None).unwrap().action,
             "climateStart"
         );
     }
@@ -1209,6 +1234,7 @@ mod tests {
             readback: None,
             readback_at: None,
             baseline_timer_ids: None,
+            account_scope: None,
         };
         let mut backend = Backend {
             client: ChinaClient::new().unwrap(),

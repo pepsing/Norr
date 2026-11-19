@@ -6,7 +6,7 @@
 
 AltStore Classic 和爱思助手均支持用户用自己的 Apple ID 为 IPA 签名并安装。免费个人账号可用于这种安装方式，用户需要定期续签。AltStore Classic 支持导入 IPA，AltStore PAL 使用经过 Apple 公证的应用分发流程。[AltStore 版本说明](https://faq.altstore.io/altstore-pal-v.-altstore-classic)、[爱思助手签名教程](https://www.i4.cn/news_detail_38195.html)
 
-Norr 已提供 iPhone / iPad ARM64 未签名真机 IPA。核查时 `v0.1.0-alpha.10` 的附件为 `Norr_0.1.0-alpha.10_ios-arm64-unsigned.ipa`，同时提供 `SHA256SUMS.txt`。后续版本请选择对应的 `ios-arm64-unsigned.ipa` 附件，`ios-arm64-simulator.zip` 用于 Apple Silicon Mac 的 iOS 模拟器。[alpha.10 下载](https://github.com/pepsing/Norr/releases/tag/v0.1.0-alpha.10)、[原生构建说明](../apps/native/README.md#未签名真机-ipa)
+从 `v0.2.1-alpha.1` 起，Norr 为 iPhone 和 iPad 提供两种 IPA。使用 AltStore Classic 时选后缀为 `ios-arm64-no-watch-unsigned.ipa` 的包，保留 iOS 小组件、Siri 和快捷指令。后缀为 `ios-arm64-unsigned.ipa` 的完整包包含 Watch App 和手表小组件，需要能处理 Watch 嵌套包及 App Groups 的签名工具。测试 Apple Watch 也可以通过 TestFlight 的邮件邀请安装。[Norr Releases](https://github.com/pepsing/Norr/releases) · [AltStore 与 Watch 签名调查](plans/siri-ipad-test.md#altstore-重签崩溃调查)
 
 当前工程将主应用最低系统版本设为 iOS 15.0，小组件扩展最低版本为 iOS 17.0。IPA 包含 `NorrWidgets.appex`。个人签名时，工具需要处理扩展和对应权限，保留扩展可能增加 App ID 消耗。alpha.10 在 AltStore 选择 Keep App Extensions 后安装、启动和车辆登录成功，但设备实际未获得 App Groups 权限，小组件无法显示车辆。修复版保留主 App 与扩展的共享权限声明，并适配重签后的共享标识；真机覆盖安装验证结果见文末。签名若在 entitlement 或描述文件处失败，请记录工具版本与完整错误供维护者定位。[iOS 工程配置](../apps/native/src-tauri/gen/apple/project.yml)、[小组件数据写入](../apps/native/src-tauri/ios/Sources/NorrMobile/Widgets.swift)、[AltStore App IDs](https://faq.altstore.io/altstore-classic/app-ids)
 
@@ -30,7 +30,7 @@ AltServer 可通过同一 Wi-Fi 或 USB 与设备通信。爱思助手提供 App
 
 ## 安装前准备
 
-从 Norr Release 下载目标版本的 IPA 和校验文件。重签前在电脑上核对 IPA 的 SHA-256 与 `SHA256SUMS.txt` 对应行一致。小组件修复后的打包脚本校验 iPhoneOS 平台与 ARM64 架构，通过无需证书的 ad-hoc 签名保留 App Groups 权限，供 AltStore 申请重签权限。附件名沿用 `ios-arm64-unsigned.ipa`，仍需个人签名后才能安装。爱思助手说明 App Store 下载的加密 IPA 无法再次签名安装。[Norr 下载](https://github.com/pepsing/Norr/releases)、[IPA 打包脚本](../apps/native/scripts/finalize-ios.mjs)、[爱思助手签名错误说明](https://www.i4.cn/news_detail_55902.html)
+从 Norr Release 下载目标 IPA 和校验文件。重签前在电脑上核对 IPA 的 SHA-256 与 `SHA256SUMS.txt` 对应行一致。打包脚本校验 iPhoneOS 平台与 ARM64 架构，通过无需证书的 ad-hoc 签名保留 App Groups 权限声明，供工具申请重签权限。两份 IPA 均需重新签名才能安装。爱思助手说明 App Store 下载的加密 IPA 无法再次签名安装。[Norr 下载](https://github.com/pepsing/Norr/releases) · [IPA 打包脚本](../apps/native/scripts/finalize-ios.mjs) · [爱思助手签名错误说明](https://www.i4.cn/news_detail_55902.html)
 
 iOS/iPadOS 16 及以上运行开发签名应用时需要开启开发者模式。在设置中的「隐私与安全性 > 开发者模式」启用后，按系统提示重启并确认。安装后如提示开发者尚未受信任，在「通用 > VPN 与设备管理」中确认自己的开发者身份。[Apple 开发者模式说明](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)、[AltStore 设备信任步骤](https://faq.altstore.io/altstore-classic/how-to-install-altstore-macos)
 

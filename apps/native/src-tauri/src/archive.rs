@@ -473,6 +473,7 @@ mod tests {
             readback_at: None,
             readback: None,
             baseline_timer_ids: None,
+            account_scope: None,
         };
         std::fs::write(
             &path,

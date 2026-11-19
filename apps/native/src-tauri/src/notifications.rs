@@ -253,6 +253,7 @@ mod tests {
             readback: None,
             readback_at: None,
             baseline_timer_ids: None,
+            account_scope: None,
         };
         tracker.commands(&[receipt.clone()], true, 2000);
         assert!(tracker.outbox.is_empty());

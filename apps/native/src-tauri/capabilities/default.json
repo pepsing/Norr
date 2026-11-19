@@ -2,5 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
   "windows": ["main"],
-  "permissions": ["core:default", "main-app"]
+  "platforms": ["linux", "macOS", "windows", "android"],
+  "permissions": ["core:default", "main-app", "android-theme", "macos-import"]
 }

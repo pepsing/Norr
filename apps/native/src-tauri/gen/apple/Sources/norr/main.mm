@@ -1,6 +1,7 @@
 #include "bindings/bindings.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import "Norr-Swift.h"
 
 extern "C" void norr_widget_launch_url(const char *url);
 
@@ -27,6 +28,7 @@ int main(int argc, char * argv[]) {
         [[NSNotificationCenter defaultCenter]
             addObserverForName:UIApplicationDidFinishLaunchingNotification
             object:nil queue:nil usingBlock:^(NSNotification *notification) {
+                [NorrSiriRegistration refreshShortcuts];
                 captureSceneLaunchURLs(notification.object);
                 NSURL *url = notification.userInfo[UIApplicationLaunchOptionsURLKey];
                 if (url) norr_widget_launch_url(url.absoluteString.UTF8String);

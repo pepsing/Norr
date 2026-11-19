@@ -170,6 +170,7 @@ mod tests {
             readback_at: None,
             readback: None,
             baseline_timer_ids: Some(vec!["old".into()]),
+            account_scope: None,
         };
         let mut actual = serde_json::to_value(schedule).unwrap();
         actual["id"] = json!("old");
@@ -201,6 +202,7 @@ mod tests {
             readback_at: None,
             readback: None,
             baseline_timer_ids: Some(vec!["old".into()]),
+            account_scope: None,
         };
         assert!(!matches_target(&receipt, &json!({})));
         assert!(!matches_target(&receipt, &json!({"timers":[{"id":"old"}]})));

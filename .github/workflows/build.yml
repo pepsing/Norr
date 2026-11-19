@@ -73,7 +73,7 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `desktop_matrix=${JSON.stringify({ include })}\n`);
           const ios = [
             { variant: 'simulator', target: 'aarch64-apple-ios-sim', sdk: 'iphonesimulator', build: 'ios', artifact: 'Norr-ios-arm64-simulator', path: 'target/ios/*-simulator.zip' },
-            { variant: 'unsigned', target: 'aarch64-apple-ios', sdk: 'iphoneos', build: 'ios:unsigned', artifact: 'Norr-ios-arm64-unsigned', path: 'target/ios/*-unsigned.ipa' },
+            { variant: 'unsigned', target: 'aarch64-apple-ios', sdk: 'iphoneos', build: 'ios:unsigned', artifact: 'Norr-ios-arm64-unsigned', path: 'target/ios/*_ios-arm64-unsigned.ipa' },
           ];
           appendFileSync(process.env.GITHUB_OUTPUT, `ios_matrix=${JSON.stringify({ include: ios.filter(target => platform === 'all' || (platform === 'ios-ipa' && target.variant === 'unsigned')) })}\n`);
           NODE
@@ -237,10 +237,11 @@ jobs:
           test "$(uname -m)" = arm64
           xcodebuild -version
           xcrun --sdk "${{ matrix.sdk }}" --show-sdk-version
-      - name: Check widget sharing and IPA entitlements
+      - name: Check widget sharing, Siri bridge, and IPA entitlements
         run: |
           xcrun swiftc apps/native/src-tauri/ios/Sources/NorrWidgetSupport/WidgetStorage.swift apps/native/src-tauri/ios/Tests/WidgetStorageTests.swift -o /tmp/norr-widget-storage-tests
           /tmp/norr-widget-storage-tests
+          sh apps/native/scripts/check-siri.sh
           node --test apps/native/scripts/ios-signing.test.mjs
           node apps/native/scripts/check-watch.mjs
       - name: Build iOS package
@@ -262,6 +263,13 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v7.0.2
+        if: matrix.variant == 'unsigned'
+        with:
+          name: Norr-ios-arm64-no-watch-unsigned
+          path: target/ios/*_ios-arm64-no-watch-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
       - name: Remove iOS build configuration

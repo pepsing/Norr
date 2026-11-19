@@ -12,13 +12,14 @@ const packages = [
   ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe', 'Windows 10/11 x64 安装程序'],
   ['Norr-android-arm64', '.apk', 'android-arm64.apk', 'Android ARM64，沿用当前测试证书'],
   ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip', 'Apple Silicon Mac 上的 iOS 模拟器'],
-  ['Norr-ios-arm64-unsigned', '-unsigned.ipa', 'ios-arm64-unsigned.ipa', 'iPhone / iPad 真机包，安装前需使用有效证书与描述文件重新签名'],
+  ['Norr-ios-arm64-unsigned', '-arm64-unsigned.ipa', 'ios-arm64-unsigned.ipa', '含 Apple Watch App 和手表小组件，安装前需使用支持 Watch 嵌套包的工具重新签名'],
+  ['Norr-ios-arm64-no-watch-unsigned', '-arm64-no-watch-unsigned.ipa', 'ios-arm64-no-watch-unsigned.ipa', '适用于只在 iPhone 或 iPad 上测试，保留 iOS 小组件、Siri 和快捷指令，安装前需重新签名'],
 ];
 
 function releasePackages(platform = 'all') {
   if (!['all', 'windows', 'ios-ipa'].includes(platform)) throw new Error('Invalid release platform');
-  const artifact = platform === 'ios-ipa' ? 'Norr-ios-arm64-unsigned' : 'Norr-windows-x64';
-  return packages.filter(([name]) => platform === 'all' || name === artifact);
+  return packages.filter(([name, , suffix]) => platform === 'all'
+    || (platform === 'ios-ipa' ? suffix.endsWith('.ipa') : name === 'Norr-windows-x64'));
 }
 
 export function releaseMetadata(release) {
@@ -119,7 +120,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl, summary =
     '', '附件中的 `SHA256SUMS.txt` 提供文件校验值。',
     '', `[iOS 自助签名与安装指南](https://github.com/${repository}/blob/main/docs/ios-self-signing.md)（AltStore Classic、爱思助手、续签与验证状态）。`,
     plan.platform === 'windows' ? 'Windows 安装包尚未进行代码签名。'
-      : plan.platform === 'ios-ipa' ? '本版仅提供 iPhone / iPad 真机 IPA。安装前请通过 AltStore 等工具重新签名并保留小组件扩展。'
+      : plan.platform === 'ios-ipa' ? '两个 IPA 均需自行签名。使用 AltStore Classic 时请选无 Watch 包，并保留 iOS 小组件扩展。'
       : 'macOS 使用 ad-hoc 签名，Windows 代码签名与各端正式分发签名仍待完成。',
     '', '本版通过所选平台的自动测试与构建，新包的登录、系统功能和实车操作按进度表继续验收。',
     '', `[构建记录](${runUrl}) · [验证范围](https://github.com/${repository}/blob/${plan.sha}/docs/PROGRESS.md)`,
@@ -207,7 +208,7 @@ export function prepareAssets(version, directory, platform = 'all') {
   const files = [];
   for (const [artifact, extension, suffix] of patterns) {
     const artifactFolder = join(directory, artifact);
-    const folder = patterns.length === 1 && !existsSync(artifactFolder) ? directory : artifactFolder;
+    const folder = platform !== 'all' && !existsSync(artifactFolder) ? directory : artifactFolder;
     const candidates = readdirSync(folder).filter((name) => name.endsWith(extension));
     if (candidates.length !== 1) throw new Error(`Expected exactly one package in ${artifact}`);
     const path = join(output, `Norr_${version}_${suffix}`);
@@ -235,7 +236,8 @@ function publishRelease(plan, repository, directory) {
   if (!release || release.draft) {
     const { changes, issues } = collectChanges(plan, repository);
     const runUrl = `https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-    const summary = prerelease ? '' : readFileSync(`docs/releases/${plan.version}.md`, 'utf8');
+    const summaryPath = `docs/releases/${plan.version}.md`;
+    const summary = !prerelease || existsSync(summaryPath) ? readFileSync(summaryPath, 'utf8') : '';
     const body = renderNotes(plan, changes, issues, repository, runUrl, summary);
     const payload = { tag_name: plan.tag, target_commitish: plan.sha, name: `Norr ${plan.version}`, body, draft: true, prerelease, make_latest: 'false' };
     release = release

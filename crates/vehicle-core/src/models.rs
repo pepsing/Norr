@@ -90,4 +90,6 @@ pub struct Receipt {
     pub readback: Option<String>,
     #[serde(default)]
     pub baseline_timer_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_scope: Option<String>,
 }

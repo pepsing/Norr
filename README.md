@@ -98,6 +98,7 @@ npm run dev -- --port 5174
 ## 开发资料
 
 - [开发进展与待办](docs/PROGRESS.md)
+- [Siri 接入方案](docs/plans/siri-integration.md)与[实施任务计划](docs/plans/siri-implementation-plan.md)，包含测试包和真机验收进度。
 - [界面范围与既有验证记录](apps/web/README.md)
 - [原生各端构建、会话恢复与实车验证范围](apps/native/README.md)
 - [已确认的设计方向](DESIGN.md)

@@ -89,20 +89,28 @@ test('single-platform releases only satisfy their own platform and retain the co
   assert.equal(planRelease({ ...initial, releases: [{ ...full, sha: initial.sha }], platform: 'ios-ipa' }).publish, false);
 });
 
-test('IPA-only release uploads one IPA and checksums with accurate platform notes', () => {
+test('IPA-only release publishes Watch and no-Watch packages with distinct checksums and notes', () => {
   const directory = mkdtempSync(join(tmpdir(), 'norr-ipa-release-'));
   try {
-    writeFileSync(join(directory, 'Norr-unsigned.ipa'), 'ios-package');
+    writeFileSync(join(directory, 'Norr-ios-arm64-unsigned.ipa'), 'ios-package-with-watch');
+    assert.throws(() => prepareAssets('0.1.0-alpha.11', directory, 'ios-ipa'), /exactly one package in Norr-ios-arm64-no-watch-unsigned/);
+    writeFileSync(join(directory, 'Norr-ios-arm64-no-watch-unsigned.ipa'), 'ios-package-without-watch');
     const files = prepareAssets('0.1.0-alpha.11', directory, 'ios-ipa');
-    assert.deepEqual(files.map(file => file.name), ['Norr_0.1.0-alpha.11_ios-arm64-unsigned.ipa', 'SHA256SUMS.txt']);
-    assert.equal(readFileSync(files[1].path, 'utf8').trim().split('\n').length, 1);
+    assert.deepEqual(files.map(file => file.name), [
+      'Norr_0.1.0-alpha.11_ios-arm64-unsigned.ipa',
+      'Norr_0.1.0-alpha.11_ios-arm64-no-watch-unsigned.ipa',
+      'SHA256SUMS.txt',
+    ]);
+    assert.equal(readFileSync(files[0].path, 'utf8'), 'ios-package-with-watch');
+    assert.equal(readFileSync(files[1].path, 'utf8'), 'ios-package-without-watch');
+    assert.equal(readFileSync(files[2].path, 'utf8').trim().split('\n').length, 2);
     const plan = { ...planRelease({ ...initial, platform: 'ios-ipa' }), previousTag: 'v0.1.0-alpha.10' };
     const notes = renderNotes(plan, [], [], 'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1');
-    assert.match(notes, /ios-arm64-unsigned.ipa/);
-    assert.match(notes, /保留小组件扩展/);
+    assert.match(notes, /ios-arm64-unsigned\.ipa.*含 Apple Watch/);
+    assert.match(notes, /ios-arm64-no-watch-unsigned\.ipa.*保留 iOS 小组件、Siri 和快捷指令/);
     assert.doesNotMatch(notes, /macos-arm64.zip|windows-x64|simulator.zip|android-arm64/);
     assert.match(notes, /"platform":"ios-ipa"/);
-    writeFileSync(join(directory, 'duplicate-unsigned.ipa'), 'duplicate');
+    writeFileSync(join(directory, 'duplicate-ios-arm64-unsigned.ipa'), 'duplicate');
     assert.throws(() => prepareAssets('0.1.0-alpha.11', directory, 'ios-ipa'), /exactly one package/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -197,7 +205,7 @@ test('every release links the current repository self-signing guide once', () =>
   }
 });
 
-test('release requires both Mac architectures and both iOS packages, with checksums', () => {
+test('release requires both Mac architectures, the iOS simulator, and both device IPAs', () => {
   const directory = mkdtempSync(join(tmpdir(), 'norr-assets-'));
   try {
     const packages = [
@@ -207,6 +215,7 @@ test('release requires both Mac architectures and both iOS packages, with checks
       ['Norr-android-arm64', 'android-arm64.apk'],
       ['Norr-ios-arm64-simulator', 'ios-arm64-simulator.zip'],
       ['Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'],
+      ['Norr-ios-arm64-no-watch-unsigned', 'ios-arm64-no-watch-unsigned.ipa'],
     ];
     for (const [artifact, suffix] of packages) {
       mkdirSync(join(directory, artifact));

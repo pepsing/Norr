@@ -72,6 +72,9 @@ targets:
         RUST_LOG: info
     settings:
       base:
+        SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: $(PROJECT_DIR)/Sources/norr/Siri/SiriBridge.h
+        SWIFT_OBJC_INTERFACE_HEADER_NAME: Norr-Swift.h
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64
@@ -88,6 +91,7 @@ targets:
         embed: true
       - framework: libapp.a
         embed: false
+      - sdk: libsqlite3.tbd
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework

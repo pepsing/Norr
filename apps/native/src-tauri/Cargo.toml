@@ -19,7 +19,14 @@ serde = { version = "1", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }
 tauri = { version = "2", features = [] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+
+[target.'cfg(not(target_os = "ios"))'.dependencies]
 rusqlite = { version = "0.42.0", features = ["bundled"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+rusqlite = "0.42.0"
+dirs = "7"
+sha2 = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 rfd = "0.15"

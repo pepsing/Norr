@@ -103,6 +103,18 @@ impl ChinaClient {
         }
     }
 
+    pub fn account_scope(&self) -> Option<String> {
+        use sha2::{Digest, Sha256};
+        self.session
+            .as_ref()
+            .map(|session| format!("{:x}", Sha256::digest(session.login.user_uid.as_bytes())))
+    }
+
+    pub async fn vehicles(&mut self) -> Result<&[Vehicle]> {
+        self.ensure_metadata().await?;
+        Ok(&self.fleet)
+    }
+
     async fn load_fleet(&mut self) -> Result<Vec<Vehicle>> {
         let token = &self
             .session
@@ -165,7 +177,7 @@ impl ChinaClient {
         Ok(())
     }
 
-    fn vehicle(&self, vin: &str) -> Result<Vehicle> {
+    pub fn vehicle(&self, vin: &str) -> Result<Vehicle> {
         let vehicle = self
             .fleet
             .iter()

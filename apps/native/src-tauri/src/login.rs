@@ -82,7 +82,7 @@ pub async fn sign_in_phone(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     state: State<'_, Mutex<PhoneLogin>>,
-    backend: State<'_, Mutex<crate::Backend>>,
+    backend: State<'_, crate::VehicleService>,
     phone: String,
     code: String,
 ) -> Result<credentials::SessionStatus> {
@@ -102,7 +102,7 @@ pub async fn sign_in_password(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     state: State<'_, Mutex<PhoneLogin>>,
-    backend: State<'_, Mutex<crate::Backend>>,
+    backend: State<'_, crate::VehicleService>,
     phone: String,
     password: String,
 ) -> Result<credentials::SessionStatus> {

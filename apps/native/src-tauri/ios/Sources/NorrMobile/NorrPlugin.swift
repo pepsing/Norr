@@ -71,7 +71,7 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
   }
 
   @objc func requestNotifications(_ invoke: Invoke) {
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) {
       allowed, error in
       if error != nil {
         invoke.reject("无法请求通知权限，请重试。")

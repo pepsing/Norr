@@ -2,13 +2,28 @@
 identifier = "main-app"
 description = "Local Norr window commands"
 commands.allow = [
-  "session_status", "request_login_code", "sign_in_phone", "sign_in_password", "import_hisingen",
+  "session_status", "request_login_code", "sign_in_phone", "sign_in_password",
   "connect", "refresh", "history", "history_report", "preview_history_import",
   "commit_history_import", "cancel_history_import", "set_refresh_interval",
-  "desktop_status", "set_desktop_option", "open_system_settings", "set_android_theme",
+  "desktop_status", "set_desktop_option", "open_system_settings",
   "test_notification", "take_notification_target", "open_location",
-  "open_map_link", "export_history", "send_command", "update_widgets", "take_widget_target", "sync_watch"
+  "open_map_link", "export_history", "send_command", "update_widgets", "take_widget_target"
 ]
+
+[[permission]]
+identifier = "android-theme"
+platforms = ["android"]
+commands.allow = ["set_android_theme"]
+
+[[permission]]
+identifier = "macos-import"
+platforms = ["macOS"]
+commands.allow = ["import_hisingen"]
+
+[[permission]]
+identifier = "watch-sync"
+platforms = ["iOS"]
+commands.allow = ["sync_watch"]
 
 [[permission]]
 identifier = "phone-verification"

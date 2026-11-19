@@ -1,0 +1,5 @@
+"Check vehicle battery with ${applicationName}" = "用${applicationName}查看车辆电量";
+"Check vehicle lock with ${applicationName}" = "用${applicationName}查看门锁状态";
+"Lock my car with ${applicationName}" = "用${applicationName}锁车";
+"Start car climate with ${applicationName}" = "用${applicationName}开启空调";
+"Stop car climate with ${applicationName}" = "用${applicationName}关闭空调";
