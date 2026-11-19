@@ -158,12 +158,11 @@ impl Archive {
     pub fn open(path: &Path) -> Result<Self> {
         let connection = Connection::open(path).map_err(database_error)?;
         crate::platform::private_path(path, 0o600)?;
-        connection
-            .busy_timeout(std::time::Duration::from_secs(5))
-            .map_err(database_error)?;
+        // rusqlite's timeout wrapper calls sqlite3_set_clientdata, unavailable on older iOS SDKs.
         connection
             .execute_batch(
-                "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
+                "PRAGMA busy_timeout=5000;
+            PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
             CREATE TABLE IF NOT EXISTS records (
                 source TEXT NOT NULL, category TEXT NOT NULL, record_key TEXT NOT NULL,
                 vin TEXT NOT NULL, recorded_at INTEGER NOT NULL, payload TEXT NOT NULL,
@@ -344,10 +343,9 @@ pub fn read_hisingen(path: &Path) -> Result<Vec<Record>> {
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|_| "无法打开 Hisingen 历史数据库")?;
     connection
-        .busy_timeout(std::time::Duration::from_secs(5))
-        .map_err(database_error)?;
-    connection
-        .execute_batch("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF; BEGIN;")
+        .execute_batch(
+            "PRAGMA busy_timeout=5000; PRAGMA query_only=ON; PRAGMA trusted_schema=OFF; BEGIN;",
+        )
         .map_err(database_error)?;
     let mut records = Vec::new();
     let mut found = 0;
