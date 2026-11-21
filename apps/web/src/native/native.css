@@ -914,3 +914,39 @@
     display: none;
   }
 }
+
+/* Read-only platform probe (unverified platforms such as Polestar 4). */
+.probe-report {
+  margin-top: 18px;
+}
+
+.probe-report > p {
+  margin: 0 0 6px;
+}
+
+.probe-list {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.probe-list li {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(0, 2fr) auto;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.probe-list li[data-status="failed"] > span:nth-child(2) {
+  color: #b3261e;
+}
+
+.native-address {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+}

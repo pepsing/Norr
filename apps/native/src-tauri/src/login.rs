@@ -123,8 +123,29 @@ async fn commit_session(
     flow: &mut PhoneLogin,
     session: credentials::Session,
 ) -> Result<credentials::SessionStatus> {
-    let client = norr_vehicle_core::china::ChinaClient::new()?;
+    let mut client = norr_vehicle_core::china::ChinaClient::new()?;
+    client.set_experimental(backend.history.settings.experimental_p4);
     credentials::save_session(&session)?;
+    // Best effort: the P4 remote surface uses the ECARX xchanger session,
+    // obtained by exchanging the Polestar gateway token. A failure here must
+    // not block the Polestar login itself.
+    if let Some(access) = session
+        .login
+        .extra
+        .get("accessToken")
+        .and_then(|value| value.as_str())
+    {
+        if let Ok(existing) = credentials::xchanger_token() {
+            if let Ok(xchanger) = norr_vehicle_core::xchanger::XchangerClient::exchange(
+                access,
+                existing.as_ref().map(|value| value.as_str()),
+            )
+            .await
+            {
+                let _ = credentials::save_xchanger_token(xchanger.token());
+            }
+        }
+    }
     backend.client = client;
     backend.history.settings.selected_vin = None;
     #[cfg(target_os = "ios")]

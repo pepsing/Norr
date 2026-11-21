@@ -5,7 +5,12 @@ use crate::{
 };
 use serde_json::{json, Value};
 
-pub fn parse(kind: &str, bytes: &[u8], vin: &str) -> Result<(Value, Option<u64>)> {
+pub fn parse(
+    kind: &str,
+    bytes: &[u8],
+    vin: &str,
+    protocol: crate::china::Protocol,
+) -> Result<(Value, Option<u64>)> {
     let outer = Message::parse(bytes)?;
     match kind {
         "climateTimers" => return Ok((schedules::climate_timers(&outer)?, None)),
@@ -26,7 +31,7 @@ pub fn parse(kind: &str, bytes: &[u8], vin: &str) -> Result<(Value, Option<u64>)
         }
         _ => {}
     }
-    let message = wire::payload(bytes, vin)?;
+    let message = wire::payload_from(bytes, vin, protocol.payload_fields())?;
     let timestamp = message.timestamp(1);
     let value = match kind {
         "health" => {
@@ -148,7 +153,13 @@ mod tests {
             ]
             .concat(),
         );
-        let (value, _) = parse("health", &bytes, "fixture").unwrap();
+        let (value, _) = parse(
+            "health",
+            &bytes,
+            "fixture",
+            crate::china::Protocol::Verified,
+        )
+        .unwrap();
         assert!(value["tyres"][0]["kpa"].is_null());
         assert_eq!(value["tyres"][0]["referenceKpa"], 290.0);
         assert_eq!(value["tyres"][0]["warning"], 3);
@@ -167,7 +178,13 @@ mod tests {
             ]
             .concat(),
         );
-        let (value, _) = parse("software", &bytes, "fixture").unwrap();
+        let (value, _) = parse(
+            "software",
+            &bytes,
+            "fixture",
+            crate::china::Protocol::Verified,
+        )
+        .unwrap();
         assert_eq!(value["state"], 15);
         assert_eq!(value["durationSeconds"], 5400);
         assert_eq!(value["version"], "test-version");

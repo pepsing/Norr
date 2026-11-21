@@ -162,14 +162,29 @@ test("climate controls follow capability for shared, owner and unknown roles", (
   }
 });
 
-test("shared accounts still require a connected, supported platform", () => {
+test("unverified platforms stay blocked until explicitly enabled", () => {
   assert.equal(unavailableReason(undefined, "climateStart"), "尚未连接车辆");
-  for (const platform of ["HUANFU", "Geely", null]) {
+  for (const platform of ["Geely", null]) {
+    const vehicle = { ...sharedVehicle, platform };
+    assert.match(
+      unavailableReason(vehicle, "climateStart"),
+      /该平台适配待完成/,
+    );
+    assert.equal(unavailableReason(vehicle, "climateStart", true), null);
     assert.equal(
-      unavailableReason({ ...sharedVehicle, platform }, "climateStart"),
-      "该平台适配待完成",
+      unavailableReason({ ...vehicle, capabilities: {} }, "climateStart", true),
+      "服务尚未提供能力信息",
     );
   }
+  // HUANFU climate is provided by xchanger, so it is allowed without the
+  // experimental switch; other commands still need the switch.
+  const huanfu = { ...sharedVehicle, platform: "HUANFU" };
+  assert.equal(unavailableReason(huanfu, "climateStart"), null);
+  assert.match(unavailableReason(huanfu, "lock"), /该平台适配待完成/);
+  assert.equal(
+    unavailableReason({ ...huanfu, capabilities: {} }, "climateStart"),
+    "服务尚未提供能力信息",
+  );
 });
 
 test("shared account charging and schedules retain their capability gates", () => {

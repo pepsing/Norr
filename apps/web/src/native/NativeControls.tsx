@@ -35,6 +35,7 @@ export function NativeControls({
   snapshot,
   receipts,
   disabled,
+  experimental,
   control,
   onCommand,
   onHistory,
@@ -46,6 +47,7 @@ export function NativeControls({
   snapshot?: Snapshot;
   receipts: Receipt[];
   disabled: boolean;
+  experimental: boolean;
   control: (action: string, onSelect?: () => void) => ReactNode;
   onCommand: (command: Command) => void;
   onHistory: () => void;
@@ -198,7 +200,11 @@ export function NativeControls({
             <h2 id="vehicle-controls-heading">车辆功能</h2>
             {actions.map((item) => {
               const reason = item.directAction
-                ? unavailableReason(vehicle, item.directAction)
+                ? unavailableReason(
+                  vehicle,
+                  item.directAction,
+                  experimental,
+                )
                 : null;
               const label = item.directAction
                 ? actionLabels[item.directAction]
@@ -237,6 +243,7 @@ export function NativeControls({
           vehicle={vehicle}
           snapshot={snapshot}
           disabled={disabled}
+          experimental={experimental}
           onCommand={onCommand}
         />
       )}

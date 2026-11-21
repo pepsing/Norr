@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cabinAirTime, numeric, readingText } from "./client";
 import { VehicleMap } from "./VehicleMap";
+import type { VehiclePosition } from "./VehicleMap";
 import type { Snapshot } from "./client";
 
 function text(value: unknown, unit = ""): string {
@@ -24,10 +25,12 @@ function Metrics({ items }: { items: [string, string][] }) {
 
 export function VehicleDetails({
   snapshot,
+  position,
   onError,
   includeMap = true,
 }: {
   snapshot?: Snapshot;
+  position?: VehiclePosition;
   onError: (message: string) => void;
   includeMap?: boolean;
 }) {
@@ -151,6 +154,7 @@ export function VehicleDetails({
         <VehicleMap
           key={snapshot?.vehicle.vin}
           snapshot={snapshot}
+          position={position}
           onError={onError}
         />
       )}

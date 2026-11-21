@@ -24,7 +24,8 @@ interface Request { id: string; command: string; args: Arguments; }
 
 const COMMANDS: string[] = [
   'session_status', 'request_login_code', 'sign_in_phone', 'sign_in_password', 'connect',
-  'refresh', 'history', 'history_report', 'set_refresh_interval', 'desktop_status',
+  'refresh', 'history', 'history_report', 'set_refresh_interval',
+  'set_experimental_p4', 'probe_vehicle', 'desktop_status',
   'set_desktop_option', 'take_notification_target', 'take_widget_target', 'send_command',
   'preview_history_import', 'commit_history_import', 'cancel_history_import', 'export_history',
   'open_map_link'

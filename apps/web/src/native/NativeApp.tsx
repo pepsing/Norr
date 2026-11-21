@@ -38,6 +38,7 @@ import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
 import { ChargeLocations, VehicleDetails } from "./VehicleDetails";
 import { VehicleMap } from "./VehicleMap";
+import type { VehiclePosition } from "./VehicleMap";
 import { defaultAppearance, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
@@ -50,12 +51,17 @@ import {
   readingText,
   scheduleText,
   unavailableReason,
+  mergeXchangerSnapshot,
+  xchangerCoordinate,
+  xchangerTruthy,
 } from "./client";
 import type {
   Command,
   History,
   NativeVehicle,
+  ProbeReport,
   Receipt,
+  XchangerStatus,
   SessionStatus,
   Snapshot,
 } from "./client";
@@ -173,10 +179,38 @@ export default function NativeApp() {
     snapshot?.vehicle.vin === vin
       ? snapshot.vehicle
       : fleet.find((car) => car.vin === vin);
+  const experimental = history.settings?.experimentalP4 ?? false;
+  const unverifiedPlatform = Boolean(
+    vehicle && !["ICUP", "AccountLinking"].includes(vehicle.platform ?? ""),
+  );
+  const [probe, setProbe] = useState<ProbeReport>();
+  const [xchanger, setXchanger] = useState<XchangerStatus>();
+  const [xchangerError, setXchangerError] = useState("");
+  const [xchangerTarget, setXchangerTarget] = useState<number>();
+  const xchangerPosition = xchanger?.basicVehicleStatus?.position;
+  const displaySnapshot = mergeXchangerSnapshot(
+    snapshot,
+    xchanger,
+    xchangerTarget,
+  );
+  const xchangerPoint: VehiclePosition | undefined = (() => {
+    const latitude = xchangerCoordinate(xchangerPosition?.latitude);
+    const longitude = xchangerCoordinate(xchangerPosition?.longitude);
+    if (latitude === null || longitude === null) return undefined;
+    const observedAt = Number(xchanger?.updateTime);
+    return {
+      latitude,
+      longitude,
+      observedAt: Number.isFinite(observedAt) ? observedAt : undefined,
+      source: "xchanger",
+      coordinateSystem:
+        xchangerPosition?.marsCoordinates === "true" ? "gcj02" : "wgs84",
+    };
+  })();
   const supportsTemperature =
     vehicle?.capabilities
       .supportsParkingClimatizationCompartmentTemperatureSettings === true;
-  const active = activeControls(snapshot);
+  const active = activeControls(displaySnapshot);
   const needsValue =
     dialog?.action === "target" ||
     dialog?.action === "amperage" ||
@@ -211,6 +245,15 @@ export default function NativeApp() {
   useEffect(() => {
     document.title = `Norr 北行 · ${pages.find((item) => item.id === page)?.label}`;
   }, [page]);
+
+  useEffect(() => {
+    if (vehicle?.platform !== "HUANFU" || !vin) {
+      setXchanger(undefined);
+      setXchangerError("");
+      return;
+    }
+    void loadXchanger(vin);
+  }, [vin, vehicle?.platform]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -344,7 +387,7 @@ export default function NativeApp() {
       const action = widgetTarget.action === "lock"
         ? (snapshot?.readings.exterior?.value?.locked === true ? "unlock" : "lock")
         : (snapshot?.readings.climate?.value?.activity === "active" ? "climateStop" : "climateStart");
-      const reason = unavailableReason(vehicle, action);
+      const reason = unavailableReason(vehicle, action, experimental);
       if (reason) setError(reason);
       else openCommand(action);
     }
@@ -422,6 +465,82 @@ export default function NativeApp() {
       setSnapshot(undefined);
     }
     setSession(await native.status());
+  }
+
+  async function loadXchanger(target: string) {
+    if (!target) return;
+    try {
+      const status = await native.xchangerStatus(target);
+      setXchanger(status);
+      setXchangerError("");
+      try {
+        setXchangerTarget(await native.xchangerTargetSoc(target));
+      } catch {
+        setXchangerTarget(undefined);
+      }
+    } catch (problem) {
+      setXchanger(undefined);
+      setXchangerError(String(problem));
+    }
+  }
+
+  async function refreshXchanger() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await native.refreshXchanger();
+      await loadXchanger(vin);
+    } catch (problem) {
+      setError(String(problem));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function controlXchangerClimate(
+    command: "start" | "stop",
+    temperature?: number,
+  ) {
+    if (busy || !vin) return;
+    setBusy(true);
+    setError("");
+    const target = command === "start";
+    try {
+      await native.xchangerClimate(vin, command, temperature);
+      setNotice(target ? "空调指令已提交，等待车辆确认…" : "关闭指令已提交，等待车辆确认…");
+      // The car takes roughly 5–15 s to report the new pre-climate state.
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        const status = await native.xchangerStatus(vin);
+        setXchanger(status);
+        const active = xchangerTruthy(
+          status.additionalVehicleStatus?.climateStatus?.preClimateActive,
+        );
+        if (active === target) {
+          setNotice(target ? "空调已开启" : "空调已关闭");
+          return;
+        }
+      }
+      setError("指令已提交，但车辆尚未回读目标状态；请稍后在官方 App 或车内确认。");
+    } catch (problem) {
+      setError(String(problem));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runProbe() {
+    if (!vin || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      setProbe(await native.probeVehicle(vin));
+    } catch (problem) {
+      setError(String(problem));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function refresh() {
@@ -527,7 +646,7 @@ export default function NativeApp() {
     }
     const current =
       action === "target"
-        ? numeric(snapshot, "target", "percent")
+        ? numeric(displaySnapshot, "target", "percent")
         : action === "amperage"
           ? numeric(snapshot, "amperage", "amps")
           : numeric(snapshot, "climate", "targetTemperature");
@@ -540,8 +659,51 @@ export default function NativeApp() {
     });
   }
 
+  async function setP4Target(percent: number) {
+    if (busy || !vin) return;
+    setBusy(true);
+    setError("");
+    try {
+      await native.xchangerSetTargetSoc(vin, percent);
+      setNotice(`目标电量已提交 ${percent}%，等待车辆确认…`);
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        const soc = await native.xchangerTargetSoc(vin);
+        setXchangerTarget(soc);
+        if (Math.round(soc) === Math.round(percent)) {
+          setNotice(`目标电量已设为 ${percent}%`);
+          return;
+        }
+      }
+      setError("目标电量指令已提交，但车辆尚未回读目标值；请稍后在官方 App 或车内确认。");
+    } catch (problem) {
+      setError(String(problem));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendCommand() {
     if (!dialog || busy || !validValue) return;
+    if (vehicle?.platform === "HUANFU" && dialog.action === "target") {
+      const percent = dialog.value;
+      setDialog(null);
+      if (percent !== undefined) await setP4Target(percent);
+      return;
+    }
+    if (
+      vehicle?.platform === "HUANFU" &&
+      (dialog.action === "climateStart" || dialog.action === "climateStop")
+    ) {
+      const action = dialog.action;
+      const temperature = dialog.value;
+      setDialog(null);
+      await controlXchangerClimate(
+        action === "climateStart" ? "start" : "stop",
+        temperature,
+      );
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -561,7 +723,7 @@ export default function NativeApp() {
   }
 
   function control(action: string, onSelect?: () => void) {
-    let reason = unavailableReason(vehicle, action);
+    let reason = unavailableReason(vehicle, action, experimental);
     if (
       !reason &&
       ["otaInstall", "otaSchedule"].includes(action) &&
@@ -603,7 +765,7 @@ export default function NativeApp() {
   const climate = String(
     snapshot?.readings.climate?.value?.activity ?? "unknown",
   );
-  const target = numeric(snapshot, "target", "percent");
+  const target = numeric(displaySnapshot, "target", "percent");
   const lockAction = locked === true ? "unlock" : "lock";
   const climateAction = climate === "active" ? "climateStop" : "climateStart";
   const openingActions = ["windowsOpen", "windowsClose"].includes(
@@ -801,6 +963,27 @@ export default function NativeApp() {
                     onBusyChange={setBusy}
                     onSignedIn={signedIn}
                   />
+                  {fleet.some((car) => car.platform === "HUANFU") && (
+                    <div className="native-section">
+                      <h3>P4 远程授权</h3>
+                      <p className="muted">
+                        登录 Polestar 后，Norr 会用当前会话自动换取 ECARX
+                        的 xchanger 授权，用于 P4 的位置、空气质量与远程空调，无需手动粘贴令牌。
+                      </p>
+                      <button
+                        className="secondary-button"
+                        disabled={busy}
+                        onClick={() => void refreshXchanger()}
+                      >
+                        重新获取授权
+                      </button>
+                      {xchangerError && (
+                        <p className="native-inline-error" role="alert">
+                          {xchangerError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {isIOS && (
                     <div className="native-section">
                       <h3>Apple Watch</h3>
@@ -894,6 +1077,78 @@ export default function NativeApp() {
                         }}
                       />
                     </div>
+                  </section>
+                  <section className="native-section">
+                    <h2>未验证平台（实验）</h2>
+                    <p className="muted">
+                      中国区 Polestar 2 的协议已完成实车验证。其他平台（例如 Polestar 4）的读取会按通用 C3
+                      格式尝试；写入默认关闭，开启后才允许发送指令。
+                    </p>
+                    <div className="setting-row">
+                      <div>
+                        <h3>允许未验证平台控制</h3>
+                        <p>仅在你理解风险、并会在车旁逐项核对时开启。</p>
+                      </div>
+                      <button
+                        className="secondary-button"
+                        aria-pressed={experimental}
+                        disabled={busy || !session?.hasSession}
+                        onClick={() => {
+                          setBusy(true);
+                          void native
+                            .setExperimentalP4(!experimental)
+                            .then((settings) =>
+                              setHistory((data) => ({ ...data, settings })),
+                            )
+                            .catch((problem: unknown) =>
+                              setError(String(problem)),
+                            )
+                            .finally(() => setBusy(false));
+                        }}
+                      >
+                        {experimental ? "已开启" : "已关闭"}
+                      </button>
+                    </div>
+                    <button
+                      className="secondary-button"
+                      disabled={busy || !connected || !vin}
+                      onClick={() => void runProbe()}
+                    >
+                      {busy ? "正在探测" : "运行兼容性探测"}
+                    </button>
+                    <p className="muted">
+                      探测只读取车辆状态，不发送指令；失败项不代表车辆不支持。
+                    </p>
+                    {probe && (
+                      <div className="probe-report">
+                        <p>
+                          {probe.model}
+                          {probe.platform ? ` · ${probe.platform}` : ""} ·{" "}
+                          {probe.protocol}协议 · 成功 {probe.succeeded}/
+                          {probe.total}
+                        </p>
+                        <p className="muted">{probe.summary}</p>
+                        <ul className="probe-list">
+                          {probe.endpoints.map((endpoint) => (
+                            <li
+                              key={endpoint.kind}
+                              data-status={endpoint.status}
+                            >
+                              <span>{endpoint.kind}</span>
+                              <span>
+                                {endpoint.status === "success"
+                                  ? `${endpoint.fields} 个字段`
+                                  : (endpoint.error ?? "失败")}
+                              </span>
+                              <span className="muted">
+                                {endpoint.protocol}
+                                {endpoint.fallback ? " · 回退" : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </section>
                 </>
               )}
@@ -1049,7 +1304,7 @@ export default function NativeApp() {
                     disabled={
                       busy ||
                       !connected ||
-                      !!unavailableReason(vehicle, lockAction)
+                      !!unavailableReason(vehicle, lockAction, experimental)
                     }
                     onClick={() => openCommand(lockAction)}
                   >
@@ -1058,8 +1313,8 @@ export default function NativeApp() {
                       <ArrowUpRight size={21} aria-hidden="true" />
                     </div>
                     <p>{lockLabel}</p>
-                    {unavailableReason(vehicle, lockAction) && (
-                      <p>{unavailableReason(vehicle, lockAction)}</p>
+                    {unavailableReason(vehicle, lockAction, experimental) && (
+                      <p>{unavailableReason(vehicle, lockAction, experimental)}</p>
                     )}
                     <div className="tile-bottom">
                       <LockKeyhole
@@ -1076,7 +1331,7 @@ export default function NativeApp() {
                     disabled={
                       busy ||
                       !connected ||
-                      !!unavailableReason(vehicle, climateAction)
+                      !!unavailableReason(vehicle, climateAction, experimental)
                     }
                     onClick={() => openCommand(climateAction)}
                   >
@@ -1092,8 +1347,8 @@ export default function NativeApp() {
                         1,
                       )}
                     </p>
-                    {unavailableReason(vehicle, climateAction) && (
-                      <p>{unavailableReason(vehicle, climateAction)}</p>
+                    {unavailableReason(vehicle, climateAction, experimental) && (
+                      <p>{unavailableReason(vehicle, climateAction, experimental)}</p>
                     )}
                     <div className="tile-bottom">
                       <Fan size={35} strokeWidth={1.2} aria-hidden="true" />
@@ -1153,9 +1408,13 @@ export default function NativeApp() {
                 ) : (
                   <>
                     <div ref={detailsRef} tabIndex={-1}>
-                      <VehicleDetails snapshot={snapshot} onError={setError} />
+                      <VehicleDetails
+                        snapshot={displaySnapshot}
+                        position={xchangerPoint}
+                        onError={setError}
+                      />
                     </div>
-                    <EndpointStatus snapshot={snapshot} />
+                    <EndpointStatus snapshot={displaySnapshot} />
                   </>
                 )}
               </>
@@ -1166,10 +1425,11 @@ export default function NativeApp() {
                 vehicle={vehicle}
                 appearance={appearance}
                 history={history.snapshots}
-                snapshot={snapshot}
+                snapshot={displaySnapshot}
                 receipts={history.receipts}
                 disabled={busy || !connected}
                 control={control}
+                experimental={experimental}
                 onCommand={setDialog}
                 onHistory={() => setPage("history")}
                 openings={<OpeningStatus snapshot={snapshot} />}
@@ -1204,7 +1464,7 @@ export default function NativeApp() {
                           disabled={
                             busy ||
                             !connected ||
-                            !!unavailableReason(vehicle, "target")
+                            !!unavailableReason(vehicle, "target", experimental)
                           }
                           onClick={() => openCommand("target")}
                         >
@@ -1263,7 +1523,7 @@ export default function NativeApp() {
                         </div>
                       </div>
                       <p className="muted native-reading-time">
-                        目标电量 · {readingText(snapshot, "target")}
+                        目标电量 · {readingText(displaySnapshot, "target")}
                       </p>
                     </section>
                   </div>
@@ -1274,6 +1534,7 @@ export default function NativeApp() {
                       vehicle={vehicle}
                       snapshot={snapshot}
                       disabled={busy || !connected}
+                      experimental={experimental}
                       onCommand={setDialog}
                     />
                     <ChargeLocations snapshot={snapshot} />
@@ -1298,14 +1559,20 @@ export default function NativeApp() {
             {vehicleSheet === "details" ? (
               <>
                 <VehicleDetails
-                  snapshot={snapshot}
+                  snapshot={displaySnapshot}
+                  position={xchangerPoint}
                   onError={setError}
                   includeMap={false}
                 />
-                <EndpointStatus snapshot={snapshot} />
+                <EndpointStatus snapshot={displaySnapshot} />
               </>
             ) : (
-              <VehicleMap key={vin} snapshot={snapshot} onError={setError} />
+              <VehicleMap
+                  key={vin}
+                  snapshot={displaySnapshot}
+                  position={xchangerPoint}
+                  onError={setError}
+                />
             )}
             {error && (
               <p role="alert" className="native-inline-error">
@@ -1442,13 +1709,19 @@ export default function NativeApp() {
                 : `请输入 ${limits.min} 至 ${limits.max}，步长为 ${limits.step}。`}
             </p>
           )}
+          {experimental && unverifiedPlatform && (
+            <p className="native-inline-error" role="note">
+              该平台（{vehicle?.platform ?? "未知"}
+              ）尚未实车验证，指令按通用格式发送；请以车辆实际动作和回读为准。
+            </p>
+          )}
           {error && <p role="alert">{error}</p>}
           <div className="button-row">
             <button
               className="primary-button"
               disabled={
                 busy ||
-                !!unavailableReason(vehicle, dialog.action) ||
+                !!unavailableReason(vehicle, dialog.action, experimental) ||
                 !validValue
               }
               onClick={() => void sendCommand()}

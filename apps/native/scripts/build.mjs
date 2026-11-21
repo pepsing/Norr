@@ -29,6 +29,17 @@ if (!signingKey) {
   );
   process.exit(1);
 }
+let xchangerSecret = process.env.NORR_XCHANGER_APP_SECRET?.trim();
+if (!xchangerSecret) {
+  try {
+    const configuration = parseEnv(
+      readFileSync(new URL("../../../.env.secrets", import.meta.url), "utf8"),
+    );
+    xchangerSecret = configuration.NORR_XCHANGER_APP_SECRET?.trim();
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+}
 const extraArgs = process.argv.slice(3);
 const device = platform === "ios" && extraArgs.includes("--device");
 const args =
@@ -53,6 +64,7 @@ const result = spawnSync(process.execPath, [cli, ...args], {
       ? { PATH: `/usr/bin:/bin:${process.env.PATH ?? ""}` }
       : {}),
     NORR_POLESTAR_CN_SIGNING_KEY: signingKey,
+    NORR_XCHANGER_APP_SECRET: xchangerSecret ?? "",
   },
 });
 if (result.error)

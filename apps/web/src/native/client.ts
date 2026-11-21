@@ -48,6 +48,58 @@ export interface NativeSettings {
   notifyCharging: boolean;
   notifyCommands: boolean;
   refreshOnWake: boolean;
+  experimentalP4: boolean;
+}
+
+export interface ProbeEndpoint {
+  kind: string;
+  status: string;
+  error: string | null;
+  fields: number;
+  protocol: string;
+  fallback: boolean;
+}
+
+export interface XchangerStatus {
+  basicVehicleStatus?: {
+    position?: {
+      latitude?: string;
+      longitude?: string;
+      altitude?: string;
+      marsCoordinates?: string;
+    };
+    usageMode?: string;
+  };
+  additionalVehicleStatus?: {
+    electricVehicleStatus?: {
+      chargeLevel?: string;
+      distanceToEmptyOnBatteryOnly?: string;
+    };
+    climateStatus?: {
+      preClimateActive?: string | boolean;
+      interiorTemp?: string;
+      exteriorTemp?: string;
+    };
+    maintenanceStatus?: { odometer?: string };
+    pollutionStatus?: {
+      interiorPM25?: string;
+      interiorPM25Level?: string;
+      exteriorPM25Level?: string;
+      relHumSts?: string;
+    };
+  };
+  updateTime?: string;
+}
+
+export interface ProbeReport {
+  vin: string;
+  model: string;
+  platform: string | null;
+  protocol: string;
+  succeeded: number;
+  total: number;
+  endpoints: ProbeEndpoint[];
+  summary: string;
 }
 export interface DesktopState {
   status: { launchAtLogin: number; notifications: number };
@@ -165,6 +217,33 @@ export const native = {
   command: (command: Command) => invoke<Receipt>("send_command", { command }),
   setRefreshInterval: (seconds: number) =>
     invoke<NativeSettings>("set_refresh_interval", { seconds }),
+  setExperimentalP4: (enabled: boolean) =>
+    invoke<NativeSettings>("set_experimental_p4", { enabled }),
+  probeVehicle: (vin: string) => invoke<ProbeReport>("probe_vehicle", { vin }),
+  setXchangerToken: (token: string) =>
+    invoke<string>("set_xchanger_token", { token }),
+  refreshXchanger: () => invoke<string>("refresh_xchanger"),
+  xchangerTargetSoc: (vin: string) =>
+    invoke<number>("xchanger_target_soc", { vin }),
+  xchangerSetTargetSoc: (vin: string, percent: number) =>
+    invoke<Record<string, unknown>>("xchanger_set_target_soc", {
+      vin,
+      percent,
+    }),
+  reverseGeocode: (latitude: number, longitude: number) =>
+    invoke<string>("reverse_geocode", { latitude, longitude }),
+  xchangerStatus: (vin: string) =>
+    invoke<XchangerStatus>("xchanger_status", { vin }),
+  xchangerClimate: (
+    vin: string,
+    command: "start" | "stop",
+    temperature?: number,
+  ) =>
+    invoke<Record<string, unknown>>("xchanger_climate", {
+      vin,
+      command,
+      temperature,
+    }),
   onSnapshot: (callback: (snapshot: Snapshot) => void) =>
     listen<Snapshot>("vehicle-updated", (event) => callback(event.payload)),
   onRefreshError: (callback: (error: string) => void) =>
@@ -374,13 +453,93 @@ export function chargingOptions(
   };
 }
 
+export function mergeXchangerSnapshot(
+  snapshot: Snapshot | undefined,
+  status: XchangerStatus | undefined,
+  targetSoc?: number,
+): Snapshot | undefined {
+  if (!snapshot || !status) return snapshot;
+  const updated = Number(status.updateTime);
+  const observedAt = Number.isFinite(updated) ? updated : Date.now();
+  const readings = { ...snapshot.readings };
+  const pollution = status.additionalVehicleStatus?.pollutionStatus;
+  if (pollution) {
+    const pm25 = Number(pollution.interiorPM25);
+    readings.airQuality = {
+      status: "success",
+      value: {
+        pm25: Number.isFinite(pm25) ? pm25 : null,
+        measuredAt: observedAt,
+        aqi: null,
+        externalPm25: null,
+        filterPercent: null,
+        state: null,
+      },
+      observedAt,
+      reportedAt: observedAt,
+      error: null,
+    } as Snapshot["readings"][string];
+  }
+  const climate = status.additionalVehicleStatus?.climateStatus;
+  if (climate) {
+    const interior = Number(climate.interiorTemp);
+    readings.climate = {
+      status: "success",
+      value: {
+        activity: xchangerTruthy(climate.preClimateActive) ? "active" : "idle",
+        interiorTemperature: Number.isFinite(interior) ? interior : null,
+        targetTemperature: null,
+        remainingMinutes: null,
+      },
+      observedAt,
+      reportedAt: observedAt,
+      error: null,
+    } as Snapshot["readings"][string];
+  }
+  if (typeof targetSoc === "number" && Number.isFinite(targetSoc)) {
+    readings.target = {
+      status: "success",
+      value: { percent: targetSoc },
+      observedAt,
+      reportedAt: observedAt,
+      error: null,
+    } as Snapshot["readings"][string];
+  }
+  return {
+    ...snapshot,
+    fetchedAt: Math.max(snapshot.fetchedAt, observedAt),
+    readings,
+  };
+}
+
+export function xchangerCoordinate(value: unknown): number | null {
+  const number = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(number)) return null;
+  const degrees = Math.abs(number) <= 180 ? number : number / 3_600_000;
+  return Math.abs(degrees) <= 180 ? degrees : null;
+}
+
+export function xchangerTruthy(value: unknown): boolean {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
 export function unavailableReason(
   vehicle: NativeVehicle | undefined,
   action: string,
+  experimental = false,
 ): string | null {
   if (!vehicle) return "尚未连接车辆";
-  if (!["ICUP", "AccountLinking"].includes(vehicle.platform ?? ""))
-    return "该平台适配待完成";
+  const p4Action =
+    vehicle.platform === "HUANFU" &&
+    (action === "climateStart" ||
+      action === "climateStop" ||
+      action === "target");
+  if (
+    !["ICUP", "AccountLinking"].includes(vehicle.platform ?? "") &&
+    !experimental &&
+    !p4Action
+  )
+    return "该平台适配待完成；可在设置中开启未验证平台";
   if (
     ["target", "amperage", "chargeStart", "chargeStop", "chargeTimer"].includes(
       action,
