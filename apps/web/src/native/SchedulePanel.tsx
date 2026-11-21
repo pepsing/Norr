@@ -14,6 +14,7 @@ interface Props {
   vehicle: NativeVehicle;
   snapshot?: Snapshot;
   disabled: boolean;
+  experimental: boolean;
   onCommand: (command: Command) => void;
 }
 
@@ -22,6 +23,7 @@ export function SchedulePanel({
   vehicle,
   snapshot,
   disabled,
+  experimental,
   onCommand,
 }: Props) {
   const climate = kind === "climate";
@@ -35,7 +37,7 @@ export function SchedulePanel({
         ? [reading.value.timer]
         : []
   ) as Schedule[];
-  const reason = unavailableReason(vehicle, action);
+  const reason = unavailableReason(vehicle, action, experimental);
   const maximum = vehicle.limits.parkingClimatizationMaxNumberOfTimers;
   const full = climate && maximum !== undefined && timers.length >= maximum;
   const [editing, setEditing] = useState<Schedule | null>(null);

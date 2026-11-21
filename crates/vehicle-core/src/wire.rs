@@ -172,6 +172,13 @@ pub fn bytes(field: u32, value: &[u8]) -> Vec<u8> {
 pub fn string(field: u32, value: &str) -> Vec<u8> {
     bytes(field, value.as_bytes())
 }
+pub fn double(field: u32, value: f64) -> Vec<u8> {
+    [
+        encode_varint(((field as u64) << 3) | 1),
+        value.to_le_bytes().to_vec(),
+    ]
+    .concat()
+}
 pub fn float(field: u32, value: f32) -> Vec<u8> {
     [
         encode_varint(((field as u64) << 3) | 5),
@@ -183,13 +190,25 @@ pub fn state_request(vin: &str) -> Vec<u8> {
     [string(1, &uuid::Uuid::new_v4().to_string()), string(2, vin)].concat()
 }
 pub fn payload(body: &[u8], vin: &str) -> Result<Message> {
+    payload_from(body, vin, &[3])
+}
+
+/// The verified P2 envelope stores state in field 3. Some HUANFU responses
+/// (verified against a China Polestar 4 on 2026-11-21) put the chronos payload
+/// in field 4 instead, so callers may pass several candidate fields.
+pub fn payload_from(body: &[u8], vin: &str, fields: &[u32]) -> Result<Message> {
     let envelope = Message::parse(body)?;
     if let Some(actual) = envelope.string(2) {
         if !actual.eq_ignore_ascii_case(vin) {
             return Err("车辆响应身份不匹配".into());
         }
     }
-    Message::parse(envelope.bytes(3).ok_or("车辆响应缺少数据")?)
+    for field in fields {
+        if let Some(data) = envelope.bytes(*field) {
+            return Message::parse(data);
+        }
+    }
+    Err("车辆响应缺少数据".into())
 }
 
 #[cfg(test)]

@@ -1,4 +1,7 @@
-use norr_vehicle_core::{china::ChinaClient, confirmation, credentials, models::*, now_ms, Result};
+use norr_vehicle_core::{
+    china::ChinaClient, confirmation, credentials, models::*, now_ms, xchanger::XchangerClient,
+    Result,
+};
 use serde::{Deserialize, Serialize};
 use std::{io::Write, path::PathBuf};
 use tauri::{Emitter, Manager, State};
@@ -56,6 +59,7 @@ struct Settings {
     notify_charging: bool,
     notify_commands: bool,
     refresh_on_wake: bool,
+    experimental_p4: bool,
 }
 
 impl Default for Settings {
@@ -67,6 +71,7 @@ impl Default for Settings {
             notify_charging: false,
             notify_commands: false,
             refresh_on_wake: true,
+            experimental_p4: false,
         }
     }
 }
@@ -296,6 +301,8 @@ async fn import_hisingen(
             .map(std::path::Path::new),
     )?;
     backend.client = ChinaClient::new()?;
+    let experimental = backend.history.settings.experimental_p4;
+    backend.client.set_experimental(experimental);
     Ok(status)
 }
 
@@ -334,6 +341,140 @@ async fn set_refresh_interval(state: State<'_, VehicleService>, seconds: u64) ->
         return Err(error);
     }
     Ok(backend.history.settings.clone())
+}
+
+#[tauri::command]
+async fn set_experimental_p4(state: State<'_, VehicleService>, enabled: bool) -> Result<Settings> {
+    let mut backend = state.lock().await;
+    let previous = backend.history.settings.clone();
+    backend.history.settings.experimental_p4 = enabled;
+    backend.client.set_experimental(enabled);
+    if let Err(error) = backend.save() {
+        backend.history.settings = previous;
+        let experimental = backend.history.settings.experimental_p4;
+        backend.client.set_experimental(experimental);
+        return Err(error);
+    }
+    Ok(backend.history.settings.clone())
+}
+
+#[tauri::command]
+async fn probe_vehicle(
+    state: State<'_, VehicleService>,
+    vin: String,
+) -> Result<norr_vehicle_core::china::ProbeReport> {
+    let mut backend = state
+        .try_lock()
+        .map_err(|_| "正在处理车辆请求，请等待完成")?;
+    backend.client.probe(&vin).await
+}
+
+async fn exchange_xchanger() -> Result<XchangerClient> {
+    let session = credentials::load_session()?.ok_or("请先登录 Polestar 账号")?;
+    let access = session
+        .login
+        .extra
+        .get("accessToken")
+        .and_then(|value| value.as_str())
+        .ok_or("会话缺少 Polestar 网关令牌")?;
+    let existing = credentials::xchanger_token()?;
+    let client =
+        XchangerClient::exchange(access, existing.as_ref().map(|value| value.as_str())).await?;
+    credentials::save_xchanger_token(client.token())?;
+    Ok(client)
+}
+
+async fn xchanger_client() -> Result<XchangerClient> {
+    match credentials::xchanger_token()? {
+        Some(token) => XchangerClient::from_token(&token),
+        None => exchange_xchanger().await,
+    }
+}
+
+#[tauri::command]
+async fn refresh_xchanger() -> Result<String> {
+    Ok(exchange_xchanger().await?.user_id().to_owned())
+}
+
+#[tauri::command]
+async fn set_xchanger_token(token: String) -> Result<String> {
+    credentials::save_xchanger_token(&token)?;
+    let client = XchangerClient::from_token(&token)?;
+    Ok(client.user_id().to_owned())
+}
+
+#[tauri::command]
+async fn xchanger_status(vin: String) -> Result<serde_json::Value> {
+    let client = xchanger_client().await?;
+    match client.status(&vin).await {
+        Ok(value) => Ok(value),
+        Err(error) if error.contains("1402") || error.contains("令牌无效") => {
+            exchange_xchanger().await?.status(&vin).await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+#[tauri::command]
+async fn xchanger_target_soc(vin: String) -> Result<f64> {
+    let client = xchanger_client().await?;
+    match client.target_soc(&vin).await {
+        Err(error) if error.contains("1402") || error.contains("令牌无效") => {
+            exchange_xchanger().await?.target_soc(&vin).await
+        }
+        other => other,
+    }
+}
+
+#[tauri::command]
+async fn xchanger_set_target_soc(vin: String, percent: f64) -> Result<serde_json::Value> {
+    let client = xchanger_client().await?;
+    match client.set_target_soc(&vin, percent).await {
+        Err(error) if error.contains("1402") || error.contains("令牌无效") => {
+            exchange_xchanger()
+                .await?
+                .set_target_soc(&vin, percent)
+                .await
+        }
+        other => other,
+    }
+}
+
+#[tauri::command]
+async fn xchanger_climate(
+    vin: String,
+    command: String,
+    temperature: Option<f64>,
+) -> Result<serde_json::Value> {
+    if !matches!(command.as_str(), "start" | "stop") {
+        return Err("空调指令只能是 start 或 stop".into());
+    }
+    let temperature = temperature.unwrap_or(22.0).clamp(16.0, 28.0);
+    let temp_text = if temperature.fract() == 0.0 {
+        format!("{temperature:.0}")
+    } else {
+        format!("{temperature:.1}")
+    };
+    let params = [("rce.conditioner", "1"), ("rce.temp", temp_text.as_str())];
+    let duration = if command == "start" { 180 } else { 0 };
+    let client = xchanger_client().await?;
+    let result = client
+        .control(&vin, "RCE_2", &command, &params, duration)
+        .await;
+    match result {
+        Err(error) if error.contains("1402") || error.contains("令牌无效") => {
+            exchange_xchanger()
+                .await?
+                .control(&vin, "RCE_2", &command, &params, duration)
+                .await
+        }
+        other => other,
+    }
+}
+
+#[tauri::command]
+async fn reverse_geocode(latitude: f64, longitude: f64) -> Result<String> {
+    norr_vehicle_core::geocode::reverse(latitude, longitude).await
 }
 
 #[tauri::command]
@@ -701,8 +842,10 @@ fn load_backend(path: PathBuf) -> Result<Backend> {
         .commands(&history.receipts, false, now_ms());
     let archive = archive::Archive::open(&parent.join("history.sqlite3"))?;
     archive.sync(&history)?;
+    let mut client = ChinaClient::new()?;
+    client.set_experimental(history.settings.experimental_p4);
     Ok(Backend {
-        client: ChinaClient::new()?,
+        client,
         history,
         path,
         archive,
@@ -936,6 +1079,15 @@ pub fn run() {
                 commit_history_import,
                 cancel_history_import,
                 set_refresh_interval,
+                set_experimental_p4,
+                probe_vehicle,
+                set_xchanger_token,
+                refresh_xchanger,
+                xchanger_status,
+                xchanger_climate,
+                xchanger_target_soc,
+                xchanger_set_target_soc,
+                reverse_geocode,
                 desktop_status,
                 set_desktop_option,
                 open_system_settings,

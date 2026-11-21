@@ -5,14 +5,25 @@ import type { Snapshot } from "./client";
 import { vehicleMapLinks } from "./mapLinks";
 import type { CoordinateSystem } from "./mapLinks";
 
+export interface VehiclePosition {
+  latitude: number;
+  longitude: number;
+  observedAt?: number;
+  source: string;
+  coordinateSystem: CoordinateSystem;
+}
+
 export function VehicleMap({
   snapshot,
+  position,
   onError,
 }: {
   snapshot?: Snapshot;
+  position?: VehiclePosition;
   onError: (message: string) => void;
 }) {
   const vin = snapshot?.vehicle.vin ?? "";
+  const [address, setAddress] = useState("");
   const [visible, setVisible] = useState(true);
   const [showLoading, setShowLoading] = useState(false);
   const [googleSystem] = useState<CoordinateSystem>(() => {
@@ -33,21 +44,44 @@ export function VehicleMap({
       return "gcj02";
     }
   });
-  const lat = numeric(snapshot, "location", "latitude");
-  const lon = numeric(snapshot, "location", "longitude");
+  const lat = position?.latitude ?? numeric(snapshot, "location", "latitude");
+  const lon =
+    position?.longitude ?? numeric(snapshot, "location", "longitude");
   const valid =
-    snapshot?.readings.location?.status === "success" &&
+    (position !== undefined ||
+      snapshot?.readings.location?.status === "success") &&
     lat !== null &&
     lon !== null &&
     Math.abs(lat) <= 90 &&
     Math.abs(lon) <= 180;
+  const activeSystem = position?.coordinateSystem ?? vehicleSystem;
   const links = vehicleMapLinks(
     valid ? lon : 0,
     valid ? lat : 0,
-    vehicleSystem,
+    activeSystem,
     googleSystem,
   );
   const embed = links.embed;
+  useEffect(() => {
+    if (!valid || lat === null || lon === null) {
+      setAddress("");
+      return;
+    }
+    let cancelled = false;
+    setAddress("");
+    void native
+      .reverseGeocode(lat, lon)
+      .then((value) => {
+        if (!cancelled) setAddress(value);
+      })
+      .catch(() => {
+        if (!cancelled) setAddress("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [valid, lat, lon]);
+
   useEffect(() => {
     setShowLoading(visible && valid);
     if (!visible || !valid) return;
@@ -67,8 +101,21 @@ export function VehicleMap({
         <MapPin size={20} aria-hidden="true" />
       </div>
       <p className="muted native-reading-time">
-        {readingText(snapshot, "location")}
+        {position
+          ? `来源 ${position.source}${
+              position.observedAt
+                ? ` · ${new Date(position.observedAt).toLocaleString("zh-CN", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })}`
+                : ""
+            }`
+          : readingText(snapshot, "location")}
       </p>
+      {address && <p className="native-address">{address}</p>}
       {valid ? (
         <>
           <div className="native-map-frame">

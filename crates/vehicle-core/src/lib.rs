@@ -2,11 +2,13 @@ pub mod auth;
 pub mod china;
 pub mod confirmation;
 pub mod credentials;
+pub mod geocode;
 pub mod models;
 pub mod schedules;
 pub mod telemetry;
 pub mod transport;
 pub mod wire;
+pub mod xchanger;
 
 pub type Result<T> = std::result::Result<T, String>;
 

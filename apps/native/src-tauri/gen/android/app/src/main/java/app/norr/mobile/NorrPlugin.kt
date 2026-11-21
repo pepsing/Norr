@@ -156,8 +156,8 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun readCredential(invoke: Invoke) {
+        val account = account(invoke)
         try {
-            val account = account(invoke)
             val stored = preferences.getString(account, null)
             if (stored == null) {
                 invoke.resolve(JSObject().put("value", JSONObject.NULL) as JSObject)
@@ -176,7 +176,16 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
             bytes.fill(0)
             invoke.resolve(result)
         } catch (_: Exception) {
-            invoke.reject("无法解密本机登录会话，请重新登录。")
+            // A restored or migrated preferences file can hold a ciphertext
+            // that this install's Keystore key cannot decrypt. Treat it as a
+            // logged-out state instead of blocking the login screen, and drop
+            // the unusable key so the next write starts clean.
+            runCatching {
+                KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+                    .deleteEntry("norr-session-v1")
+            }
+            preferences.edit().remove(account).commit()
+            invoke.resolve(JSObject().put("value", JSONObject.NULL) as JSObject)
         }
     }
 

@@ -36,6 +36,7 @@ struct Settings {
     notify_charging: bool,
     notify_commands: bool,
     refresh_on_wake: bool,
+    experimental_p4: bool,
 }
 
 impl Default for Settings {
@@ -47,6 +48,7 @@ impl Default for Settings {
             notify_charging: false,
             notify_commands: false,
             refresh_on_wake: true,
+            experimental_p4: false,
         }
     }
 }
@@ -81,8 +83,10 @@ impl Backend {
         };
         let archive = archive::Archive::open(&directory.join("history.sqlite3"))?;
         archive.sync(&history)?;
+        let mut client = ChinaClient::new()?;
+        client.set_experimental(history.settings.experimental_p4);
         Ok(Self {
-            client: ChinaClient::new()?,
+            client,
             login: PhoneLogin::new()?,
             history,
             directory,
@@ -114,7 +118,8 @@ impl Backend {
     }
 
     fn commit_session(&mut self, session: credentials::Session) -> Result<Value> {
-        let client = ChinaClient::new()?;
+        let mut client = ChinaClient::new()?;
+        client.set_experimental(self.history.settings.experimental_p4);
         credentials::save_session(&session)?;
         self.client = client;
         self.login.finish();
@@ -241,6 +246,23 @@ impl Backend {
                     return Err(error);
                 }
                 value(&self.history.settings)
+            }
+            "set_experimental_p4" => {
+                let enabled = args["enabled"].as_bool().ok_or("设置值无效")?;
+                let previous = self.history.settings.clone();
+                self.history.settings.experimental_p4 = enabled;
+                self.client.set_experimental(enabled);
+                if let Err(error) = self.save() {
+                    self.history.settings = previous;
+                    let experimental = self.history.settings.experimental_p4;
+                    self.client.set_experimental(experimental);
+                    return Err(error);
+                }
+                value(&self.history.settings)
+            }
+            "probe_vehicle" => {
+                let report = self.client.probe(string(&args, "vin")?).await?;
+                serde_json::to_value(report).map_err(|_| "探测结果编码失败".into())
             }
             "desktop_status" => Ok(
                 json!({"status":{"launchAtLogin":-1,"notifications":-1},"settings":self.history.settings}),

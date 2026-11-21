@@ -7,7 +7,10 @@ commands.allow = [
   "commit_history_import", "cancel_history_import", "set_refresh_interval",
   "desktop_status", "set_desktop_option", "open_system_settings",
   "test_notification", "take_notification_target", "open_location",
-  "open_map_link", "export_history", "send_command", "update_widgets", "take_widget_target"
+  "open_map_link", "export_history", "send_command", "update_widgets", "take_widget_target",
+  "probe_vehicle", "set_experimental_p4",
+  "set_xchanger_token", "refresh_xchanger", "xchanger_status", "xchanger_climate",
+  "reverse_geocode", "xchanger_target_soc", "xchanger_set_target_soc"
 ]
 
 [[permission]]

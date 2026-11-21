@@ -139,6 +139,31 @@ pub fn save_session(session: &Session) -> Result<()> {
     write(SERVICE, ACCOUNT, &bytes)
 }
 
+pub fn save_xchanger_token(token: &str) -> Result<()> {
+    let token = token.trim();
+    if token.len() < 16 || token.len() > 16_384 || token.chars().any(char::is_whitespace) {
+        return Err("xchanger 令牌格式无效".into());
+    }
+    write(SERVICE, "xchanger-token", token.as_bytes())
+}
+
+pub fn xchanger_token() -> Result<Option<Zeroizing<String>>> {
+    match read(SERVICE, "xchanger-token")? {
+        Some(bytes) => String::from_utf8(bytes.to_vec())
+            .map(|value| Some(Zeroizing::new(value)))
+            .map_err(|_| "xchanger 令牌格式无效".into()),
+        None => Ok(None),
+    }
+}
+
+pub fn save_signing_key(value: &str) -> Result<()> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 4096 {
+        return Err("签名配置格式错误".into());
+    }
+    write(SERVICE, "polestar-china-signing-key", value.as_bytes())
+}
+
 pub fn signing_key() -> Result<Zeroizing<String>> {
     if let Some(bytes) = read(SERVICE, "polestar-china-signing-key")? {
         return String::from_utf8(bytes.to_vec())
