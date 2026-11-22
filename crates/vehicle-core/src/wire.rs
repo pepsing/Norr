@@ -183,13 +183,22 @@ pub fn state_request(vin: &str) -> Vec<u8> {
     [string(1, &uuid::Uuid::new_v4().to_string()), string(2, vin)].concat()
 }
 pub fn payload(body: &[u8], vin: &str) -> Result<Message> {
+    payload_from(body, vin, &[3])
+}
+
+pub fn payload_from(body: &[u8], vin: &str, fields: &[u32]) -> Result<Message> {
     let envelope = Message::parse(body)?;
     if let Some(actual) = envelope.string(2) {
         if !actual.eq_ignore_ascii_case(vin) {
             return Err("车辆响应身份不匹配".into());
         }
     }
-    Message::parse(envelope.bytes(3).ok_or("车辆响应缺少数据")?)
+    for &field in fields {
+        if let Some(data) = envelope.bytes(field) {
+            return Message::parse(data);
+        }
+    }
+    Err("车辆响应缺少数据".into())
 }
 
 #[cfg(test)]

@@ -217,14 +217,27 @@ impl ChinaClient {
         .map_err(transport::error)
     }
 
+    fn p4_vehicle(&self, vin: &str) -> Option<&Vehicle> {
+        self.fleet.iter().find(|car| {
+            car.vin == vin
+                && car
+                    .platform
+                    .as_deref()
+                    .is_some_and(|platform| platform.eq_ignore_ascii_case("HUANFU"))
+        })
+    }
+
     async fn read(&self, vin: &str, kind: &str) -> Reading {
+        let p4 = self.p4_vehicle(vin).is_some();
         let (path, chronos, first) = match kind {
             "battery" => ("/services.vehiclestates.battery.BatteryService/GetLatestBattery", false, false),
             "exterior" => ("/services.vehiclestates.exterior.ExteriorService/GetLatestExterior", false, false),
             "climate" => ("/services.vehiclestates.parkingclimatization.ParkingClimatizationService/GetLatestParkingClimatization", false, false),
+            "odometer" if p4 => ("/services.vehiclestates.odometer.OdometerService/GetLatestOdometer", false, true),
             "odometer" => ("/services.vehiclestates.odometer.OdometerService/GetOdometer", false, true),
             "target" => ("/chronos.services.v1.TargetSocService/GetTargetSoc", true, true),
             "amperage" => ("/chronos.services.v1.AmpLimitService/GetAmpLimit", true, true),
+            "health" if p4 => ("/services.vehiclestates.health.HealthService/GetLatestHealth", false, true),
             "health" => ("/services.vehiclestates.health.HealthService/GetHealth", false, true),
             "airQuality" => ("/services.vehiclestates.precleaning.PreCleaningService/GetPreCleaning", false, true),
             "location" => ("/dtlinternet.DtlInternetService/GetLastKnownLocation", true, false),
@@ -235,7 +248,14 @@ impl ChinaClient {
             "chargeLocations" => ("/chronos.services.v1.ChargeLocationService/GetChargeLocations", true, true),
             _ => return Reading::failure("读取项目尚未接入".into()),
         };
-        let body = if kind == "software" {
+        let body = if p4 {
+            match kind {
+                "battery" | "exterior" | "climate" | "odometer" | "health" => wire::string(2, vin),
+                "software" => [wire::string(1, vin), wire::string(2, "zh-CN")].concat(),
+                "target" => chronos_request_for(vin, "PolestarApp", 0),
+                _ => return Reading::failure("尚未接入此项 P4 车况".into()),
+            }
+        } else if kind == "software" {
             [wire::string(1, vin), wire::string(2, "zh-CN")].concat()
         } else if matches!(kind, "softwareSchedule" | "location") {
             wire::string(1, vin)
@@ -249,7 +269,7 @@ impl ChinaClient {
         match self
             .call(vin, path, body, chronos, first)
             .await
-            .and_then(|bytes| parse_reading(kind, &bytes, vin))
+            .and_then(|bytes| parse_reading(kind, &bytes, vin, p4))
         {
             Ok((value, timestamp)) => Reading::success(value, timestamp),
             Err(error) => Reading::failure(error),
@@ -258,6 +278,31 @@ impl ChinaClient {
 
     pub async fn refresh(&mut self, vin: &str) -> Result<Snapshot> {
         self.ensure_metadata().await?;
+        if let Some(car) = self.p4_vehicle(vin) {
+            let (battery, exterior, climate, odometer, health, target, software) = tokio::join!(
+                self.read(vin, "battery"),
+                self.read(vin, "exterior"),
+                self.read(vin, "climate"),
+                self.read(vin, "odometer"),
+                self.read(vin, "health"),
+                self.read(vin, "target"),
+                self.read(vin, "software")
+            );
+            let snapshot = Snapshot {
+                vehicle: car.clone(),
+                fetched_at: now_ms(),
+                readings: BTreeMap::from([
+                    ("battery".into(), battery),
+                    ("exterior".into(), exterior),
+                    ("climate".into(), climate),
+                    ("odometer".into(), odometer),
+                    ("health".into(), health),
+                    ("target".into(), target),
+                    ("software".into(), software),
+                ]),
+            };
+            return self.retry_rejected_readings(snapshot).await;
+        }
         let vehicle = self.vehicle(vin)?;
         let (
             battery,
@@ -290,7 +335,7 @@ impl ChinaClient {
             self.read(vin, "chargeTimer"),
             self.read(vin, "chargeLocations"),
         );
-        let mut snapshot = Snapshot {
+        let snapshot = Snapshot {
             vehicle,
             fetched_at: now_ms(),
             readings: [
@@ -313,6 +358,11 @@ impl ChinaClient {
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
         };
+        self.retry_rejected_readings(snapshot).await
+    }
+
+    async fn retry_rejected_readings(&mut self, mut snapshot: Snapshot) -> Result<Snapshot> {
+        let vin = &snapshot.vehicle.vin;
         let rejected = snapshot
             .readings
             .iter()
@@ -326,13 +376,16 @@ impl ChinaClient {
                     .readings
                     .insert(kind.clone(), self.read(vin, &kind).await);
             }
+            snapshot.fetched_at = now_ms();
         }
         Ok(snapshot)
     }
 
     pub async fn refresh_reading(&mut self, vin: &str, kind: &str) -> Result<Reading> {
         self.ensure_metadata().await?;
-        self.vehicle(vin)?;
+        if self.p4_vehicle(vin).is_none() {
+            self.vehicle(vin)?;
+        }
         let mut reading = self.read(vin, kind).await;
         if reading.error.as_deref() == Some(transport::AUTH_ERROR) {
             self.authorize(true).await?;
@@ -592,25 +645,34 @@ fn chronos_request(vin: &str) -> Vec<u8> {
 }
 
 fn chronos_request_with_offset(vin: &str, offset: i32) -> Vec<u8> {
+    chronos_request_for(vin, "RCS", offset)
+}
+
+fn chronos_request_for(vin: &str, client: &str, offset: i32) -> Vec<u8> {
     wire::bytes(
         1,
         &[
             wire::state_request(vin),
-            wire::string(3, "RCS"),
+            wire::string(3, client),
             wire::bytes(4, &wire::integer(1, offset as i64 as u64)),
         ]
         .concat(),
     )
 }
 
-fn parse_reading(kind: &str, bytes: &[u8], vin: &str) -> Result<(Value, Option<u64>)> {
+fn parse_reading(kind: &str, bytes: &[u8], vin: &str, p4: bool) -> Result<(Value, Option<u64>)> {
     if !matches!(
         kind,
         "battery" | "exterior" | "climate" | "odometer" | "target" | "amperage"
     ) {
         return telemetry::parse(kind, bytes, vin);
     }
-    let message = wire::payload(bytes, vin)?;
+    let fields: &[u32] = if p4 && kind == "target" {
+        &[3, 4]
+    } else {
+        &[3]
+    };
+    let message = wire::payload_from(bytes, vin, fields)?;
     let timestamp = message.timestamp(1);
     let value = match kind {
         "battery" => json!({
@@ -662,6 +724,8 @@ fn parse_reading(kind: &str, bytes: &[u8], vin: &str) -> Result<(Value, Option<u
                 (_, None | Some(0)) => "unknown",
                 (true, Some(1)) | (false, Some(4..=8)) => "active",
                 (true, Some(3)) | (false, Some(2..=3)) => "starting",
+                (true, Some(2)) => "idle",
+                _ if p4 => "unknown",
                 _ => "idle",
             };
             json!({"activity":activity, "interiorTemperature":if digital {message.number(7)} else {None},
@@ -670,6 +734,10 @@ fn parse_reading(kind: &str, bytes: &[u8], vin: &str) -> Result<(Value, Option<u
         "odometer" => json!({"km":message.number(2).map(|n| n/1000.0), "tripKm":message.number(3),
             "automaticTripKm":message.number(4), "manualAverageSpeed":message.int(5), "automaticAverageSpeed":message.int(6),
             "sinceChargeTripKm":message.number(7), "sinceChargeAverageSpeed":message.int(8)}),
+        // This C3 setting has differed from the active setting shown by the P4.
+        "target" if p4 => {
+            json!({"referencePercent":message.int(1).filter(|n| (1..=100).contains(n))})
+        }
         "target" => json!({"percent":message.int(1).filter(|n| (1..=100).contains(n))}),
         "amperage" => json!({"amps":message.int(1).filter(|n| (1..=64).contains(n))}),
         _ => return Err("未知车辆读取项目".into()),
@@ -1153,8 +1221,35 @@ mod tests {
         assert!(command_request(&car, &command).is_err());
     }
     #[test]
+    fn p4_reads_the_target_from_its_settings_envelope() {
+        let vin = "TEST-VEHICLE";
+        let target = [wire::string(2, vin), wire::bytes(4, &wire::integer(1, 90))].concat();
+        let (value, time) = parse_reading("target", &target, vin, true).unwrap();
+        assert_eq!(value["referencePercent"], 90);
+        assert!(value.get("percent").is_none());
+        assert_eq!(time, None);
+        assert!(parse_reading("target", &target, vin, false).is_err());
+        assert!(parse_reading("target", &target, "OTHER", true).is_err());
+    }
+
+    #[test]
+    fn p4_climate_keeps_report_time_and_unknown_status() {
+        for (raw, expected) in [(1, "active"), (2, "idle"), (3, "starting"), (55, "unknown")] {
+            let data = [
+                wire::bytes(1, &wire::integer(1, 1700000000)),
+                wire::integer(2, raw),
+            ]
+            .concat();
+            let env = [wire::string(2, "TEST"), wire::bytes(3, &data)].concat();
+            let (value, time) = parse_reading("climate", &env, "TEST", true).unwrap();
+            assert_eq!(value["activity"], expected);
+            assert_eq!(time, Some(1700000000000));
+        }
+    }
+
+    #[test]
     fn missing_battery_is_unknown() {
-        let (value, _) = parse_reading("battery", &wire::bytes(3, &[]), "test").unwrap();
+        let (value, _) = parse_reading("battery", &wire::bytes(3, &[]), "test", false).unwrap();
         assert!(value["percent"].is_null());
     }
 }
