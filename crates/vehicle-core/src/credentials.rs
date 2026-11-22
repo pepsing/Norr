@@ -32,7 +32,9 @@ const SERVICE: &str = "app.norr.mac";
 const SERVICE: &str = "app.norr.windows";
 #[cfg(target_os = "android")]
 const SERVICE: &str = "app.norr.mobile";
-#[cfg(target_os = "ios")]
+#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+const SERVICE: &str = "app.norr.ios.p4test";
+#[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
 const SERVICE: &str = "app.norr.ios";
 #[cfg(target_env = "ohos")]
 const SERVICE: &str = "app.norr.harmonyos";
@@ -70,6 +72,11 @@ pub struct Session {
 }
 
 impl Session {
+    pub fn account_scope(&self) -> String {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(self.login.user_uid.as_bytes()))
+    }
+
     pub fn from_login(login: Login) -> Result<Self> {
         let issued_at = now_ms() as f64 / 1000.0 - APPLE_EPOCH;
         let session = Self {

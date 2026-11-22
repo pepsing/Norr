@@ -30,6 +30,8 @@ if (!signingKey) {
   process.exit(1);
 }
 const extraArgs = process.argv.slice(3);
+const fieldTest = extraArgs.includes("--p4-field-test");
+if (fieldTest && !(platform === "ios" && extraArgs.includes("--device"))) throw new Error("P4 实测包需要 iPhoneOS 归档");
 const device = platform === "ios" && extraArgs.includes("--device");
 const args =
   platform === "android"
@@ -41,7 +43,8 @@ if (platform === "windows") {
   args.push("--target", "x86_64-pc-windows-msvc");
   if (process.platform !== "win32") args.push("--runner", "cargo-xwin");
 }
-args.push(...extraArgs.filter((arg) => platform !== "ios" || arg !== "--device"));
+args.push(...extraArgs.filter((arg) => arg !== "--p4-field-test" && (platform !== "ios" || arg !== "--device")));
+if (fieldTest) args.push("--features", "p4-field-test");
 const cli = fileURLToPath(
   new URL("../../../node_modules/@tauri-apps/cli/tauri.js", import.meta.url),
 );
@@ -52,11 +55,12 @@ const result = spawnSync(process.execPath, [cli, ...args], {
     ...(platform === "macos"
       ? { PATH: `/usr/bin:/bin:${process.env.PATH ?? ""}` }
       : {}),
+    VITE_P4_FIELD_TEST: fieldTest ? "true" : "false",
     NORR_POLESTAR_CN_SIGNING_KEY: signingKey,
   },
 });
 if (result.error)
   console.error("构建启动失败。请检查 Tauri 和 Rust 开发环境。");
-if (result.status === 0 && platform === "ios") finalizeIOS(device);
+if (result.status === 0 && platform === "ios") finalizeIOS(device, fieldTest);
 if (result.status === 0 && platform === "macos") finalizeMacOS(extraArgs);
 process.exit(result.status ?? 1);

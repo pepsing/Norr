@@ -146,6 +146,11 @@ pub struct PendingImport {
     pub records: Vec<Record>,
 }
 
+#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+pub mod p4_log;
+#[cfg(any(test, all(target_os = "ios", feature = "p4-field-test")))]
+pub mod p4_recordings;
+
 pub struct Archive {
     connection: Connection,
 }

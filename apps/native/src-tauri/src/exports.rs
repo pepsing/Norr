@@ -111,7 +111,7 @@ pub fn save(bytes: Vec<u8>, format: &str) -> Result<bool> {
         drop(file);
         crate::mobile::call::<Saved>(
             "saveHistory",
-            serde_json::json!({"path":path,"format":format}),
+            serde_json::json!({"path":path,"format":if format == "p4-log" { "json" } else { format }}),
         )
         .map(|result| result.saved)
     })();

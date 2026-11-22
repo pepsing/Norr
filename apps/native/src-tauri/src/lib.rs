@@ -13,6 +13,10 @@ mod desktop;
 #[path = "desktop_mobile.rs"]
 mod desktop;
 mod exports;
+#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+mod p4_field;
+#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+mod p4_recorder;
 mod insights;
 mod login;
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -301,7 +305,11 @@ async fn import_hisingen(
 
 #[tauri::command]
 async fn connect(state: State<'_, VehicleService>) -> Result<Vec<Vehicle>> {
-    state.lock().await.client.connect().await
+    let mut backend = state.lock().await;
+    #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+    return p4_recorder::read_garage(&mut backend).await;
+    #[cfg(not(all(target_os = "ios", feature = "p4-field-test")))]
+    backend.client.connect().await
 }
 
 #[tauri::command]
@@ -887,7 +895,7 @@ pub fn run() {
             }
         })
         .invoke_handler(|invoke| {
-            #[cfg(target_os = "ios")]
+            #[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
             if invoke.message.command() == "sync_watch"
                 && invoke.message.webview_ref().label() == "main"
             {
@@ -904,6 +912,23 @@ pub fn run() {
             if invoke.message.webview_ref().label() != "main" {
                 invoke.resolver.reject("请在 Norr 主窗口操作");
                 return true;
+            }
+            #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+            if matches!(invoke.message.command(), "field_recordings" | "share_recording" | "record_session_observation" | "read_recording_vehicle") {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                    p4_recorder::field_recordings, p4_recorder::share_recording, p4_recorder::record_session_observation, p4_recorder::read_recording_vehicle
+                ];
+                return handler(invoke);
+            }
+            #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+            {
+                match invoke.message.command() {
+                    "session_status" | "request_login_code" | "sign_in_phone" | "sign_in_password" | "connect" => {}
+                    _ => {
+                        invoke.resolver.reject("此测试包仅提供账号登录和实测日志");
+                        return true;
+                    }
+                }
             }
             #[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
             if ["update_widgets", "take_widget_target"].contains(&invoke.message.command()) {

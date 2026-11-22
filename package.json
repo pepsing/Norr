@@ -22,6 +22,7 @@
     "build:android": "npm run build --workspace @norr/native -- android",
     "build:harmonyos": "node apps/harmonyos/scripts/build.mjs",
     "build:ios": "npm run build --workspace @norr/native -- ios",
+    "build:ios:p4": "npm run build --workspace @norr/native -- ios --device --p4-field-test",
     "build:ios:unsigned": "npm run build --workspace @norr/native -- ios --device",
     "build:watch": "node apps/native/scripts/build-watch.mjs",
     "check:native": "cargo test --workspace"

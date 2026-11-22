@@ -4,6 +4,7 @@ import { native, type SessionStatus } from "./client";
 
 interface Props {
   session: SessionStatus | undefined;
+  fieldTest?: boolean;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
   onSignedIn: (session: SessionStatus) => Promise<void>;
@@ -11,6 +12,7 @@ interface Props {
 
 export function PhoneSignIn({
   session,
+  fieldTest,
   busy,
   onBusyChange,
   onSignedIn,
@@ -248,8 +250,7 @@ export function PhoneSignIn({
         )}
       </div>
       <p className="muted native-sign-in-note">
-        登录后，会话保存在{credentialStorage}中。当前支持中国区 Polestar
-        2，Polestar 4 车辆服务仍在接入。
+        登录后，会话保存在{credentialStorage}中。{fieldTest ? "登录成功后，从账号车库选择测试车辆。" : "当前支持中国区 Polestar 2，Polestar 4 车辆服务仍在接入。"}
       </p>
     </form>
   );

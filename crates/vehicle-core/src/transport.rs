@@ -43,7 +43,7 @@ impl Decoder for RawCodec {
     }
 }
 
-pub async fn channel(url: &str) -> crate::Result<Channel> {
+fn endpoint(url: &str) -> crate::Result<Endpoint> {
     #[cfg(any(target_os = "android", target_os = "ios", target_env = "ohos"))]
     let tls = ClientTlsConfig::new().with_webpki_roots();
     #[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
@@ -55,7 +55,15 @@ pub async fn channel(url: &str) -> crate::Result<Channel> {
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(25))
         .user_agent("grpc-java-okhttp/1.68.2")
-        .map_err(|_| "连接配置失败")?
+        .map_err(|_| "连接配置失败".into())
+}
+
+pub(crate) fn lazy_channel(url: &str) -> crate::Result<Channel> {
+    Ok(endpoint(url)?.connect_lazy())
+}
+
+pub async fn channel(url: &str) -> crate::Result<Channel> {
+    endpoint(url)?
         .connect()
         .await
         .map_err(|_| "无法连接车辆服务，请检查网络".into())

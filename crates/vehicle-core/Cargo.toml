@@ -3,6 +3,9 @@ name = "norr-vehicle-core"
 version.workspace = true
 edition.workspace = true
 
+[features]
+p4-field-test = []
+
 [dependencies]
 sha2 = "0.10"
 bytes = "1"

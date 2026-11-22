@@ -199,6 +199,7 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
   @objc func saveHistory(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(ExportArgs.self)
     let source = URL(fileURLWithPath: args.path).standardizedFileURL.resolvingSymlinksInPath()
+    let fieldTest = Bundle.main.object(forInfoDictionaryKey: "NorrP4FieldTest") as? Bool == true
     let appData = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[
       0
     ]
@@ -213,7 +214,7 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     do {
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-      let copy = directory.appendingPathComponent("norr-history.\(args.format)")
+      let copy = directory.appendingPathComponent(fieldTest ? "norr-p4-test-log.json" : "norr-history.\(args.format)")
       try FileManager.default.copyItem(at: source, to: copy)
       DispatchQueue.main.async {
         guard self.document == nil, let presenter = self.manager.viewController,
@@ -221,6 +222,25 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
         else {
           try? FileManager.default.removeItem(at: directory)
           invoke.reject("请先完成当前文件操作。")
+          return
+        }
+        if fieldTest {
+          let share = UIActivityViewController(activityItems: [copy], applicationActivities: nil)
+          if let popover = share.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY,
+              width: 1, height: 1)
+            popover.permittedArrowDirections = []
+          }
+          share.completionWithItemsHandler = { _, completed, _, error in
+            defer { try? FileManager.default.removeItem(at: directory) }
+            if error != nil {
+              invoke.reject("日志分享失败，请重新导出。")
+            } else {
+              invoke.resolve(["saved": completed])
+            }
+          }
+          presenter.present(share, animated: true)
           return
         }
         let operation = DocumentOperation(invoke: invoke, export: copy) { [weak self] in

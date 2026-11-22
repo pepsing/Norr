@@ -1,8 +1,8 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-export function finalizeIOS(device = false) {
+export function finalizeIOS(device = false, fieldTest = false) {
   const source = fileURLToPath(
     new URL(
       "../src-tauri/gen/apple/build/norr_iOS.xcarchive/Products/Applications/Norr.app",
@@ -19,6 +19,10 @@ export function finalizeIOS(device = false) {
   const platform = device ? "iPhoneOS" : "iPhoneSimulator";
   if (!info.CFBundleSupportedPlatforms?.includes(platform)) {
     throw new Error(`Expected ${platform} archive`);
+  }
+  if (fieldTest) {
+    if (!device) throw new Error("P4 实测包需要 iPhoneOS 归档");
+    return packageP4FieldIPA(source, info);
   }
   verifyIOSWidgetCommand(`${source}/${info.CFBundleExecutable}`);
   verifyIOSSiriShortcuts(source, info.CFBundleExecutable);
@@ -193,5 +197,44 @@ function packageUnsignedIPAs(source, directory, version) {
     console.log("已使用 ad-hoc 签名保留小组件权限声明，安装前需使用有效证书与描述文件重新签名。");
   } finally {
     rmSync(staging, { recursive: true, force: true });
+  }
+}
+
+function packageP4FieldIPA(source, info) {
+  const directory = fileURLToPath(new URL("../../../target/ios/", import.meta.url));
+  mkdirSync(directory, { recursive: true });
+  const stage = mkdtempSync(directory + ".p4-field-");
+  try {
+    const buildNumber = "5";
+    const payload = stage + "/Payload";
+    const app = payload + "/Norr.app";
+    mkdirSync(payload);
+    cpSync(source, app, { recursive: true });
+    for (const name of ["PlugIns", "Watch", "Metadata.appintents", "embedded.mobileprovision", "_CodeSignature"]) {
+      rmSync(app + "/" + name, { recursive: true, force: true });
+    }
+    const plist = app + "/Info.plist";
+    execFileSync("/usr/bin/plutil", ["-replace", "CFBundleIdentifier", "-string", "app.norr.ios.p4test", plist]);
+    execFileSync("/usr/bin/plutil", ["-replace", "CFBundleVersion", "-string", buildNumber, plist]);
+    execFileSync("/usr/bin/plutil", ["-replace", "CFBundleDisplayName", "-string", "Norr P4 实测", plist]);
+    execFileSync("/usr/bin/plutil", ["-insert", "NorrP4FieldTest", "-bool", "YES", plist]);
+    const binary = app + "/" + info.CFBundleExecutable;
+    const frameworks = readdirSync(app, { recursive: true }).filter(p => p.endsWith(".dylib") || p.endsWith(".framework"));
+    for (const code of [...frameworks.map(p => app + "/" + p), binary]) {
+      const signed = spawnSync("/usr/bin/codesign", ["-d", code]);
+      if (!signed.status) execFileSync("/usr/bin/codesign", ["--remove-signature", code]);
+    }
+    if (execFileSync("/usr/bin/lipo", ["-archs", binary], { encoding: "utf8" }).trim() !== "arm64" ||
+        !/^\s*platform IOS\s*$/m.test(execFileSync("/usr/bin/xcrun", ["vtool", "-show-build", binary], {encoding:"utf8"}))) {
+      throw new Error("P4 实测 IPA 需要 iOS arm64 可执行文件");
+    }
+    const output = directory + `Norr-P4-Test_${info.CFBundleShortVersionString}_build${buildNumber}_ios-arm64-unsigned.ipa`;
+    const archive = stage + "/field.ipa";
+    execFileSync("/usr/bin/ditto", ["-c", "-k", "--keepParent", "--norsrc", payload, archive]);
+    execFileSync("/usr/bin/unzip", ["-tq", archive]);
+    renameSync(archive, output);
+    console.log("iPhone P4 实测 IPA：" + output);
+  } finally {
+    rmSync(stage, {recursive:true, force:true});
   }
 }

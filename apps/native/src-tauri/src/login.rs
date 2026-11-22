@@ -127,7 +127,7 @@ async fn commit_session(
     credentials::save_session(&session)?;
     backend.client = client;
     backend.history.settings.selected_vin = None;
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
     let _ = crate::watch::synchronize("", true, true).await;
     flow.finish();
     if let Err(error) = backend.save() {

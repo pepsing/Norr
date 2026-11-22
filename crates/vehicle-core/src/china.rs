@@ -156,6 +156,13 @@ impl ChinaClient {
             .iter()
             .map(parse_car)
             .collect::<Result<Vec<_>>>()?;
+        if cfg!(all(target_os = "ios", feature = "p4-field-test")) {
+            self.c3 = grpc_url(&discovery["c3"]).and_then(|url| transport::lazy_channel(&url)).ok();
+            self.lbs = grpc_url(&discovery["c3Lbs"]).and_then(|url| transport::lazy_channel(&url)).ok();
+            self.fleet = fleet;
+            self.metadata_at = now_ms();
+            return Ok(self.fleet.clone());
+        }
         let c3 = transport::channel(&grpc_url(&discovery["c3"])?).await?;
         let lbs = match grpc_url(&discovery["c3Lbs"]) {
             Ok(url) => transport::channel(&url).await.ok(),
@@ -376,7 +383,9 @@ impl ChinaClient {
                     .readings
                     .insert(kind.clone(), self.read(vin, &kind).await);
             }
-            snapshot.fetched_at = now_ms();
+            if self.p4_vehicle(vin).is_some() {
+                snapshot.fetched_at = now_ms();
+            }
         }
         Ok(snapshot)
     }

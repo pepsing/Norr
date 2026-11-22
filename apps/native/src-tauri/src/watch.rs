@@ -1,6 +1,7 @@
 use crate::Result;
 use norr_vehicle_core::{credentials, now_ms};
 
+#[cfg(not(feature = "p4-field-test"))]
 #[tauri::command]
 pub async fn sync_watch(vin: String, clear: Option<bool>) -> Result<()> {
     synchronize(&vin, clear.unwrap_or(false), false).await
