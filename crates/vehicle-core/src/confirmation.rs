@@ -42,8 +42,20 @@ pub fn update(receipt: &mut Receipt, snapshot: &Snapshot) {
         endpoint,
         "target" | "amperage" | "climateTimers" | "chargeTimer"
     );
+    let p4_control = snapshot
+        .vehicle
+        .platform
+        .as_deref()
+        .is_some_and(|platform| platform.eq_ignore_ascii_case("HUANFU"))
+        && matches!(endpoint, "climate" | "target");
     let result = if reading.status != "success" {
         "回读失败，等待核对"
+    } else if p4_control
+        && reading.reported_at.is_none_or(|time| {
+            time <= receipt.time || time > reading.observed_at || time > snapshot.fetched_at
+        })
+    {
+        "等待操作后的车辆上报"
     } else if !direct && reading.reported_at.is_none_or(|time| time < receipt.time) {
         "车辆数据早于指令，等待新状态"
     } else if reading
@@ -146,6 +158,48 @@ fn matches_target(receipt: &Receipt, value: &Value) -> bool {
 mod tests {
     use super::*;
     use crate::models::Command;
+    #[test]
+    fn p4_climate_and_charge_target_require_a_new_matching_vehicle_report() {
+        for (action, field, value, parameter) in [
+            ("climateStop", "climate", json!({"activity":"idle"}), None),
+            (
+                "climateStart",
+                "climate",
+                json!({"activity":"active"}),
+                None,
+            ),
+            ("target", "target", json!({"percent":90}), Some(90.0)),
+        ] {
+            let initial: Receipt = serde_json::from_value(json!({
+                "id":"fixture", "time":1000, "status":"accepted", "message":"",
+                "command":{"vin":"TEST","action":action,"value":parameter}
+            }))
+            .unwrap();
+            for (platform, reported, expected) in [
+                ("HUANFU", None, false),
+                ("HUANFU", Some(999), false),
+                ("HUANFU", Some(1000), false),
+                ("HUANFU", Some(1001), true),
+                ("HUANFU", Some(2001), false),
+                ("ICUP", None, field == "target"),
+            ] {
+                let snapshot = serde_json::from_value(json!({
+                    "vehicle":{"vin":"TEST","model":"Polestar","platform":platform,"capabilities":{},"limits":{}},
+                    "fetchedAt":2000, "readings":{(field):{
+                        "status":"success","value":value,"observedAt":2000,"reportedAt":reported
+                    }}
+                })).unwrap();
+                let mut receipt = initial.clone();
+                update(&mut receipt, &snapshot);
+                assert_eq!(
+                    receipt.readback.as_deref() == Some(CONFIRMED),
+                    expected,
+                    "{action} on {platform}, reported at {reported:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn creation_requires_a_new_id_and_every_requested_field() {
         let schedule = Schedule {

@@ -3,6 +3,7 @@ pub mod china;
 pub mod confirmation;
 pub mod credentials;
 pub mod models;
+pub mod p4_readback;
 pub mod schedules;
 pub mod telemetry;
 pub mod transport;
