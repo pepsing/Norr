@@ -12,12 +12,14 @@ pub fn data_directory() -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         let home = std::env::var_os("HOME").ok_or("无法定位用户数据目录")?;
-        Ok(PathBuf::from(home).join("Library/Application Support/app.norr.mac"))
+        Ok(PathBuf::from(home)
+            .join("Library/Application Support")
+            .join(norr_vehicle_core::credentials::storage_namespace()))
     }
     #[cfg(target_os = "windows")]
     {
         let directory = std::env::var_os("LOCALAPPDATA").ok_or("无法定位 Windows 用户数据目录")?;
-        Ok(PathBuf::from(directory).join("app.norr.windows"))
+        Ok(PathBuf::from(directory).join(norr_vehicle_core::credentials::storage_namespace()))
     }
 }
 
@@ -26,6 +28,52 @@ pub fn private_file(_options: &mut OpenOptions) {
     {
         use std::os::unix::fs::OpenOptionsExt;
         _options.mode(0o600);
+    }
+}
+
+#[cfg(all(test, any(target_os = "macos", target_os = "windows")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn macos_data_and_session_lock_follow_the_credential_namespace() {
+        let directory = data_directory().unwrap();
+        let expected = if cfg!(feature = "polestar4-test") {
+            "app.norr.mac.polestar4"
+        } else {
+            "app.norr.mac"
+        };
+        assert_eq!(
+            norr_vehicle_core::credentials::storage_namespace(),
+            expected
+        );
+        assert!(directory.ends_with(Path::new("Application Support").join(expected)));
+        assert!(directory
+            .join("session.lock")
+            .ends_with(Path::new(expected).join("session.lock")));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn windows_p4_storage_is_separate_and_preserves_the_field_test_namespace() {
+        let expected = if cfg!(any(feature = "p4-field-test", feature = "polestar4-test")) {
+            "app.norr.windows.p4test"
+        } else {
+            "app.norr.windows"
+        };
+        let directory = data_directory().unwrap();
+        assert_eq!(
+            norr_vehicle_core::credentials::storage_namespace(),
+            expected
+        );
+        assert_eq!(
+            directory,
+            PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap()).join(expected)
+        );
+        assert!(directory
+            .join("session.lock")
+            .ends_with(Path::new(expected).join("session.lock")));
     }
 }
 
@@ -53,7 +101,12 @@ pub fn show_running_window() -> bool {
                 FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
             },
         };
-        if let Ok(window) = FindWindowW(None, w!("Norr 北行")) {
+        let title = if cfg!(any(feature = "p4-field-test", feature = "polestar4-test")) {
+            w!("Norr 北行 · P4 实测")
+        } else {
+            w!("Norr 北行")
+        };
+        if let Ok(window) = FindWindowW(None, title) {
             let _ = ShowWindow(window, SW_RESTORE);
             let _ = SetForegroundWindow(window);
             return true;
@@ -99,6 +152,7 @@ pub fn open_url(url: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn authenticate(_window: &tauri::WebviewWindow) -> Result<bool> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
@@ -115,39 +169,5 @@ pub fn authenticate(_window: &tauri::WebviewWindow) -> Result<bool> {
             fn norr_authenticate() -> bool;
         }
         Ok(unsafe { norr_authenticate() })
-    }
-    #[cfg(target_os = "windows")]
-    {
-        use windows::{
-            core::{factory, HSTRING},
-            Security::Credentials::UI::{
-                UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
-            },
-            Win32::{Foundation::HWND, System::WinRT::IUserConsentVerifierInterop},
-        };
-        let _apartment =
-            crate::desktop::Apartment::new().map_err(|_| "Windows 身份验证初始化失败")?;
-        let availability = UserConsentVerifier::CheckAvailabilityAsync()
-            .and_then(|operation| operation.join())
-            .map_err(|_| "无法读取 Windows Hello 状态")?;
-        if availability != UserConsentVerifierAvailability::Available {
-            return Err(
-                "请先在 Windows 设置中配置 Windows Hello PIN 或生物识别，再确认车辆操作".into(),
-            );
-        }
-        let hwnd = _window.hwnd().map_err(|_| "无法定位身份验证窗口")?;
-        let interop = factory::<UserConsentVerifier, IUserConsentVerifierInterop>()
-            .map_err(|_| "Windows 身份验证不可用")?;
-        let operation: windows_future::IAsyncOperation<UserConsentVerificationResult> = unsafe {
-            interop.RequestVerificationForWindowAsync(
-                HWND(hwnd.0),
-                &HSTRING::from("确认 Norr 的车辆操作"),
-            )
-        }
-        .map_err(|_| "无法打开 Windows 身份验证")?;
-        operation
-            .join()
-            .map(|result| result == UserConsentVerificationResult::Verified)
-            .map_err(|_| "Windows 身份验证未完成".into())
     }
 }

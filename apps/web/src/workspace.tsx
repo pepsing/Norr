@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { WorkspaceContext } from "./workspace-context";
 import type { ReactNode } from "react";
 import { initialVehicle } from "./vehicle";
+import { isChinaP4, p4DemoEquipment } from "./p4-demo";
 import type { Vehicle, PreviewScenario } from "./vehicle";
 import {
   defaultAppearance,
@@ -24,7 +25,7 @@ export {
 } from "./capabilities";
 export type { Capability } from "./capabilities";
 
-export interface DemoVehicle extends Vehicle, CapabilityProfile {
+export interface DemoVehicle extends Vehicle, CapabilityProfile, Partial<typeof p4DemoEquipment> {
   appearance?: VehicleAppearance;
   scheduleReads?: Partial<Record<Schedule["kind"], ScheduleRead>>;
   id: string;
@@ -45,6 +46,7 @@ export interface Schedule {
   time: string;
   end: string;
   days: string[];
+  onceDate?: string;
   enabled: boolean;
   target?: number;
   confirmation?: "accepted" | "deleting";
@@ -131,6 +133,7 @@ export function makeVehicle(
       ? vehicleConfiguration(appearance)
       : { model: "Volvo XC60", variant: "T8 plug-in hybrid" }),
     ...profile,
+    ...(brand === "Polestar" && region === "中国区" && appearance.modelId === "polestar-4" ? p4DemoEquipment : {}),
     scheduleReads: {
       空调: {
         status:
@@ -158,8 +161,12 @@ export function makeVehicle(
   };
 }
 
-function initialData(): WorkspaceData {
-  const vehicle = makeVehicle("Polestar", "国际区", "我的 Polestar");
+function initialData(p4 = false): WorkspaceData {
+  const vehicle = p4 ? {
+    ...makeVehicle("Polestar", "中国区", "我的 Polestar 4", defaultAppearance("polestar-4")),
+    range: 69, battery: 11, chargeLimit: 100, charging: false, targetTemperature: 22,
+    cabinTemperature: 19, outsideTemperature: 10, odometer: 17711,
+  } : makeVehicle("Polestar", "国际区", "我的 Polestar");
   return {
     vehicles: [vehicle],
     selected: vehicle.id,
@@ -202,16 +209,14 @@ function initialData(): WorkspaceData {
   };
 }
 
-const storageKey = "hisingen-design-workspace-v2";
-
-function loadWorkspace() {
+function loadWorkspace(storageKey: string, p4: boolean) {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (raw) return parseBackup(raw, true);
+    if (raw) return parseBackup(raw, !p4);
   } catch {
     /* An invalid preview snapshot falls back to the initial demo. */
   }
-  return initialData();
+  return initialData(p4);
 }
 
 export function parseBackup(
@@ -247,6 +252,7 @@ export function parseBackup(
     !value.vehicles.every(
       (vehicle: DemoVehicle) =>
         sameShape(vehicle, vehicleShape) &&
+        Object.keys(p4DemoEquipment).every(key => !Object.hasOwn(vehicle, key) || validEquipmentValue(key, vehicle[key as keyof DemoVehicle])) &&
         (vehicle.appearance === undefined ||
           validAppearance(vehicle.appearance)) &&
         (vehicle.controlAccess === undefined ||
@@ -312,7 +318,11 @@ export function parseBackup(
         (s.confirmation === undefined ||
           ["accepted", "deleting"].includes(s.confirmation)) &&
         Array.isArray(s.days) &&
-        s.days.length > 0 &&
+        (s.onceDate === undefined ? s.days.length > 0 :
+          s.kind === "充电" && s.days.length === 0 && typeof s.onceDate === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(s.onceDate) && Number.isFinite(Date.parse(s.onceDate)) &&
+          new Date(s.onceDate).toISOString().slice(0, 10) === s.onceDate &&
+          value.vehicles.some((car: DemoVehicle) => car.id === s.vehicleId && isChinaP4(car))) &&
         (s.target === undefined ||
           (Number.isFinite(s.target) && s.target >= 50 && s.target <= 100)) &&
         s.days.every((d) =>
@@ -386,9 +396,9 @@ export function parseBackup(
     if (!changes || typeof changes !== "object" || Array.isArray(changes))
       return false;
     return Object.entries(changes).every(
-      ([key, field]) =>
-        changeKeys.includes(key) &&
-        sameShape(field, sample.vehicles[0][key as keyof DemoVehicle]),
+      ([key, field]) => Object.hasOwn(p4DemoEquipment, key)
+        ? validEquipmentValue(key, field)
+        : changeKeys.includes(key) && sameShape(field, sample.vehicles[0][key as keyof DemoVehicle]),
     );
   }
   if (
@@ -437,10 +447,15 @@ export function parseBackup(
             ? "polestar-4"
             : "polestar-2",
         );
-      const configured =
+      const base =
         vehicle.brand === "Polestar"
           ? { ...vehicle, ...vehicleConfiguration(appearance) }
           : vehicle;
+      const configured = isChinaP4(base) ? { ...p4DemoEquipment, ...base } : base;
+      if (isChinaP4(configured) && configured.controlAccess === "owner" &&
+          configured.capabilities?.chargeLid === true && configured.capabilities.cleaning === true) {
+        configured.capabilities = { climateSchedule: true, chargeSchedule: true, ...configured.capabilities };
+      }
       return vehicle.capabilities === undefined &&
         vehicle.controlAccess === undefined
         ? {
@@ -486,8 +501,16 @@ export function downloadFile(
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function useWorkspaceState() {
-  const [data, setData] = useState<WorkspaceData>(loadWorkspace);
+function validEquipmentValue(key: string, value: unknown) {
+  if (key === "targetTemperatureMode") return value === "temperature" || value === "Lo" || value === "Hi";
+  return typeof p4DemoEquipment[key as keyof typeof p4DemoEquipment] === "boolean"
+    ? typeof value === "boolean"
+    : typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3;
+}
+
+function useWorkspaceState(p4: boolean) {
+  const storageKey = p4 ? "norr-p4-demo-workspace" : "hisingen-design-workspace-v2";
+  const [data, setData] = useState<WorkspaceData>(() => loadWorkspace(storageKey, p4));
   const [scenario, setScenario] = useState<PreviewScenario>("connected");
   const [outcome, setOutcome] =
     useState<Exclude<Receipt["status"], "pending" | "undone">>("success");
@@ -505,7 +528,7 @@ function useWorkspaceState() {
     } catch {
       setNotice("浏览器存储不可用，本次修改仅保留到关闭页面。");
     }
-  }, [data]);
+  }, [data, storageKey]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(""), 4500);
@@ -606,7 +629,9 @@ function useWorkspaceState() {
         ? `${label} · 模拟回读已确认`
         : outcome === "failed"
           ? "模拟请求未发出，可在指令记录手动重试。"
-          : "指令结果待核对，可在指令记录读取车辆状态。",
+          : isChinaP4(vehicle) && capability === "locate"
+            ? "本次模拟寻车已记入指令记录。"
+            : "指令结果待核对，可在指令记录读取车辆状态。",
     );
     inFlight.current = false;
     setBusy(false);
@@ -873,8 +898,8 @@ function useWorkspaceState() {
 }
 
 export type WorkspaceState = ReturnType<typeof useWorkspaceState>;
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const workspace = useWorkspaceState();
+export function WorkspaceProvider({ children, p4 = false }: { children: ReactNode; p4?: boolean }) {
+  const workspace = useWorkspaceState(p4);
   return (
     <WorkspaceContext.Provider value={workspace}>
       {children}

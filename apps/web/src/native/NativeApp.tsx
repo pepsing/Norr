@@ -27,6 +27,7 @@ import {
   Sun,
 } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { P4OverviewView } from "../components/P4Overview";
 import { VehicleArtwork } from "../components/VehicleArtwork";
 import { VehicleAppearancePicker } from "../components/VehicleAppearancePicker";
 import { EnergyPanelView } from "../components/EnergyPanel";
@@ -34,17 +35,23 @@ import { DataRows, SectionTabs } from "../components/WorkspaceUI";
 import { NativeControls } from "./NativeControls";
 import { SchedulePanel } from "./SchedulePanel";
 import { HistoryPanel } from "./HistoryPanel";
+import { P4TestLog } from "./P4TestLog";
+import { P4Recording } from "./P4Recording";
 import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
-import { ChargeLocations, VehicleDetails } from "./VehicleDetails";
+import { ChargeLocations, OpeningStatus, P4ClimateDetails, VehicleDetails } from "./VehicleDetails";
 import { VehicleMap } from "./VehicleMap";
 import { defaultAppearance, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
   actionLabels,
+  p4FindActions,
   activeControls,
+  isNativeP4,
+  p4CabinActions,
   commandLimits,
   chargingOptions,
+  chargingStatusText,
   native,
   numeric,
   readingText,
@@ -86,16 +93,6 @@ const endpointLabels: Record<string, string> = {
   chargeTimer: "全局充电窗口",
   chargeLocations: "充电地点",
 };
-const chargeStates: Record<number, string> = {
-  1: "正在充电",
-  2: "空闲",
-  3: "等待预约",
-  4: "放电中",
-  5: "充电异常",
-  6: "智能充电",
-  7: "已暂停",
-  8: "充电完成",
-};
 const climateStates: Record<string, string> = {
   active: "运行中",
   starting: "启动中",
@@ -121,7 +118,7 @@ function valueText(value: number | null, unit = "", digits = 0): string {
     : `${value.toLocaleString("zh-CN", { maximumFractionDigits: digits })}${unit}`;
 }
 
-export default function NativeApp() {
+export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLog?: () => void; p4Logging?: boolean }) {
   const [page, setPage] = useState("vehicle");
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -150,7 +147,7 @@ export default function NativeApp() {
   const [configPath, setConfigPath] = useState("");
   const [dialog, setDialog] = useState<Command | null>(null);
   const [vehicleSheet, setVehicleSheet] = useState<
-    "details" | "location" | null
+    "details" | "location" | "车锁" | "空调" | "尾门" | "寻车" | "座舱净化" | "充电上限" | null
   >(null);
   const [compact, setCompact] = useState(
     () => window.matchMedia("(max-width: 760px)").matches,
@@ -168,6 +165,7 @@ export default function NativeApp() {
     }
   });
   const started = useRef(false);
+  const selectedVehicle = useRef("");
   const detailsRef = useRef<HTMLDivElement>(null);
   const vehicle =
     snapshot?.vehicle.vin === vin
@@ -176,11 +174,13 @@ export default function NativeApp() {
   const supportsTemperature =
     vehicle?.capabilities
       .supportsParkingClimatizationCompartmentTemperatureSettings === true;
+  const p4 = isNativeP4(vehicle);
   const active = activeControls(snapshot);
   const needsValue =
     dialog?.action === "target" ||
     dialog?.action === "amperage" ||
     dialog?.action === "otaSchedule" ||
+    p4CabinActions.includes(dialog?.action ?? "") ||
     (dialog?.action === "climateStart" && supportsTemperature);
   const limits = commandLimits(vehicle, dialog?.action ?? "");
   const chargeAction =
@@ -290,7 +290,7 @@ export default function NativeApp() {
   }, [vehicle?.vin, vehicle?.model]);
 
   useEffect(() => {
-    if (!supportsWidgets || !snapshot || snapshot.vehicle.vin !== vin) {
+    if (p4Logging || !supportsWidgets || !snapshot || snapshot.vehicle.vin !== vin) {
       setWidgetError("");
       return;
     }
@@ -304,10 +304,10 @@ export default function NativeApp() {
         if (!disposed) setWidgetError(String(problem));
       });
     return () => { disposed = true; };
-  }, [snapshot, vin, appearance]);
+  }, [snapshot, vin, appearance, p4Logging]);
 
   useEffect(() => {
-    if (!supportsWidgets) return;
+    if (p4Logging || !supportsWidgets) return;
     let disposed = false;
     const receive = () => {
       if (disposed) return;
@@ -355,7 +355,7 @@ export default function NativeApp() {
     const subscriptions = [
       native.onSnapshot((next) => {
         if (disposed) return;
-        if (next.vehicle.vin === vin) {
+        if (next.vehicle.vin === selectedVehicle.current) {
           setSnapshot(next);
           setConnected(true);
           setBackgroundError("");
@@ -390,7 +390,10 @@ export default function NativeApp() {
     setError("");
     try {
       const data = await reloadHistory();
-      const cached = data.snapshots.at(-1);
+      const preferred = data.settings?.selectedVin;
+      const cached = preferred
+        ? data.snapshots.filter((item) => item.vehicle.vin === preferred).at(-1)
+        : data.snapshots.at(-1);
       if (cached) {
         setSnapshot(cached);
         setVin(cached.vehicle.vin);
@@ -398,7 +401,7 @@ export default function NativeApp() {
       const status = await native.status();
       setSession(status);
       if (status.hasSession && status.hasSigningKey)
-        await connect(cached?.vehicle.vin);
+        await connect(preferred ?? cached?.vehicle.vin);
     } catch (problem) {
       setError(String(problem));
     } finally {
@@ -413,9 +416,12 @@ export default function NativeApp() {
     setConnected(true);
     const selected = cars.find((car) => car.vin === preferred) ?? cars[0];
     if (selected) {
+      selectedVehicle.current = selected.vin;
       setVin(selected.vin);
       if (selected.vin !== preferred) setSnapshot(undefined);
-      setSnapshot(await native.refresh(selected.vin));
+      const next = await native.refresh(selected.vin);
+      if (next.vehicle.vin !== selectedVehicle.current) return;
+      setSnapshot(next);
       await reloadHistory();
     } else {
       setVin("");
@@ -430,7 +436,9 @@ export default function NativeApp() {
     try {
       if (!connected || !vin) await connect(vin);
       else {
-        setSnapshot(await native.refresh(vin));
+        const next = await native.refresh(vin);
+        if (next.vehicle.vin !== selectedVehicle.current) return;
+        setSnapshot(next);
         await reloadHistory();
       }
       setSession(await native.status());
@@ -444,6 +452,9 @@ export default function NativeApp() {
   }
 
   async function selectVehicle(selected: string) {
+    setDialog(null);
+    setVehicleSheet(null);
+    selectedVehicle.current = selected;
     setVin(selected);
     setSnapshot(
       history.snapshots.filter((item) => item.vehicle.vin === selected).at(-1),
@@ -451,7 +462,9 @@ export default function NativeApp() {
     setBusy(true);
     setError("");
     try {
-      setSnapshot(await native.refresh(selected));
+      const next = await native.refresh(selected);
+      if (next.vehicle.vin !== selectedVehicle.current) return;
+      setSnapshot(next);
       await reloadHistory();
     } catch (problem) {
       setError(String(problem));
@@ -494,6 +507,10 @@ export default function NativeApp() {
   }
 
   async function signedIn(status: SessionStatus) {
+    selectedVehicle.current = "";
+    setDialog(null);
+    setVehicleSheet(null);
+    setHistory({ snapshots: [], receipts: [] });
     setSession(status);
     setFleet([]);
     setVin("");
@@ -542,6 +559,8 @@ export default function NativeApp() {
 
   async function sendCommand() {
     if (!dialog || busy || !validValue) return;
+    const reason = unavailableReason(vehicle, dialog.action);
+    if (dialog.vin !== vin || reason) { setError(reason ?? "车辆已切换，请重新选择操作"); return; }
     setBusy(true);
     setError("");
     try {
@@ -549,7 +568,7 @@ export default function NativeApp() {
       setNotice(receipt);
       setDialog(null);
       await reloadHistory();
-      if (!receipt.readback && receipt.status !== "rejected") {
+      if (!receipt.readback && receipt.status !== "rejected" && !(p4 && p4FindActions.includes(dialog.action))) {
         setSnapshot(await native.refresh(dialog.vin));
         await reloadHistory();
       }
@@ -597,13 +616,21 @@ export default function NativeApp() {
   }
 
   const percent = numeric(snapshot, "battery", "percent");
-  const locked = snapshot?.readings.exterior?.value?.locked;
+  const rangeKm = numeric(snapshot, "battery", "rangeKm");
+  const exterior = snapshot?.readings.exterior;
+  const body = exterior?.status === "success" ? exterior.value : null;
+  const locked = body?.locked;
   const lockLabel =
     locked === true ? "已锁车" : locked === false ? "已解锁" : "门锁状态未知";
   const climate = String(
-    snapshot?.readings.climate?.value?.activity ?? "unknown",
+    snapshot?.readings.climate?.status === "success" ? snapshot.readings.climate.value?.activity ?? "unknown" : "unknown",
   );
+  const chargeLabel = chargingStatusText(snapshot);
   const target = numeric(snapshot, "target", "percent");
+  const tailgate = (body?.openings as Record<string, unknown> | undefined)?.tailgate;
+  const p4Air = numeric(snapshot, "airQuality", "pm25");
+  const cleaning = numeric(snapshot, "airQuality", "state");
+  const cleaningLabel = cleaning === 1 ? "净化中" : cleaning === 2 ? "净化已停止" : "净化状态未知";
   const lockAction = locked === true ? "unlock" : "lock";
   const climateAction = climate === "active" ? "climateStop" : "climateStart";
   const openingActions = ["windowsOpen", "windowsClose"].includes(
@@ -657,6 +684,7 @@ export default function NativeApp() {
           ))}
         </nav>
         <div className="header-actions">
+          {onFieldLog && <button className="text-button" onClick={onFieldLog}>返回实测</button>}
           {fleet.length > 0 && (
             <select
               className="native-vehicle-select"
@@ -681,9 +709,9 @@ export default function NativeApp() {
           </button>
         </div>
       </header>
-      <main id="main" className={`app-main native-main native-page-${page}`}>
+      <main id="main" className={`app-main native-main native-page-${page}${p4 ? " p4-workspace" : ""}`}>
         <div className="page-heading">
-          <h1>{pages.find((item) => item.id === page)?.title}</h1>
+          <h1>{p4 && page === "vehicle" ? vehicle?.model : pages.find((item) => item.id === page)?.title}</h1>
           <button
             className="refresh-button"
             disabled={busy || !session?.hasSession}
@@ -801,7 +829,7 @@ export default function NativeApp() {
                     onBusyChange={setBusy}
                     onSignedIn={signedIn}
                   />
-                  {isIOS && (
+                  {isIOS && !p4Logging && (
                     <div className="native-section">
                       <h3>Apple Watch</h3>
                       <p className="muted">
@@ -899,6 +927,7 @@ export default function NativeApp() {
               )}
               {settingsTab === "隐私与数据" && (
                 <>
+                  {(p4Logging || (p4 && (isIOS || isWindows || isAndroid))) && session?.hasSession ? <P4Recording key={vin} vin={vin} controls={false} onRefresh={() => void refresh()} refreshing={busy} /> : p4 && <P4TestLog key={vin} vin={vin} />}
                   <div className="setting-row">
                     <div>
                       <h3>本机历史与备份</h3>
@@ -966,7 +995,20 @@ export default function NativeApp() {
           </section>
         ) : (
           <>
-            {page === "vehicle" && (
+            {page === "vehicle" && p4 && <P4OverviewView appearance={appearance}
+              range={rangeKm === null ? "—" : valueText(rangeKm)} unit={rangeKm === null ? "" : "km"} battery={percent}
+              locked={typeof locked === "boolean" ? locked : null}
+              inside={valueText(numeric(snapshot, "climate", "interiorTemperature"), " °C", 1)}
+              outside={valueText(numeric(snapshot, "climate", "exteriorTemperature"), " °C", 1)}
+              climate={climateStates[climate] ?? "状态未知"} air={p4Air} cleaning={cleaningLabel}
+              limit={target === null ? "尚无车辆读数" : `当前设定 ${target}%`}
+              onControl={action => setVehicleSheet(({ lock: "车锁", climate: "空调", tailgate: "尾门",
+                locate: "寻车", cleaning: "座舱净化", limit: "充电上限" } as const)[action])}
+              onNavigate={destination => {
+                if (destination === "details" || destination === "location") setVehicleSheet(destination);
+                else setPage(destination);
+              }} />}
+            {page === "vehicle" && !p4 && (
               <>
                 <div className="overview-grid">
                   <section
@@ -988,14 +1030,7 @@ export default function NativeApp() {
                     </div>
                     <div className="vehicle-stage-footer">
                       <span>VIN ···· {vehicle.vin.slice(-4)}</span>
-                      <span>
-                        车内{" "}
-                        {valueText(
-                          numeric(snapshot, "climate", "interiorTemperature"),
-                          " °C",
-                          1,
-                        )}
-                      </span>
+                      <span>车内 {valueText(numeric(snapshot, "climate", "interiorTemperature"), " °C", 1)}</span>
                     </div>
                   </section>
                   <EnergyPanelView
@@ -1006,9 +1041,7 @@ export default function NativeApp() {
                       " km",
                     )}
                     status={
-                      chargeStates[
-                        numeric(snapshot, "battery", "chargeState") ?? 0
-                      ] ?? "充电状态未知"
+                      chargeLabel
                     }
                     detail={
                       <small title={readingText(snapshot, "battery")}>
@@ -1193,12 +1226,14 @@ export default function NativeApp() {
                         " km",
                       )}
                       status={
-                        chargeStates[
-                          numeric(snapshot, "battery", "chargeState") ?? 0
-                        ] ?? "充电状态未知"
+                        chargeLabel
                       }
                       detail={<small>{readingText(snapshot, "battery")}</small>}
-                      actions={
+                      actions={p4 ? (
+                        <button className="light-button" onClick={() => setChargingTab("计划与地点")}>
+                          查看充电预约
+                        </button>
+                      ) : (
                         <button
                           className="light-button"
                           disabled={
@@ -1210,12 +1245,15 @@ export default function NativeApp() {
                         >
                           充电设置
                         </button>
-                      }
+                      )}
                     />
                     <section className="charge-details">
                       <h2>当前充电读数</h2>
                       <DataRows
-                        rows={[
+                        rows={p4 ? [
+                          ["预计充满剩余", valueText(numeric(snapshot, "battery", "minutesToFull"), " 分钟")],
+                          ["充电枪", snapshot?.readings.battery?.value?.plugged === true ? "已连接" : snapshot?.readings.battery?.value?.plugged === false ? "未连接" : "未知"],
+                        ] : [
                           [
                             "当前功率",
                             valueText(
@@ -1238,6 +1276,7 @@ export default function NativeApp() {
                           ["目标电量", valueText(target, "%")],
                         ]}
                       />
+                      {p4 ? <button className="text-button" onClick={() => setVehicleSheet("充电上限")}>充电上限</button> : <>
                       <div className="list-row">
                         <div>
                           <h3>电流限制</h3>
@@ -1264,7 +1303,7 @@ export default function NativeApp() {
                       </div>
                       <p className="muted native-reading-time">
                         目标电量 · {readingText(snapshot, "target")}
-                      </p>
+                      </p></>}
                     </section>
                   </div>
                 ) : (
@@ -1276,7 +1315,7 @@ export default function NativeApp() {
                       disabled={busy || !connected}
                       onCommand={setDialog}
                     />
-                    <ChargeLocations snapshot={snapshot} />
+                    {p4 ? <details><summary>充电地点</summary><p>充电地点数据待接入。</p></details> : <ChargeLocations snapshot={snapshot} />}
                   </>
                 )}
               </>
@@ -1290,17 +1329,34 @@ export default function NativeApp() {
       </main>
       {vehicleSheet && (
         <Modal
-          title={vehicleSheet === "details" ? "车辆详情" : "车辆位置"}
-          className="native-vehicle-sheet"
+          title={vehicleSheet === "details" ? "车辆详情" : vehicleSheet === "location" ? "车辆位置" : p4 && vehicleSheet === "空调" ? "座舱设置" : vehicleSheet}
+          className={p4 && vehicleSheet !== "details" && vehicleSheet !== "location" ? "p4-sheet" : "native-vehicle-sheet"}
           onClose={() => setVehicleSheet(null)}
         >
           <div className="native-vehicle-sheet-content">
-            {vehicleSheet === "details" ? (
+            {vehicleSheet === "座舱净化" ? <>
+              <div className="p4-clean"><span>车内 PM2.5</span><p>{p4Air ?? "—"}{p4Air !== null && <small>μg/m³</small>}</p><span>{cleaningLabel}</span></div>
+              <p className="p4-action-note">{readingText(snapshot, "airQuality")}</p>{control(cleaning === 1 ? "cleanStop" : "cleanStart", () => setVehicleSheet(null))}
+            </> : vehicleSheet === "充电上限" ? <>
+              <div className="limit-readout"><output>{target ?? "—"}{target !== null && <span>%</span>}</output></div>
+              <p className="p4-action-note">{readingText(snapshot, "target")}</p>{control("target", () => setVehicleSheet(null))}
+            </> : vehicleSheet === "寻车" ? (
+              <div className="native-actions">{p4FindActions.map((action) => control(action, () => setVehicleSheet(null)))}</div>
+            ) : vehicleSheet === "空调" ? <P4ClimateDetails snapshot={snapshot} activity={climateStates[climate] ?? "未知"} disabled={busy || !connected} onCommand={command => { setVehicleSheet(null); setError(""); setDialog(command); }} controls={control(climateAction, () => setVehicleSheet(null))} /> :
+             vehicleSheet === "尾门" || vehicleSheet === "车锁" ? <>
+               <dl className="p4-body-states"><div><dt>{vehicleSheet === "车锁" ? "门锁状态" : "尾门位置"}</dt>
+                 <dd>{vehicleSheet === "车锁" ? lockLabel : tailgate === 1 ? "已打开" : tailgate === 2 ? "已关闭" : "状态未知"}</dd></div></dl>
+               <p className="p4-action-note">{readingText(snapshot,"exterior",true)}</p>
+               {vehicleSheet === "尾门" ? control("unlockTrunk", () => setVehicleSheet(null)) : typeof locked === "boolean" ? control(lockAction, () => setVehicleSheet(null)) : <OpeningStatus snapshot={snapshot}/>}
+             </> :
+             vehicleSheet === "details" ? (
               <>
                 <VehicleDetails
                   snapshot={snapshot}
                   onError={setError}
-                  includeMap={false}
+                  includeMap={p4}
+                  appearance={appearance}
+                  dark={theme === "dark"}
                 />
                 <EndpointStatus snapshot={snapshot} />
               </>
@@ -1328,6 +1384,18 @@ export default function NativeApp() {
           {dialog.action === "climateStart" && !supportsTemperature && (
             <p className="modal-description">使用默认舒适温度 22 °C。</p>
           )}
+          {p4 && !p4FindActions.includes(dialog.action) && (
+            <p className="modal-description">服务受理后将读取车辆状态。{dialog.action === "climateStart" ? "空调运行状态与设定温度分别核对。" : "收到操作后的车辆上报才确认结果。"}结果不明时请先查看回读，避免重复发送。</p>
+          )}
+          {p4 && p4FindActions.includes(dialog.action) && <p className="modal-description">请确认车辆周围环境适合寻车。服务受理后，鸣笛或闪灯结果需要现场核对。</p>}
+          {p4 && p4CabinActions.includes(dialog.action) && <fieldset className="p4-cabin-control" disabled={busy}>
+            <legend>{dialog.action === "steeringWheelHeat" ? "加热开关" : "目标档位"}</legend>
+            <div className="limit-presets">
+              {Array.from({ length: limits.max + 1 }, (_, value) => <button type="button" key={value} aria-pressed={dialog.value === value} onClick={() => setDialog({ ...dialog, value })}>
+                {value === 0 ? "关闭" : limits.max === 1 ? "开启" : `${value} 档`}
+              </button>)}
+            </div>
+          </fieldset>}
           {dialog.schedule && (
             <p className="modal-description">
               {scheduleText(dialog.schedule)}
@@ -1345,7 +1413,7 @@ export default function NativeApp() {
               请确认车辆已停妥并符合车机更新条件。软件安装期间车辆可能无法使用。
             </p>
           )}
-          {["windowsOpen", "tailgateOpen", "tailgateClose"].includes(
+          {["windowsOpen", "windowsClose", "windowsVent", "chargeLidOpen", "chargeLidClose", "tailgateOpen", "tailgateClose"].includes(
             dialog.action,
           ) && (
             <p className="modal-description">请确认车辆周围空间允许此操作。</p>
@@ -1407,7 +1475,7 @@ export default function NativeApp() {
               </p>
             </>
           )}
-          {needsValue && !chargeOptions && (
+          {needsValue && !chargeOptions && !p4CabinActions.includes(dialog.action) && (
             <label className="native-field">
               {dialog.action === "climateStart"
                 ? "目标温度 °C"
@@ -1491,7 +1559,11 @@ function EndpointStatus({ snapshot }: { snapshot: Snapshot | undefined }) {
     <details className="native-section native-endpoint-status">
       <summary>数据更新时间</summary>
       <dl className="native-readings">
-        {Object.entries(endpointLabels).map(([key, label]) => (
+        {Object.entries(isNativeP4(snapshot?.vehicle)
+          ? Object.fromEntries(Object.keys(snapshot?.readings ?? {}).map((key) => [
+              key, ({vehicleModes: "车辆模式", p4Reservations: "充电预约"} as Record<string, string>)[key] ?? endpointLabels[key] ?? key,
+            ]))
+          : endpointLabels).map(([key, label]) => (
           <div key={key}>
             <dt>{label}</dt>
             <dd>{readingText(snapshot, key)}</dd>
@@ -1499,42 +1571,5 @@ function EndpointStatus({ snapshot }: { snapshot: Snapshot | undefined }) {
         ))}
       </dl>
     </details>
-  );
-}
-
-function OpeningStatus({ snapshot }: { snapshot: Snapshot | undefined }) {
-  const openings = snapshot?.readings.exterior?.value?.openings as
-    Record<string, number | null> | undefined;
-  const labels: Record<string, string> = {
-    frontLeftDoor: "左前门",
-    frontRightDoor: "右前门",
-    rearLeftDoor: "左后门",
-    rearRightDoor: "右后门",
-    frontLeftWindow: "左前窗",
-    frontRightWindow: "右前窗",
-    rearLeftWindow: "左后窗",
-    rearRightWindow: "右后窗",
-    hood: "前盖",
-    tailgate: "尾门",
-    chargeLid: "充电盖",
-    sunroof: "天窗",
-  };
-  return (
-    <dl className="native-readings">
-      {Object.entries(labels).map(([key, label]) => (
-        <div key={key}>
-          <dt>{label}</dt>
-          <dd>
-            {openings?.[key] === 1
-              ? "开启"
-              : openings?.[key] === 2
-                ? "关闭"
-                : openings?.[key] === 3
-                  ? "未关严"
-                  : "未知"}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }

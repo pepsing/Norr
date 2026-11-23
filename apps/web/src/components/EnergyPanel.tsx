@@ -7,7 +7,7 @@ interface EnergyPanelProps {
   vehicle: Vehicle;
   busy: boolean;
   unavailable: boolean;
-  onToggleCharge: () => void;
+  onToggleCharge?: () => void;
   onSettings: () => void;
 }
 
@@ -49,13 +49,13 @@ export function EnergyPanel({
       detail={vehicle.charging ? `7.2 kW · 约 ${remaining}` : "充电线已连接"}
       actions={
         <>
-          <button
+          {onToggleCharge && <button
             className="light-button"
             disabled={busy || unavailable || atLimit}
             onClick={onToggleCharge}
           >
             {busy ? "处理中…" : vehicle.charging ? "暂停充电" : "继续充电"}
-          </button>
+          </button>}
           <button className="energy-link" onClick={onSettings}>
             充电设置 <ArrowUpRight size={17} aria-hidden="true" />
           </button>

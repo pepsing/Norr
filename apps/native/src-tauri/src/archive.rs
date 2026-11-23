@@ -146,9 +146,20 @@ pub struct PendingImport {
     pub records: Vec<Record>,
 }
 
-#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+#[path = "archive/p4_log.rs"]
 pub mod p4_log;
-#[cfg(any(test, all(target_os = "ios", feature = "p4-field-test")))]
+#[cfg(any(
+    test,
+    all(
+        target_os = "ios",
+        any(feature = "p4-field-test", feature = "polestar4")
+    ),
+    all(
+        any(target_os = "windows", target_os = "android"),
+        feature = "polestar4"
+    )
+))]
+#[path = "archive/p4_recordings.rs"]
 pub mod p4_recordings;
 
 pub struct Archive {

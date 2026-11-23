@@ -1,0 +1,9 @@
+{
+  "productName": "Norr P4 Test",
+  "identifier": "app.norr.windows.p4test",
+  "app": {
+    "windows": [
+      {"label":"main","title":"Norr 北行 · P4 实测","width":820,"height":760,"minWidth":580,"minHeight":540}
+    ]
+  }
+}

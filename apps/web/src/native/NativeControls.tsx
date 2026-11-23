@@ -15,11 +15,13 @@ import { CabinAirPanel, ControlCard, ControlRow } from "../components/VehicleCon
 import type { VehicleAppearance } from "../vehicle-catalog";
 import { EmptyState, SectionTabs } from "../components/WorkspaceUI";
 import { SchedulePanel } from "./SchedulePanel";
-import { AirQuality, SoftwarePanel } from "./VehicleDetails";
+import { AirQuality, P4ClimateDetails, SoftwarePanel } from "./VehicleDetails";
 import {
   actionLabels,
+  p4FindActions,
   activeControls,
   cabinAirSnapshot,
+  isNativeP4,
   cabinAirTime,
   numeric,
   openingState,
@@ -48,11 +50,12 @@ export function NativeControls({
   disabled: boolean;
   control: (action: string, onSelect?: () => void) => ReactNode;
   onCommand: (command: Command) => void;
-  onHistory: () => void;
+  onHistory?: () => void;
   openings: ReactNode;
 }) {
   const [tab, setTab] = useState("即时控制");
   const [panel, setPanel] = useState<string | null>(null);
+  const p4 = isNativeP4(vehicle);
   const air = cabinAirSnapshot(vehicle.vin, snapshot, history);
   const airNote = air
     ? (air === snapshot ? "" : "上次读数 · ") + cabinAirTime(air)
@@ -112,8 +115,15 @@ export function NativeControls({
           : windows === "open"
             ? "有车窗打开或未关严"
             : "状态未知",
-      actions: ["windowsOpen", "windowsClose"],
-      directAction: windowAction,
+      actions: p4 ? ["windowsOpen", "windowsVent", "windowsClose"] : ["windowsOpen", "windowsClose"],
+      directAction: p4 ? undefined : windowAction,
+    },
+    {
+      panel: "充电口盖",
+      title: "充电口盖",
+      icon: PanelTopOpen,
+      description: openingState(snapshot, ["chargeLid"]) === "open" ? "已打开" : openingState(snapshot, ["chargeLid"]) === "closed" ? "已关闭" : "状态未知",
+      actions: ["chargeLidOpen", "chargeLidClose"],
     },
     {
       panel: "尾门控制",
@@ -126,14 +136,14 @@ export function NativeControls({
             ? "已打开或未关严"
             : "状态未知",
       actions: ["unlockTrunk", "tailgateOpen", "tailgateClose"],
-      directAction: tailgateAction,
+      directAction: p4 ? undefined : tailgateAction,
     },
     {
       panel: "鸣笛与闪灯",
       title: "鸣笛与闪灯",
       icon: AudioLines,
       description: "在停车场寻找车辆",
-      actions: ["flash", "honkFlash"],
+      actions: p4 ? p4FindActions : ["flash", "honkFlash"],
     },
     {
       panel: "软件更新",
@@ -146,7 +156,8 @@ export function NativeControls({
       button: "查看版本",
     },
   ];
-  const selectedAction = actions.find((item) => item.panel === panel);
+  const visibleActions = actions.filter(item => p4 ? item.panel !== "软件更新" : item.panel !== "充电口盖");
+  const selectedAction = visibleActions.find((item) => item.panel === panel);
   return (
     <>
       <SectionTabs
@@ -175,7 +186,7 @@ export function NativeControls({
                 className="secondary-button"
                 onClick={() => setPanel("调节空调")}
               >
-                调节空调
+                {p4 && unavailableReason(vehicle, "climateStart") ? "查看空调状态" : "调节空调"}
               </button>
             </ControlCard>
             <ControlCard
@@ -196,7 +207,7 @@ export function NativeControls({
           </div>
           <section className="control-list" aria-labelledby="vehicle-controls-heading">
             <h2 id="vehicle-controls-heading">车辆功能</h2>
-            {actions.map((item) => {
+            {visibleActions.map((item) => {
               const reason = item.directAction
                 ? unavailableReason(vehicle, item.directAction)
                 : null;
@@ -242,7 +253,7 @@ export function NativeControls({
       )}
       {tab === "快捷组合" && (
         <EmptyState title="快捷组合尚未接入">
-          <p>锁车与空调可在即时控制中分别执行，出发计划可保存车辆空调日程。</p>
+          <p>{p4 ? "可在即时控制中查看门锁、车窗和空调状态。" : "锁车与空调可在即时控制中分别执行，出发计划可保存车辆空调日程。"}</p>
           <button className="text-button" onClick={() => setTab("即时控制")}>
             返回即时控制
           </button>
@@ -252,9 +263,9 @@ export function NativeControls({
         <section>
           <div className="section-heading">
             <h2>指令记录</h2>
-            <button className="text-button" onClick={onHistory}>
+            {onHistory && <button className="text-button" onClick={onHistory}>
               全部历史记录
-            </button>
+            </button>}
           </div>
           {entries.length === 0 && (
             <EmptyState title="还没有操作记录">
@@ -290,18 +301,18 @@ export function NativeControls({
           )}
         </section>
       )}
-      {panel && (
-        <Modal title={panel} onClose={() => setPanel(null)}>
+      {panel && (!p4 || panel !== "软件更新") && (
+        <Modal className={p4 ? "p4-sheet" : undefined} title={p4 && panel === "调节空调" ? "座舱设置" : panel} onClose={() => setPanel(null)}>
           {panel === "调节空调" && (
             <>
-              <p className="modal-description">
+              {p4 ? <P4ClimateDetails snapshot={snapshot} activity={climateLabel} disabled={disabled} onCommand={command => { setPanel(null); onCommand(command); }} controls={<div className="native-actions">{["climateStart", "climateStop"].map(action => control(action, () => setPanel(null)))}</div>} /> : <><p className="modal-description">
                 空调{climateLabel} · {readingText(snapshot, "climate")}
               </p>
               <div className="native-actions">
                 {["climateStart", "climateStop"].map((action) =>
                   control(action, () => setPanel(null)),
                 )}
-              </div>
+              </div></>}
             </>
           )}
           {panel === "车身与门锁" && (
@@ -319,7 +330,7 @@ export function NativeControls({
             <p className="modal-description">{selectedAction?.description}</p>
           )}
           {panel === "尾门控制" && (
-            <p className="modal-description">操作前请确认车辆后方有足够空间。</p>
+            <p className="modal-description">{p4 ? selectedAction?.description : "操作前请确认车辆后方有足够空间。"}</p>
           )}
           {panel === "空气净化" ? (
             <AirQuality
@@ -329,7 +340,7 @@ export function NativeControls({
                 control(action, () => setPanel(null)),
               )}
             />
-          ) : panel === "软件更新" ? (
+          ) : !p4 && panel === "软件更新" ? (
             <SoftwarePanel
               snapshot={snapshot}
               controls={["otaSchedule", "otaInstall", "otaCancel"].map(

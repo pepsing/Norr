@@ -13,15 +13,37 @@ mod desktop;
 #[path = "desktop_mobile.rs"]
 mod desktop;
 mod exports;
-#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
-mod p4_field;
-#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
-mod p4_recorder;
 mod insights;
 mod login;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod mobile;
 mod notifications;
+#[cfg(any(
+    all(
+        any(target_os = "ios", target_os = "windows"),
+        feature = "p4-field-test"
+    ),
+    all(
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        ),
+        feature = "polestar4"
+    )
+))]
+mod p4_field;
+#[cfg(any(test, all(target_os = "ios", feature = "p4-field-test")))]
+mod p4_partner;
+#[cfg(any(
+    all(target_os = "ios", feature = "p4-field-test"),
+    all(
+        any(target_os = "ios", target_os = "windows", target_os = "android"),
+        feature = "polestar4"
+    )
+))]
+mod p4_recorder;
 mod platform;
 #[cfg(any(target_os = "ios", test))]
 mod siri;
@@ -29,7 +51,7 @@ mod vehicle_service;
 use vehicle_service::VehicleService;
 #[cfg(target_os = "windows")]
 mod verification_windows;
-#[cfg(target_os = "ios")]
+#[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
 mod watch;
 #[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
 mod widgets;
@@ -102,12 +124,24 @@ impl Backend {
     }
 
     fn record(&mut self, snapshot: Snapshot) -> Result<Snapshot> {
-        self.apply_readback(&snapshot);
-        self.history.notifications.observe(
-            &snapshot,
-            self.history.settings.notify_charging,
-            now_ms(),
-        );
+        self.apply_readback(&snapshot)?;
+        #[cfg(all(
+            any(target_os = "ios", target_os = "windows", target_os = "android"),
+            feature = "polestar4"
+        ))]
+        if snapshot.vehicle.uses_xchanger() {
+            if let Some(account) = self.client.account_scope() {
+                self.archive.xchanger_event(&account, &snapshot.vehicle.vin, snapshot.fetched_at,
+                    serde_json::json!({"operation":"readVehicle","phase":"completed","sample":norr_vehicle_core::p4_readback::recording_sample(&snapshot)}))?;
+            }
+        }
+        if !snapshot.vehicle.uses_xchanger() {
+            self.history.notifications.observe(
+                &snapshot,
+                self.history.settings.notify_charging,
+                now_ms(),
+            );
+        }
         self.update_notifications();
         self.history.snapshots.push(snapshot.clone());
         if self.history.snapshots.len() > 5000 {
@@ -169,9 +203,19 @@ fn pending_readback(history: &History, now: u64, account: Option<&str>) -> Optio
                 return false;
             };
             // A newer command for the same state replaces the earlier target.
-            latest.insert((receipt.command.vin.as_str(), endpoint))
-                && receipt.readback.as_deref() != Some(confirmation::CONFIRMED)
-                && now.saturating_sub(receipt.time) < 120_000
+            latest.insert((
+                receipt.command.vin.as_str(),
+                confirmation::command_group(&receipt.command.action).unwrap_or(endpoint),
+            )) && receipt.readback.as_deref() != Some(confirmation::CONFIRMED)
+                && now.saturating_sub(receipt.time)
+                    < if history.snapshots.iter().any(|snapshot| {
+                        snapshot.vehicle.vin == receipt.command.vin
+                            && snapshot.vehicle.uses_xchanger()
+                    }) {
+                        600_000
+                    } else {
+                        120_000
+                    }
         })
         .min_by_key(|receipt| {
             history
@@ -306,9 +350,21 @@ async fn import_hisingen(
 #[tauri::command]
 async fn connect(state: State<'_, VehicleService>) -> Result<Vec<Vehicle>> {
     let mut backend = state.lock().await;
-    #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+    #[cfg(any(
+        all(target_os = "ios", feature = "p4-field-test"),
+        all(
+            any(target_os = "ios", target_os = "windows", target_os = "android"),
+            feature = "polestar4"
+        )
+    ))]
     return p4_recorder::read_garage(&mut backend).await;
-    #[cfg(not(all(target_os = "ios", feature = "p4-field-test")))]
+    #[cfg(not(any(
+        all(target_os = "ios", feature = "p4-field-test"),
+        all(
+            any(target_os = "ios", target_os = "windows", target_os = "android"),
+            feature = "polestar4"
+        )
+    )))]
     backend.client.connect().await
 }
 
@@ -321,7 +377,7 @@ async fn refresh(
     let mut backend = state.lock().await;
     let snapshot = backend.client.refresh(&vin).await?;
     backend.history.settings.selected_vin = Some(vin.clone());
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
     let _ = watch::synchronize(&vin, false, true).await;
     let snapshot = backend.record(snapshot)?;
     #[cfg(desktop)]
@@ -499,6 +555,27 @@ async fn open_map_link(url: String) -> Result<()> {
 }
 
 #[tauri::command]
+async fn record_p4_observation(
+    state: State<'_, VehicleService>,
+    vin: String,
+    action: archive::p4_log::TestAction,
+    outcome: archive::p4_log::Outcome,
+) -> Result<()> {
+    let backend = state.lock().await;
+    if !backend
+        .history
+        .snapshots
+        .iter()
+        .any(|s| s.vehicle.vin == vin && s.vehicle.uses_xchanger())
+    {
+        return Err("未找到所选 P4 的采集记录".into());
+    }
+    backend
+        .archive
+        .record_observation(&vin, now_ms(), action, outcome)
+}
+
+#[tauri::command]
 async fn export_history(
     state: State<'_, VehicleService>,
     vin: String,
@@ -507,6 +584,7 @@ async fn export_history(
     let bytes = {
         let backend = state.lock().await;
         match format.as_str() {
+            "p4-log" => backend.archive.p4_log(&vin, now_ms())?,
             "json" => backend.archive.backup(&vin)?,
             "csv" => insights::csv(backend.archive.records(&vin, 0, 253402300800001)?)?,
             _ => return Err("导出格式无效".into()),
@@ -520,7 +598,7 @@ async fn export_history(
 #[tauri::command]
 async fn send_command(
     app: tauri::AppHandle,
-    window: tauri::WebviewWindow,
+    _window: tauri::WebviewWindow,
     state: State<'_, VehicleService>,
     command: Command,
 ) -> Result<Receipt> {
@@ -528,19 +606,64 @@ async fn send_command(
         .try_lock()
         .map_err(|_| "正在处理车辆请求，请等待完成")?;
     backend.client.validate_command(&command)?;
+    if backend.client.uses_xchanger(&command.vin) {
+        let account = backend.client.account_scope().ok_or("会话尚未恢复")?;
+        if let Some(pending) = confirmation::unresolved_xchanger(
+            &backend.history.receipts,
+            &command,
+            &account,
+            now_ms(),
+        )
+        .cloned()
+        {
+            if confirmation::endpoint(&pending.command.action).is_some() {
+                let snapshot = backend.read_command_state(&pending.command).await?;
+                let _ = app.emit("vehicle-updated", snapshot);
+            }
+            if pending.command.action == command.action && pending.command.value == command.value {
+                return backend
+                    .history
+                    .receipts
+                    .iter()
+                    .find(|r| r.id == pending.id)
+                    .cloned()
+                    .ok_or_else(|| "指令记录不可用".into());
+            }
+            if confirmation::unresolved_xchanger(
+                &backend.history.receipts,
+                &command,
+                &account,
+                now_ms(),
+            )
+            .is_some()
+            {
+                app.state::<Notify>().notify_one();
+                return Err(if confirmation::endpoint(&command.action).is_some() {
+                    "上一条 P4 操作仍待车辆回读，本次指令尚未发送"
+                } else {
+                    "上一条寻车操作请先现场核对，暂不重复发送"
+                }
+                .into());
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
     if matches!(
         command.action.as_str(),
         "unlock"
             | "unlockTrunk"
             | "tailgateOpen"
             | "windowsOpen"
+            | "windowsVent"
+            | "chargeLidOpen"
+            | "honk"
             | "honkFlash"
             | "otaInstall"
             | "otaSchedule"
             | "deleteClimateTimer"
     ) {
         let authorized =
-            tauri::async_runtime::spawn_blocking(move || platform::authenticate(&window))
+            tauri::async_runtime::spawn_blocking(move || platform::authenticate(&_window))
                 .await
                 .map_err(|_| "系统身份验证未完成")??;
         if !authorized {
@@ -549,9 +672,14 @@ async fn send_command(
     }
     let prepared = backend.client.prepare(&command).await?;
     #[cfg(target_os = "ios")]
-    if let Some(pending) = backend.client.account_scope().and_then(|account| {
-        siri::unresolved_command(&backend.history.receipts, &command, &account, now_ms())
-    }) {
+    if let Some(pending) = backend
+        .client
+        .account_scope()
+        .filter(|_| !backend.client.uses_xchanger(&command.vin))
+        .and_then(|account| {
+            siri::unresolved_command(&backend.history.receipts, &command, &account, now_ms())
+        })
+    {
         app.state::<Notify>().notify_one();
         return if pending.command.action == command.action && pending.command.value == command.value
         {
@@ -621,7 +749,7 @@ async fn collect_in_background(app: tauri::AppHandle) {
                 }
                 #[cfg(desktop)]
                 update_tray(&app, &snapshot);
-                #[cfg(target_os = "ios")]
+                #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
                 if let Some(vin) = backend.history.settings.selected_vin.as_deref() {
                     let _ = watch::synchronize(vin, false, true).await;
                 }
@@ -693,6 +821,43 @@ fn update_tray(app: &tauri::AppHandle, snapshot: &Snapshot) {
     }
 }
 
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+fn account_history_path(
+    path: PathBuf,
+    session: Option<&credentials::Session>,
+    claim_legacy: bool,
+) -> Result<PathBuf> {
+    let root = path.parent().ok_or("本机数据目录无效")?;
+    let Some(session) = session else {
+        return Ok(root.join("signed-out/vehicle-history.json"));
+    };
+    let scope = session.account_scope();
+    let marker = root.join("history-owner");
+    match std::fs::read_to_string(&marker) {
+        Ok(owner) if owner == scope => return Ok(path),
+        Ok(_) => (),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if claim_legacy && path.exists() {
+                std::fs::write(&marker, &scope).map_err(|_| "无法保存已有记录的账号归属")?;
+                return Ok(path);
+            }
+        }
+        Err(_) => return Err("无法核对本机记录的账号归属".into()),
+    }
+    Ok(root
+        .join("accounts")
+        .join(scope)
+        .join("vehicle-history.json"))
+}
+
 fn load_backend(path: PathBuf) -> Result<Backend> {
     let parent = path.parent().ok_or("本机数据目录无效")?;
     std::fs::create_dir_all(parent).map_err(|_| "无法建立本机数据目录")?;
@@ -721,6 +886,15 @@ fn load_backend(path: PathBuf) -> Result<Backend> {
 #[cfg(any(desktop, test))]
 async fn run_cli(arguments: &[String]) -> Result<()> {
     match arguments.first().map(String::as_str) {
+        Some("--session-status") => {
+            let status = credentials::status()?;
+            println!(
+                "storageNamespace={} hasSession={} signingKeyPresent={}",
+                credentials::storage_namespace(),
+                status.has_session,
+                status.has_signing_key
+            );
+        }
         #[cfg(all(debug_assertions, target_os = "macos"))]
         Some("--import-hisingen") => {
             let config = arguments
@@ -738,6 +912,11 @@ async fn run_cli(arguments: &[String]) -> Result<()> {
             let fleet = client.connect().await?;
             println!("sessionRestored=true vehicleCount={}", fleet.len());
             for car in fleet {
+                println!(
+                    "model={} platform={}",
+                    car.model,
+                    car.platform.as_deref().unwrap_or("unknown")
+                );
                 let snapshot = client.refresh(&car.vin).await?;
                 for (kind, reading) in snapshot.readings {
                     let fields = reading
@@ -818,9 +997,30 @@ pub fn run() {
             std::env::consts::OS
         ))
         .setup(|app| {
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            if app.config().identifier != credentials::storage_namespace() {
+                return Err("应用标识与凭据存储不匹配，请重新构建安装包".into());
+            }
             let path = platform::data_directory()
                 .map_err(std::io::Error::other)?
                 .join("vehicle-history.json");
+            #[cfg(all(
+                feature = "polestar4",
+                any(
+                    target_os = "macos",
+                    target_os = "ios",
+                    target_os = "windows",
+                    target_os = "android"
+                )
+            ))]
+            let path = account_history_path(
+                path,
+                credentials::load_session()
+                    .map_err(std::io::Error::other)?
+                    .as_ref(),
+                true,
+            )
+            .map_err(std::io::Error::other)?;
             #[cfg(target_os = "ios")]
             let service = vehicle_service::ios_service(path).map_err(std::io::Error::other)?;
             #[cfg(not(target_os = "ios"))]
@@ -830,6 +1030,11 @@ pub fn run() {
             #[cfg(not(target_os = "ios"))]
             let service = std::sync::Arc::new(Mutex::new(backend));
             app.manage(service);
+            #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+            app.manage(p4_partner::Service::new(
+                option_env!("NORR_P4_PARTNER_CLIENT_ID"),
+                None,
+            ));
             app.manage(Notify::new());
             app.manage(Mutex::new(
                 norr_vehicle_core::auth::PhoneLogin::new().map_err(std::io::Error::other)?,
@@ -895,7 +1100,10 @@ pub fn run() {
             }
         })
         .invoke_handler(|invoke| {
-            #[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
+            #[cfg(all(
+                target_os = "ios",
+                not(any(feature = "p4-field-test", feature = "polestar4-test"))
+            ))]
             if invoke.message.command() == "sync_watch"
                 && invoke.message.webview_ref().label() == "main"
             {
@@ -913,17 +1121,68 @@ pub fn run() {
                 invoke.resolver.reject("请在 Norr 主窗口操作");
                 return true;
             }
-            #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
-            if matches!(invoke.message.command(), "field_recordings" | "share_recording" | "record_session_observation" | "read_recording_vehicle") {
+            #[cfg(any(
+                all(target_os = "ios", feature = "p4-field-test"),
+                all(
+                    any(target_os = "ios", target_os = "windows", target_os = "android"),
+                    feature = "polestar4"
+                )
+            ))]
+            if matches!(
+                invoke.message.command(),
+                "field_recordings"
+                    | "share_recording"
+                    | "record_session_observation"
+                    | "read_recording_vehicle"
+            ) {
                 let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
-                    p4_recorder::field_recordings, p4_recorder::share_recording, p4_recorder::record_session_observation, p4_recorder::read_recording_vehicle
+                    p4_recorder::field_recordings,
+                    p4_recorder::share_recording,
+                    p4_recorder::record_session_observation,
+                    p4_recorder::read_recording_vehicle
                 ];
                 return handler(invoke);
             }
             #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+            if invoke.message.command() == "p4_partner_control" {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![p4_recorder::p4_partner_control];
+                return handler(invoke);
+            }
+            #[cfg(any(
+                all(
+                    any(target_os = "ios", target_os = "windows"),
+                    feature = "p4-field-test"
+                ),
+                all(
+                    any(
+                        target_os = "macos",
+                        target_os = "ios",
+                        target_os = "windows",
+                        target_os = "android"
+                    ),
+                    feature = "polestar4"
+                )
+            ))]
+            if matches!(
+                invoke.message.command(),
+                "open_field_log" | "mark_field_log" | "export_field_log"
+            ) {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                    p4_field::open_field_log,
+                    p4_field::mark_field_log,
+                    p4_field::export_field_log
+                ];
+                return handler(invoke);
+            }
+            #[cfg(all(
+                any(target_os = "ios", target_os = "windows"),
+                feature = "p4-field-test"
+            ))]
             {
                 match invoke.message.command() {
-                    "session_status" | "request_login_code" | "sign_in_phone" | "sign_in_password" | "connect" => {}
+                    "session_status" | "request_login_code" | "sign_in_phone"
+                    | "sign_in_password" | "connect" => {}
                     _ => {
                         invoke.resolver.reject("此测试包仅提供账号登录和实测日志");
                         return true;
@@ -969,6 +1228,7 @@ pub fn run() {
                 open_location,
                 open_map_link,
                 export_history,
+                record_p4_observation,
                 send_command
             ];
             handler(invoke)

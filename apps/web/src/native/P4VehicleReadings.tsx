@@ -3,8 +3,8 @@ export type P4VehicleSample = {
   collectedAt: number;
   battery?: Reading<{ percent: number | null }>;
   exterior?: Reading<{ locked: boolean | null }>;
-  climate?: Reading<{ activity: string | null; interiorTemperature: number | null }>;
-  target?: Reading<{ referencePercent: number | null }>;
+  climate?: Reading<{ activity: string | null; interiorTemperature: number | null; exteriorTemperature?: number | null }>;
+  target?: Reading<{ percent?: number | null; referencePercent?: number | null }>;
   odometer?: Reading<{ km: number | null }>;
   health?: Reading<{ kpa: Partial<Record<string, number | null>> }>;
   software?: Reading<{ version: string | null }>;
@@ -23,8 +23,10 @@ export function P4VehicleReadings({ sample }: { sample: P4VehicleSample }) {
     ["门锁", sample.exterior, lock == null ? undefined : lock ? "已锁定" : "已解锁"],
     ["驻车空调", sample.climate, activities[sample.climate?.activity ?? ""]],
     ["车内温度", sample.climate, number(sample.climate?.interiorTemperature, " °C", 1)],
+    ["车外温度", sample.climate, number(sample.climate?.exteriorTemperature, " °C", 1)],
     ["当前电量", sample.battery, number(sample.battery?.percent, "%", 1)],
-    ["充电上限（C3 参考值）", sample.target, number(sample.target?.referencePercent, "%")],
+    ["充电上限", sample.target, number(sample.target?.percent, "%", 1)],
+    ...(sample.target?.referencePercent != null ? [["充电上限（C3 参考值）", sample.target, number(sample.target.referencePercent, "%")] as const] : []),
     ["总里程", sample.odometer, number(sample.odometer?.km, " km")],
     ...wheels.map(([key, name]) => [name + "胎压", sample.health, number(sample.health?.kpa?.[key], " kPa")] as const),
     ["软件服务返回的版本", sample.software, sample.software?.version],

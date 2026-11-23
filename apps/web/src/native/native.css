@@ -441,6 +441,12 @@
   color: inherit;
   font: inherit;
 }
+.p4-charge-target {
+  align-items: flex-end;
+}
+.p4-charge-target .native-field {
+  margin: 0;
+}
 .native-detail-columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -914,3 +920,21 @@
     display: none;
   }
 }
+
+
+.vehicle-stage-footer > .vehicle-temperatures {
+  flex-wrap: wrap;
+}
+
+.vehicle-temperatures > span {
+  white-space: nowrap;
+}
+.p4-cabin-control {
+  border: 0;
+  padding: 0;
+  margin: 20px 0 0;
+  min-width: 0;
+}
+.p4-cabin-control legend { padding: 0; margin-bottom: 10px; }
+.p4-cabin-control .limit-presets { display: flex; gap: 6px; }
+.p4-cabin-control .limit-presets button { flex: 1; min-height: 44px; }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isChinaP4, p4DemoEquipment } from "../p4-demo";
 import { ArrowLeft, ArrowRight, CarFront, Plus } from "lucide-react";
 import { demoCapabilityProfile, makeVehicle, useWorkspace } from "../workspace";
 import type { DemoVehicle } from "../workspace";
@@ -13,7 +14,7 @@ import {
   vehicleConfiguration,
 } from "../vehicle-catalog";
 
-export function Garage({ onSelect }: { onSelect: () => void }) {
+export function Garage({ onSelect, theme }: { onSelect: () => void; theme: "light" | "dark" }) {
   const {
     data,
     setData,
@@ -286,7 +287,7 @@ export function Garage({ onSelect }: { onSelect: () => void }) {
               )}
             </div>
             {car.brand === "Polestar" ? (
-              <VehicleArtwork appearance={appearanceFor(car)} />
+              <VehicleArtwork appearance={appearanceFor(car)} darkStage={isChinaP4(car) && theme === "dark"} />
             ) : (
               <div className="art-placeholder">
                 <CarFront size={64} strokeWidth={1} />
@@ -361,6 +362,7 @@ export function Garage({ onSelect }: { onSelect: () => void }) {
                         ...vehicleConfiguration(appearance),
                         ...(car.model !== vehicleConfiguration(appearance).model
                           ? {
+                              ...(car.region === "中国区" && appearance.modelId === "polestar-4" ? p4DemoEquipment : {}),
                               ...demoCapabilityProfile(
                                 car.brand,
                                 car.region,

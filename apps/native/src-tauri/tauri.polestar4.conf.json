@@ -1,0 +1,19 @@
+{
+  "productName": "Norr P4",
+  "identifier": "app.norr.mac.polestar4",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Norr 北行 · Polestar 4 测试",
+        "width": 1280,
+        "height": 880,
+        "minWidth": 640,
+        "minHeight": 600
+      }
+    ]
+  },
+  "bundle": {
+    "macOS": { "infoPlist": "macos/Info.polestar4.plist" }
+  }
+}

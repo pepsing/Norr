@@ -108,7 +108,8 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     fun updateWidgets(invoke: Invoke) {
         try {
             val args = invoke.getArgs()
-            NorrWidgets.store(activity, args.getJSONObject("data"), File(args.getString("imagePath")))
+            val darkImage = args.optString("darkImagePath").takeIf { it.isNotBlank() }?.let { File(it) }
+            NorrWidgets.store(activity, args.getJSONObject("data"), File(args.getString("imagePath")), darkImage)
             invoke.resolve()
         } catch (_: Exception) {
             invoke.reject("小组件数据同步失败，请重试。")

@@ -17,15 +17,19 @@ import {
   BatteryCharging,
 } from "lucide-react";
 import { Modal } from "./components/Modal";
+import { P4CabinDialog } from "./components/P4CabinDialog";
+import { isP4BodyAction, P4BodyDialog, type P4BodyAction } from "./components/P4BodyDialog";
+import "./p4-design.css";
+import { isChinaP4 } from "./p4-demo";
 import { Charging } from "./pages/Charging";
 import { Controls } from "./pages/Controls";
 import { Garage } from "./pages/Garage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VehicleDetails, VehiclePage } from "./pages/VehiclePage";
-import { WorkspaceProvider, supports, useWorkspace } from "./workspace";
+import { WorkspaceProvider, capabilityReason, supports, useWorkspace } from "./workspace";
 
-type Dialog = "climate" | "lock" | "limit" | null;
+type Dialog = "climate" | "lock" | "limit" | P4BodyAction | null;
 const pages = [
   { id: "vehicle", label: "车辆", icon: CarFront },
   { id: "controls", label: "控制", icon: SlidersHorizontal },
@@ -41,6 +45,7 @@ const titles: Record<string, string> = {
   settings: "设置",
   garage: "车库与账号",
   details: "车辆详情",
+  location: "车辆位置",
 };
 function initialTheme(): "light" | "dark" {
   try {
@@ -52,15 +57,15 @@ function initialTheme(): "light" | "dark" {
   }
 }
 
-export default function App() {
+export default function App({ p4 = false, onExit }: { p4?: boolean; onExit?: () => void }) {
   return (
-    <WorkspaceProvider>
-      <WorkspaceApp />
+    <WorkspaceProvider p4={p4}>
+      <WorkspaceApp onExit={onExit} />
     </WorkspaceProvider>
   );
 }
 
-function WorkspaceApp() {
+function WorkspaceApp({ onExit }: { onExit?: () => void }) {
   const {
     data,
     setData,
@@ -76,6 +81,7 @@ function WorkspaceApp() {
   const [page, setPage] = useState("vehicle");
   const [theme, setTheme] = useState(initialTheme);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const chinaP4 = isChinaP4(vehicle);
   const [targetTemperature, setTargetTemperature] = useState(21);
   const [chargeLimit, setChargeLimit] = useState(90);
   const [loading, setLoading] = useState(true);
@@ -125,8 +131,14 @@ function WorkspaceApp() {
       });
     setDialog(null);
   }
-  const activePage = page === "details" || page === "garage" ? "vehicle" : page;
+  const activePage = ["details", "garage", "location"].includes(page) ? "vehicle" : page;
   const blocked = busy || scenario !== "connected";
+  let unavailableReason = "";
+  if (chinaP4 && vehicle && (dialog === "lock" || dialog === "limit")) {
+    const capability = dialog === "lock" ? "lock" : "charge";
+    if (!supports(vehicle, capability)) unavailableReason = capabilityReason(vehicle, capability);
+    else if (scenario !== "connected") unavailableReason = "连接不可用，当前显示上次车辆状态。";
+  }
   return (
     <>
       <a className="skip-link" href="#main">
@@ -172,10 +184,10 @@ function WorkspaceApp() {
           </button>
         </div>
       </header>
-      <main id="main" className="app-main">
+      <main id="main" className={`app-main${chinaP4 ? " p4-workspace" : ""}${chinaP4 && page === "vehicle" ? " p4-home" : ""}`}>
         <div className="page-heading">
           <div className="heading-with-back">
-            {["details", "garage"].includes(page) && (
+            {["details", "garage", "location"].includes(page) && (
               <button
                 className="icon-button"
                 aria-label="返回车辆"
@@ -184,7 +196,7 @@ function WorkspaceApp() {
                 <ArrowLeft size={20} />
               </button>
             )}
-            <h1>{titles[page]}</h1>
+            <h1>{chinaP4 && page === "vehicle" ? vehicle?.model : titles[page]}</h1>
           </div>
           {!["settings", "garage"].includes(page) && (
             <button
@@ -206,11 +218,12 @@ function WorkspaceApp() {
         <div className="preview-context">
           <span>
             演示数据 ·{" "}
-            {vehicle
+            {chinaP4 ? "中国区" : vehicle
               ? `${vehicle.nickname} / ${vehicle.region}`
               : "本地交互预览"}
           </span>
           <button onClick={() => navigate("settings")}>预览设置</button>
+          {onExit && <button disabled={busy} onClick={() => { window.scrollTo(0, 0); onExit(); }}>返回实测</button>}
         </div>
         {["offline", "error"].includes(scenario) &&
           !["settings", "garage"].includes(page) && (
@@ -229,7 +242,7 @@ function WorkspaceApp() {
             </div>
           )}
         {page === "garage" ? (
-          <Garage onSelect={() => navigate("vehicle")} />
+          <Garage theme={theme} onSelect={() => navigate("vehicle")} />
         ) : page === "settings" ? (
           <SettingsPage
             theme={theme}
@@ -266,7 +279,7 @@ function WorkspaceApp() {
             {page === "vehicle" && (
               <VehiclePage onNavigate={navigate} onControl={openDialog} theme={theme} />
             )}
-            {page === "details" && <VehicleDetails />}
+            {(page === "details" || page === "location") && <VehicleDetails key={page} theme={theme} initialTab={page === "location" ? "位置" : "状态"} onLocate={() => openDialog("locate")} />}
             {page === "controls" && <Controls onControl={openDialog} />}
             {page === "charging" && (
               <Charging onLimit={() => openDialog("limit")} />
@@ -282,7 +295,7 @@ function WorkspaceApp() {
       <div className="toast-region" role="status" aria-live="polite">
         {notice && (
           <div className="toast">
-            <Check size={18} />
+            {!chinaP4 && <Check size={18} />}
             <span>{notice}</span>
           </div>
         )}
@@ -313,8 +326,11 @@ function WorkspaceApp() {
           </button>
         </aside>
       )}
-      {dialog && vehicle && (
+      {vehicle && chinaP4 && dialog === "climate" && <P4CabinDialog key={vehicle.id} onClose={() => setDialog(null)} />}
+      {vehicle && chinaP4 && dialog && isP4BodyAction(dialog) && <P4BodyDialog key={vehicle.id + dialog} action={dialog} onClose={() => setDialog(null)} />}
+      {vehicle && (dialog === "lock" || dialog === "limit" || (dialog === "climate" && !chinaP4)) && (
         <Modal
+          className={chinaP4 ? "p4-sheet" : undefined}
           title={
             {
               climate: "座舱温度",
@@ -393,21 +409,27 @@ function WorkspaceApp() {
           )}
           {dialog === "lock" && (
             <>
-              <LockKeyhole
-                className="lock-dialog-icon"
-                size={64}
-                strokeWidth={1}
-              />
-              <p className="modal-description">
-                确认{vehicle.locked ? "解锁" : "锁定"} {vehicle.nickname}？
-              </p>
+              {chinaP4 ? (
+                <dl className="p4-body-states">
+                  <div><dt>车辆</dt><dd>{vehicle.nickname}</dd></div>
+                  <div><dt>门锁状态</dt><dd>{vehicle.locked ? "已锁定" : "已解锁"}</dd></div>
+                </dl>
+              ) : (
+                <>
+                  <LockKeyhole className="lock-dialog-icon" size={64} strokeWidth={1} />
+                  <p className="modal-description">
+                    确认{vehicle.locked ? "解锁" : "锁定"} {vehicle.nickname}？
+                  </p>
+                </>
+              )}
+              {unavailableReason && <p className="p4-action-note">{unavailableReason}</p>}
               <div className="button-row">
                 <button
                   className="primary-button"
                   disabled={blocked || !supports(vehicle, "lock")}
                   onClick={saveDialog}
                 >
-                  {busy ? "正在发送…" : "确认"}
+                  {busy ? "正在发送…" : chinaP4 ? (vehicle.locked ? "解锁车辆" : "锁定车辆") : "确认"}
                 </button>
                 <button
                   className="secondary-button"
@@ -436,7 +458,7 @@ function WorkspaceApp() {
                 max={100}
                 step={5}
                 value={chargeLimit}
-                disabled={busy}
+                disabled={busy || Boolean(unavailableReason)}
                 onChange={(e) => setChargeLimit(Number(e.target.value))}
               />
               <div className="limit-presets">
@@ -444,13 +466,14 @@ function WorkspaceApp() {
                   <button
                     key={value}
                     aria-pressed={chargeLimit === value}
-                    disabled={busy}
+                    disabled={busy || Boolean(unavailableReason)}
                     onClick={() => setChargeLimit(value)}
                   >
                     {value}%
                   </button>
                 ))}
               </div>
+              {unavailableReason && <p className="p4-action-note">{unavailableReason}</p>}
               <button
                 className="primary-button full-width"
                 disabled={blocked || !supports(vehicle, "charge")}

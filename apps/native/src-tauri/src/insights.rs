@@ -186,6 +186,7 @@ pub fn report(records: Vec<Record>, vehicles: Vec<String>, start: u64, end: u64)
                 }
                 for (endpoint, field, points) in [("battery","percent",&mut battery),("odometer","km",&mut odometer)] {
                     let reading = &record.value["readings"][endpoint];
+                    if (record.value["vehicle"]["capabilities"]["norrGeelyReadOnly"] == true || record.value["vehicle"]["capabilities"]["norrXchanger"] == true) && reading["reportedAt"].as_u64().is_none() { continue; }
                     let time = reading["reportedAt"].as_u64().or_else(|| reading["observedAt"].as_u64()).unwrap_or(record.time);
                     if time >= start && time < end {
                         if let Some(value) = number(native_value(&record, endpoint), field) { points.insert(time, value); }

@@ -1,3 +1,4 @@
+import { isChinaP4 } from "../p4-demo";
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { EnergyPanel } from "../components/EnergyPanel";
@@ -63,7 +64,7 @@ export function Charging({ onLimit }: { onLimit: () => void }) {
             busy={busy}
             unavailable={!allowed}
             onSettings={onLimit}
-            onToggleCharge={() =>
+            onToggleCharge={isChinaP4(vehicle) ? undefined : () =>
               command(vehicle.charging ? "暂停充电" : "继续充电", "charge", {
                 charging: !vehicle.charging,
               })
@@ -87,7 +88,7 @@ export function Charging({ onLimit }: { onLimit: () => void }) {
                 ["充电上限", `${vehicle.chargeLimit}%`],
               ]}
             />
-            <div className="list-row">
+            {!isChinaP4(vehicle) && <div className="list-row">
               <div>
                 <h3>电流限制</h3>
                 <p>设备上报的充电电流限制 · 示例</p>
@@ -99,7 +100,7 @@ export function Charging({ onLimit }: { onLimit: () => void }) {
               >
                 {vehicle.currentLimit} A · 调整
               </button>
-            </div>
+            </div>}
             <Bars
               title="本次充电功率"
               unit="kW"
@@ -141,7 +142,7 @@ export function Charging({ onLimit }: { onLimit: () => void }) {
                 {capabilityReason(vehicle, "chargeLocation")}
               </p>
             )}
-            {!locations.length && (
+            {!locations.length && (!isChinaP4(vehicle) || supports(vehicle, "chargeLocation")) && (
               <EmptyState title="还没有充电地点">
                 <p>保存地点名称、电流限制与最低电量。</p>
               </EmptyState>
@@ -353,7 +354,7 @@ export function Charging({ onLimit }: { onLimit: () => void }) {
         </Modal>
       )}
       {editing && (
-        <Modal title="充电地点" onClose={() => setEditing(null)}>
+        <Modal className={isChinaP4(vehicle) ? "p4-sheet" : undefined} title="充电地点" onClose={() => setEditing(null)}>
           <form
             className="form-stack"
             onSubmit={(e) => {

@@ -187,7 +187,9 @@ export const native = {
     listen<{ vin: string; page: string }>("notification-open", (event) =>
       callback(event.payload),
     ),
-  exportHistory: (vin: string, format: "csv" | "json") =>
+  recordP4Observation: (vin: string, action: string, outcome: string) =>
+    invoke<void>("record_p4_observation", { vin, action, outcome }),
+  exportHistory: (vin: string, format: "csv" | "json" | "p4-log") =>
     invoke<boolean>("export_history", { vin, format }),
 };
 
@@ -196,8 +198,33 @@ export function numeric(
   endpoint: string,
   field: string,
 ): number | null {
-  const value = snapshot?.readings[endpoint]?.value?.[field];
+  const reading = snapshot?.readings[endpoint];
+  if (reading?.status === "failed") return null;
+  const value = reading?.value?.[field];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+const chargeStates: Record<number, string> = {
+  1: "正在充电",
+  2: "空闲",
+  3: "等待预约",
+  4: "放电中",
+  5: "充电异常",
+  6: "智能充电",
+  7: "已暂停",
+  8: "充电完成",
+};
+export function chargingStatusText(snapshot?: Snapshot): string {
+  const battery = snapshot?.readings.battery;
+  if (battery?.status !== "success") return "充电状态未知";
+  const state = numeric(snapshot, "battery", "chargeState");
+  if (state !== null && chargeStates[state]) return chargeStates[state];
+  if (isNativeP4(snapshot?.vehicle)) {
+    if (state === 9) return "充电准备中";
+    if (battery.value?.plugged === false) return "未插枪";
+    if (battery.value?.plugged === true) return "已插枪";
+  }
+  return "充电状态未知";
 }
 
 export function cabinAirSnapshot(vin: string, current: Snapshot | undefined, history: Snapshot[]) {
@@ -235,7 +262,7 @@ export function readingText(
   compact = false,
 ): string {
   const reading = snapshot?.readings[endpoint];
-  if (!reading) return "尚未读取";
+  if (!reading) return isNativeP4(snapshot?.vehicle) ? "此项数据待接入" : "尚未读取";
   if (reading.status === "failed") return reading.error ?? "读取失败";
   const timestamp = new Date(reading.reportedAt ?? reading.observedAt);
   const date = timestamp.toLocaleString(
@@ -253,7 +280,7 @@ export function readingText(
         }
       : { hour12: false },
   );
-  return `${reading.reportedAt ? "车辆上报" : "读取于"} ${date}`;
+  return `${reading.reportedAt ? "车辆上报" : "读取于"} ${date}${reading.value?.freshnessPending === true ? " · 等待更新" : ""}`;
 }
 
 export const actionLabels: Record<string, string> = {
@@ -265,11 +292,20 @@ export const actionLabels: Record<string, string> = {
   amperage: "设置交流电流上限",
   flash: "闪灯寻车",
   honkFlash: "鸣笛并闪灯",
+  honk: "单独鸣笛",
   unlockTrunk: "解锁尾门",
   tailgateOpen: "打开尾门",
   tailgateClose: "关闭尾门",
   windowsOpen: "打开车窗",
   windowsClose: "关闭车窗",
+  windowsVent: "车窗通风",
+  steeringWheelHeat: "设置方向盘加热",
+  driverSeatHeat: "设置主驾座椅加热",
+  passengerSeatHeat: "设置副驾座椅加热",
+  driverSeatVent: "设置主驾座椅通风",
+  passengerSeatVent: "设置副驾座椅通风",
+  chargeLidOpen: "打开充电口盖",
+  chargeLidClose: "关闭充电口盖",
   cleanStart: "开始空气预清洁",
   cleanStop: "停止空气预清洁",
   chargeStart: "临时立即充电",
@@ -311,7 +347,13 @@ export function commandLimits(
   action: string,
 ) {
   const limits = vehicle?.limits ?? {};
+  if (action === "steeringWheelHeat") return { min: 0, max: 1, step: 1 };
+  if (p4SeatActions.includes(action)) return { min: 0, max: 3, step: 1 };
   if (action === "otaSchedule") return { min: 2, max: 10080, step: 1 };
+  if (action === "climateStart" && vehicle?.capabilities.norrXchanger === true)
+    return { min: 16, max: 28, step: 1 };
+  if (action === "target" && vehicle?.capabilities.norrXchanger === true)
+    return { min: 40, max: 100, step: 1 };
   if (action === "climateStart")
     return {
       min: Math.max(
@@ -374,11 +416,59 @@ export function chargingOptions(
   };
 }
 
+export function isGeelyReadOnly(vehicle: NativeVehicle | undefined): boolean {
+  return vehicle?.capabilities?.norrGeelyReadOnly === true;
+}
+
+export function isNativeP4(vehicle: NativeVehicle | undefined): boolean {
+  return vehicle?.platform?.toUpperCase() === "HUANFU" || vehicle?.capabilities?.norrXchanger === true || isGeelyReadOnly(vehicle);
+}
+
+export const p4FindActions = ["flash", "honkFlash", "honk"];
+export const p4SeatActions = ["driverSeatHeat", "passengerSeatHeat", "driverSeatVent", "passengerSeatVent"];
+export const p4CabinActions = ["steeringWheelHeat", ...p4SeatActions];
+const p4ImplementedActions = ["climateStart", "climateStop", "target", ...p4CabinActions,
+  "lock", "unlock", "unlockTrunk", "windowsOpen", "windowsClose", "windowsVent", ...p4FindActions,
+  "cleanStart", "cleanStop", "chargeLidOpen", "chargeLidClose"];
+
+const p4ControllerActions = new Set([
+  "lock", "unlock", "unlockTrunk", "windowsOpen", "windowsClose",
+  ...p4FindActions, "climateStart", "climateStop", "cleanStart", "cleanStop",
+  "climateTimer", "deleteClimateTimer", "target",
+]);
+
+const p4CapabilityFlags: Record<string, string> = {
+  lock: "remote_control_lock_2", unlock: "remote_control_unlock_2",
+  climateStart: "remote_climate_control_2", climateStop: "remote_climate_control_2",
+  target: "remote_charge_2",
+  honkFlash: "honk_flash",
+};
+
 export function unavailableReason(
   vehicle: NativeVehicle | undefined,
   action: string,
 ): string | null {
   if (!vehicle) return "尚未连接车辆";
+  if (isGeelyReadOnly(vehicle) || vehicle.capabilities.norrXchanger === true) {
+    if (vehicle.capabilities.norrXchanger === true && p4ImplementedActions.includes(action)) {
+      const key = `norrP4.${action}`;
+      if (Object.hasOwn(vehicle.capabilities, key)) {
+        const permission = vehicle.capabilities[key];
+        return permission === true ? null : permission === false ? "车辆未开放此功能" : "能力或对应车况未确认，请刷新车辆";
+      }
+      if (!["climateStart", "climateStop", "target"].includes(action)) return "能力或对应车况未确认，请刷新车辆";
+    }
+    const flag = p4CapabilityFlags[action];
+    if (flag && vehicle.capabilities[`geely.${flag}`] === false) return "车辆未开放此功能";
+    if (vehicle.capabilities.norrXchanger === true && ["climateStart", "climateStop", "target"].includes(action)) {
+      return vehicle.capabilities[`geely.${flag}`] === true ? null : "服务尚未提供能力信息，请刷新车辆";
+    }
+    if (p4ControllerActions.has(action)) return "官方 App 有此操作，Norr 尚未接入";
+    if (action === "tailgateOpen" || action === "tailgateClose") return "此版本的 P4 接口未实现电动开关尾门";
+    if (action === "amperage") return "此版本的 P4 接口未实现电流上限设置";
+    if (action === "chargeTimer") return "P4 使用充电预约";
+    return "尚未找到对应的 P4 控制接口";
+  }
   if (!["ICUP", "AccountLinking"].includes(vehicle.platform ?? ""))
     return "该平台适配待完成";
   if (

@@ -2514,6 +2514,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 name = "norr"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "cc",
  "dirs",
  "norr-vehicle-core",
@@ -2528,7 +2529,6 @@ dependencies = [
  "tokio",
  "uuid",
  "windows",
- "windows-future",
  "winreg 0.55.0",
 ]
 
@@ -2550,10 +2550,12 @@ dependencies = [
 name = "norr-vehicle-core"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "http",
  "md5",
  "reqwest 0.12.28",
+ "ring",
  "security-framework",
  "serde",
  "serde_json",

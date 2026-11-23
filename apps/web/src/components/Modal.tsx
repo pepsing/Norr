@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -16,6 +16,7 @@ export function Modal({
   className = "",
 }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current!;
@@ -51,7 +52,7 @@ export function Modal({
     <dialog
       ref={ref}
       className={`modal ${className}`}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -71,7 +72,7 @@ export function Modal({
       }}
     >
       <div className="modal-heading">
-        <h2 id="modal-title">{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button
           className="icon-button"
           aria-label="关闭对话框"

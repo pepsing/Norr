@@ -17,3 +17,14 @@ pub fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis() as u64
 }
+
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+mod geely;

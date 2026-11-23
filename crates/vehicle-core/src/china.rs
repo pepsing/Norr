@@ -21,12 +21,28 @@ pub struct ChinaClient {
 }
 
 pub struct PreparedCommand {
-    path: String,
-    body: Vec<u8>,
-    chronos: bool,
-    action: String,
-    vin: String,
+    request: PreparedRequest,
     pub baseline_timer_ids: Option<Vec<String>>,
+}
+
+enum PreparedRequest {
+    C3 {
+        path: String,
+        body: Vec<u8>,
+        chronos: bool,
+        action: String,
+        vin: String,
+    },
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    Xchanger(crate::geely::PreparedControl),
 }
 
 impl ChinaClient {
@@ -104,10 +120,7 @@ impl ChinaClient {
     }
 
     pub fn account_scope(&self) -> Option<String> {
-        use sha2::{Digest, Sha256};
-        self.session
-            .as_ref()
-            .map(|session| format!("{:x}", Sha256::digest(session.login.user_uid.as_bytes())))
+        self.session.as_ref().map(Session::account_scope)
     }
 
     pub async fn vehicles(&mut self) -> Result<&[Vehicle]> {
@@ -156,19 +169,51 @@ impl ChinaClient {
             .iter()
             .map(parse_car)
             .collect::<Result<Vec<_>>>()?;
-        if cfg!(all(target_os = "ios", feature = "p4-field-test")) {
-            self.c3 = grpc_url(&discovery["c3"]).and_then(|url| transport::lazy_channel(&url)).ok();
-            self.lbs = grpc_url(&discovery["c3Lbs"]).and_then(|url| transport::lazy_channel(&url)).ok();
+        if cfg!(all(
+            any(target_os = "ios", target_os = "windows"),
+            feature = "p4-field-test"
+        )) {
+            if cfg!(target_os = "ios") {
+                self.c3 = grpc_url(&discovery["c3"])
+                    .and_then(|url| transport::lazy_channel(&url))
+                    .ok();
+                self.lbs = grpc_url(&discovery["c3Lbs"])
+                    .and_then(|url| transport::lazy_channel(&url))
+                    .ok();
+            }
             self.fleet = fleet;
             self.metadata_at = now_ms();
             return Ok(self.fleet.clone());
         }
-        let c3 = transport::channel(&grpc_url(&discovery["c3"])?).await?;
+        #[cfg(not(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        )))]
+        let c3 = Some(transport::channel(&grpc_url(&discovery["c3"])?).await?);
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        let c3 = match async { transport::channel(&grpc_url(&discovery["c3"])?).await }.await {
+            Ok(channel) => Some(channel),
+            Err(_) if fleet.iter().any(crate::geely::candidate) => None,
+            Err(error) => return Err(error),
+        };
         let lbs = match grpc_url(&discovery["c3Lbs"]) {
             Ok(url) => transport::channel(&url).await.ok(),
             Err(_) => None,
         };
-        self.c3 = Some(c3);
+        self.c3 = c3;
         self.lbs = lbs;
         self.fleet = fleet;
         self.metadata_at = now_ms();
@@ -190,6 +235,18 @@ impl ChinaClient {
             .iter()
             .find(|car| car.vin == vin)
             .ok_or("车辆不属于当前会话")?;
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        if crate::geely::candidate(vehicle) {
+            return Err("此操作须使用 P4 服务".into());
+        }
         if !matches!(vehicle.platform.as_deref(), Some("ICUP" | "AccountLinking")) {
             return Err("此车辆平台的原生适配尚未完成".into());
         }
@@ -232,6 +289,17 @@ impl ChinaClient {
                     .as_deref()
                     .is_some_and(|platform| platform.eq_ignore_ascii_case("HUANFU"))
         })
+    }
+
+    pub fn uses_xchanger(&self, vin: &str) -> bool {
+        cfg!(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows"
+            )
+        )) && self.p4_vehicle(vin).is_some()
     }
 
     async fn read(&self, vin: &str, kind: &str) -> Reading {
@@ -285,6 +353,27 @@ impl ChinaClient {
 
     pub async fn refresh(&mut self, vin: &str) -> Result<Snapshot> {
         self.ensure_metadata().await?;
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        if let Some(car) = self
+            .fleet
+            .iter()
+            .find(|car| car.vin == vin && crate::geely::candidate(car))
+        {
+            return crate::geely::refresh(
+                &self.http,
+                self.session.as_ref().ok_or("会话尚未恢复")?,
+                car,
+            )
+            .await;
+        }
         if let Some(car) = self.p4_vehicle(vin) {
             let (battery, exterior, climate, odometer, health, target, software) = tokio::join!(
                 self.read(vin, "battery"),
@@ -392,6 +481,24 @@ impl ChinaClient {
 
     pub async fn refresh_reading(&mut self, vin: &str, kind: &str) -> Result<Reading> {
         self.ensure_metadata().await?;
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        if let Some(car) = self.p4_vehicle(vin) {
+            return crate::geely::refresh_reading(
+                &self.http,
+                self.session.as_ref().ok_or("会话尚未恢复")?,
+                car,
+                kind,
+            )
+            .await;
+        }
         if self.p4_vehicle(vin).is_none() {
             self.vehicle(vin)?;
         }
@@ -404,11 +511,48 @@ impl ChinaClient {
     }
 
     pub fn validate_command(&self, command: &Command) -> Result<()> {
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        if self.p4_vehicle(&command.vin).is_some() {
+            return crate::geely::validate_control(command);
+        }
         command_request(&self.vehicle(&command.vin)?, command).map(|_| ())
     }
 
     pub async fn prepare(&mut self, command: &Command) -> Result<PreparedCommand> {
+        if cfg!(all(target_os = "ios", feature = "p4-field-test")) {
+            return Err("实测包仅记录观察结果".into());
+        }
         self.ensure_metadata().await?;
+        #[cfg(all(
+            feature = "polestar4",
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "windows",
+                target_os = "android"
+            )
+        ))]
+        if let Some(vehicle) = self.p4_vehicle(&command.vin) {
+            let prepared = crate::geely::prepare_control(
+                &self.http,
+                self.session.as_ref().ok_or("会话尚未恢复")?,
+                vehicle,
+                command,
+            )
+            .await?;
+            return Ok(PreparedCommand {
+                request: PreparedRequest::Xchanger(prepared),
+                baseline_timer_ids: None,
+            });
+        }
         let vehicle = self.vehicle(&command.vin)?;
         let (path, mut body, chronos) = command_request(&vehicle, command)?;
         let mut baseline_timer_ids = None;
@@ -484,26 +628,47 @@ impl ChinaClient {
             ));
         }
         Ok(PreparedCommand {
-            path,
-            body,
-            chronos,
-            action: command.action.clone(),
-            vin: command.vin.clone(),
+            request: PreparedRequest::C3 {
+                path,
+                body,
+                chronos,
+                action: command.action.clone(),
+                vin: command.vin.clone(),
+            },
             baseline_timer_ids,
         })
     }
 
     pub async fn execute(&self, command: PreparedCommand) -> Result<(String, String)> {
-        let result = self
-            .call(
-                &command.vin,
-                &command.path,
-                command.body,
-                command.chronos,
-                false,
-            )
-            .await?;
-        parse_command_response(&command.action, command.chronos, &result)
+        match command.request {
+            PreparedRequest::C3 {
+                vin,
+                path,
+                body,
+                chronos,
+                action,
+            } => {
+                let result = self.call(&vin, &path, body, chronos, false).await?;
+                parse_command_response(&action, chronos, &result)
+            }
+            #[cfg(all(
+                feature = "polestar4",
+                any(
+                    target_os = "macos",
+                    target_os = "ios",
+                    target_os = "windows",
+                    target_os = "android"
+                )
+            ))]
+            PreparedRequest::Xchanger(prepared) => {
+                crate::geely::execute_control(
+                    &self.http,
+                    self.session.as_ref().ok_or("会话尚未恢复")?,
+                    prepared,
+                )
+                .await
+            }
+        }
     }
 }
 
@@ -624,7 +789,7 @@ fn parse_car(car: &Value) -> Result<Vehicle> {
         .ok_or("车辆身份格式无效")?
         .to_owned();
     let object = car.as_object().ok_or("车辆资料格式无效")?;
-    Ok(Vehicle {
+    let car = Vehicle {
         vin,
         model: car["modelName"].as_str().unwrap_or("Polestar").to_owned(),
         model_year: car["modelYear"]
@@ -646,7 +811,22 @@ fn parse_car(car: &Value) -> Result<Vehicle> {
             .filter_map(|(key, value)| value.as_f64().map(|n| (key.clone(), n)))
             .collect(),
         installed_version: car["consumerSoftwareVersion"].as_str().map(str::to_owned),
-    })
+    };
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    if crate::geely::candidate(&car) {
+        let mut car = car;
+        car.capabilities.insert("norrXchanger".into(), Some(true));
+        return Ok(car);
+    }
+    Ok(car)
 }
 
 fn chronos_request(vin: &str) -> Vec<u8> {
@@ -1076,7 +1256,18 @@ mod tests {
                 .capabilities
                 .insert("supportsParkingClimatization".into(), Some(true));
             client.fleet[0].platform = Some("HUANFU".into());
-            assert!(client.validate_command(&command).is_err());
+            assert_eq!(
+                client.validate_command(&command).is_ok(),
+                cfg!(all(
+                    feature = "polestar4",
+                    any(
+                        target_os = "macos",
+                        target_os = "ios",
+                        target_os = "windows"
+                    )
+                ))
+            );
+            assert!(client.vehicle(&command.vin).is_err());
             client.fleet[0].platform = Some("ICUP".into());
             command.vin = "unlinked-vehicle".into();
             assert!(client.validate_command(&command).is_err());

@@ -11,6 +11,7 @@ export const capabilityLabels = {
   climateSchedule: "空调定时",
   chargeSchedule: "全局充电日程",
   chargeLocation: "充电地点写入",
+  chargeLid: "充电口",
 };
 
 export type Capability = keyof typeof capabilityLabels;
@@ -49,7 +50,10 @@ export function demoCapabilityProfile(
               engine: false,
               chargeLocation: "unavailable",
             }
-          : {},
+          : model === "Polestar 4"
+            ? { lock: true, climate: true, charge: true, windows: true, tailgate: true,
+                locate: true, cleaning: true, chargeLid: true, climateSchedule: true, chargeSchedule: true }
+            : {},
     };
   return {
     controlAccess: "owner",

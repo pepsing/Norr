@@ -13,6 +13,8 @@ let cabinAirSnapshot;
 let openingState;
 let chargingOptions;
 let commandLimits;
+let chargingStatusText;
+let readingText;
 try {
   ({
     unavailableReason,
@@ -21,6 +23,8 @@ try {
     openingState,
     chargingOptions,
     commandLimits,
+    chargingStatusText,
+    readingText,
   } = await server.ssrLoadModule("/src/native/client.ts"));
 } finally {
   await server.close();
@@ -246,4 +250,76 @@ test("opening actions follow reported state and retain unknown values", () => {
   assert.equal(openingState(snapshot, ["tailgate"]), "unknown");
   assert.equal(openingState(undefined, parts), "unknown");
   assert.equal(openingState(snapshot, []), "unknown");
+});
+
+test("P4 identifies implemented SDK actions, account capability denials and unsupported controls", () => {
+  const car = { ...sharedVehicle, platform: "HUANFU", capabilities: {
+    norrGeelyReadOnly: true,
+    "geely.remote_control_lock_2": true,
+    "geely.remote_control_unlock_2": false,
+    supportsParkingClimatization: true,
+  } };
+  assert.equal(unavailableReason(car, "lock"), "官方 App 有此操作，Norr 尚未接入");
+  assert.equal(unavailableReason(car, "unlock"), "车辆未开放此功能");
+  for (const action of ["climateStart", "unlockTrunk", "windowsClose", "windowsOpen", "flash", "honk", "cleanStart", "target", "deleteClimateTimer"]) {
+    assert.equal(unavailableReason(car, action), "官方 App 有此操作，Norr 尚未接入");
+  }
+  assert.match(unavailableReason(car, "tailgateOpen"), /未实现电动开关尾门/);
+  assert.match(unavailableReason(car, "amperage"), /未实现电流上限/);
+  assert.match(unavailableReason(car, "otaInstall"), /尚未找到/);
+});
+
+test("P4 enables only xchanger controls with current capability evidence", () => {
+  const car = { ...sharedVehicle, platform: "HUANFU", capabilities: {
+    norrXchanger: true,
+    "geely.remote_climate_control_2": true,
+    "geely.remote_charge_2": true,
+  } };
+  for (const action of ["climateStart", "climateStop", "target"]) {
+    assert.equal(unavailableReason(car, action), null);
+    const flag = action === "target" ? "geely.remote_charge_2" : "geely.remote_climate_control_2";
+    assert.match(unavailableReason({ ...car, capabilities: { ...car.capabilities, [flag]: false } }, action), /未开放/);
+    assert.match(unavailableReason({ ...car, capabilities: { ...car.capabilities, [flag]: null } }, action), /尚未提供能力信息/);
+    assert.match(unavailableReason({ ...car, capabilities: { ...car.capabilities, norrXchanger: false } }, action), /适配待完成/);
+  }
+  for (const action of ["lock", "unlock", "windowsOpen", "cleanStart"]) {
+    assert.match(unavailableReason(car, action), /能力或对应车况未确认/);
+  }
+  assert.deepEqual(commandLimits(car, "climateStart"), { min: 16, max: 28, step: 1 });
+  assert.deepEqual(commandLimits(car, "target"), { min: 40, max: 100, step: 1 });
+});
+
+test("expanded P4 controls use backend availability without bypassing denials or unknowns", () => {
+  const car = { ...sharedVehicle, platform: "HUANFU", capabilities: { norrXchanger: true } };
+  const actions = ["climateStart", "climateStop", "target", "steeringWheelHeat", "driverSeatHeat", "passengerSeatHeat", "driverSeatVent", "passengerSeatVent", "lock", "unlock", "unlockTrunk", "windowsOpen", "windowsClose", "windowsVent", "flash", "honkFlash", "honk", "cleanStart", "cleanStop", "chargeLidOpen", "chargeLidClose"];
+  for (const action of actions) {
+    for (const owner of [false, true, null]) {
+      for (const enabled of [true, false, null]) {
+        const vehicle = { ...car, owner, capabilities: { ...car.capabilities, [`norrP4.${action}`]: enabled } };
+        assert.equal(unavailableReason(vehicle, action), enabled === true ? null : enabled === false ? "车辆未开放此功能" : "能力或对应车况未确认，请刷新车辆");
+      }
+    }
+  }
+  for (const action of ["driverSeatHeat", "passengerSeatHeat", "driverSeatVent", "passengerSeatVent"]) {
+    assert.deepEqual(commandLimits(car, action), { min: 0, max: 3, step: 1 });
+  }
+  assert.deepEqual(commandLimits(car, "steeringWheelHeat"), { min: 0, max: 1, step: 1 });
+  assert.match(unavailableReason(car, "tailgateOpen"), /未实现电动开关尾门/);
+});
+
+
+test("P4 keeps charging state and plug detection distinct on both energy cards", () => {
+  const label = (chargeState, plugged, marker = "norrGeelyReadOnly") => chargingStatusText({
+    vehicle: { capabilities: marker ? { [marker]: true } : {} },
+    readings: { battery: { status: "success", value: { chargeState, plugged } } },
+  });
+  for (const marker of ["norrGeelyReadOnly", "norrXchanger"]) {
+    assert.equal(label(null, false, marker), "未插枪");
+    assert.equal(label(null, true, marker), "已插枪");
+    assert.equal(label(null, null, marker), "充电状态未知");
+    assert.equal(label(3, true, marker), "等待预约");
+    assert.equal(label(9, true, marker), "充电准备中");
+    assert.equal(readingText({ vehicle: { capabilities: { [marker]: true } }, readings: {} }, "software"), "此项数据待接入");
+  }
+  assert.equal(label(null, false, false), "充电状态未知");
 });

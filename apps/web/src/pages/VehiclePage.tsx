@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { isChinaP4, p4DemoTrip, p4DemoTyres } from "../p4-demo";
+import { P4Overview } from "../components/P4Overview";
+import type { P4BodyAction } from "../components/P4BodyDialog";
+import overhead from "../assets/p4-design/overhead.webp";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -29,12 +33,13 @@ export function VehiclePage({
   theme,
 }: {
   onNavigate: (page: string) => void;
-  onControl: (control: "lock" | "climate") => void;
+  onControl: (control: "lock" | "climate" | "limit" | P4BodyAction) => void;
   theme: "light" | "dark";
 }) {
   const { vehicle, data, busy, scenario, command, temperature } =
     useWorkspace();
   if (!vehicle) return null;
+  if (isChinaP4(vehicle)) return <P4Overview onControl={onControl} onNavigate={onNavigate} />;
   const unavailable = busy || scenario !== "connected";
   return (
     <>
@@ -75,7 +80,7 @@ export function VehiclePage({
           vehicle={vehicle}
           busy={busy}
           unavailable={unavailable || !supports(vehicle, "charge")}
-          onToggleCharge={() =>
+          onToggleCharge={isChinaP4(vehicle) ? undefined : () =>
             command(vehicle.charging ? "暂停充电" : "继续充电", "charge", {
               charging: !vehicle.charging,
             })
@@ -173,18 +178,19 @@ export function VehiclePage({
   );
 }
 
-export function VehicleDetails() {
+export function VehicleDetails({ initialTab = "状态", onLocate, theme }: { initialTab?: string; onLocate: () => void; theme: "light" | "dark" }) {
   const { vehicle, data, distance, temperature } = useWorkspace();
-  const [tab, setTab] = useState("状态");
+  const [tab, setTab] = useState(initialTab);
   const [includeVin, setIncludeVin] = useState(false);
   if (!vehicle) return null;
+  const p4 = isChinaP4(vehicle);
   const capabilities = Object.entries(capabilityLabels) as [
     Capability,
     string,
   ][];
   return (
     <>
-      <div className="detail-hero">
+      {!p4 && <div className="detail-hero">
         <div>
           <p className="eyebrow">{vehicle.nickname}</p>
           <h2>{vehicle.model}</h2>
@@ -196,15 +202,15 @@ export function VehicleDetails() {
           <span className="muted">累计里程</span>
           <p className="large-number">{distance(vehicle.odometer)}</p>
         </div>
-      </div>
+      </div>}
       <SectionTabs
-        items={["状态", "位置", "健康", "软件", "规格与能力"]}
+        items={p4 ? ["状态", "行车日志", "位置", "健康", "规格与能力"] : ["状态", "位置", "健康", "软件", "规格与能力"]}
         value={tab}
         onChange={setTab}
         label="车辆详情分类"
       />
       {tab === "状态" && (
-        <div className="split-content">
+        <div className={p4 ? "split-content p4-condition" : "split-content"}>
           <section>
             <h2>车身与座舱</h2>
             <DataRows
@@ -214,6 +220,7 @@ export function VehicleDetails() {
                 ["车窗", vehicle.windowsOpen ? "已打开" : "全部关闭"],
                 ["尾门", vehicle.tailgateOpen ? "已打开" : "已关闭"],
                 ["前舱盖", "已关闭"],
+                ...(p4 ? [["充电盖", vehicle.chargeLidOpen ? "已打开" : "已关闭"] as [string, string]] : []),
                 ["车内温度", temperature(vehicle.cabinTemperature)],
                 ["空气净化", vehicle.cleaning ? "运行中" : "已停止"],
               ]}
@@ -221,17 +228,15 @@ export function VehicleDetails() {
           </section>
           <section>
             <h2>轮胎与出发状态</h2>
-            <div className="tyre-layout">
-              {["左前", "右前", "左后", "右后"].map((label) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <strong>正常</strong>
-                </div>
-              ))}
-              <CarFront size={65} strokeWidth={1} />
+            <div className={p4 ? "p4-wheels" : "tyre-layout"}>
+              {["左前", "右前", "左后", "右后"].map((label, index) => p4 ? <div key={label}>
+                <span>{label}</span><strong>{p4DemoTyres[index].kpa} <small>kPa</small></strong>
+                <span>{temperature(p4DemoTyres[index].temperatureC)} · 正常</span>
+              </div> : <div key={label}><span>{label}</span><strong>正常</strong></div>)}
+              {p4 ? <img src={overhead} width={342} height={766} alt="Polestar 4 俯视图，车头向上" /> : <CarFront size={65} strokeWidth={1} />}
             </div>
             <p className="muted">
-              间接胎压监测示例，仅显示状态。出发前请检查车辆周边。
+              {p4 ? "胎压和胎温为四个轮位的演示读数。" : "间接胎压监测示例，仅显示状态。出发前请检查车辆周边。"}
             </p>
             <DataRows
               rows={[
@@ -242,6 +247,11 @@ export function VehicleDetails() {
           </section>
         </div>
       )}
+      {p4 && tab === "行车日志" && <section className="reading-width p4-trip"><h2>行车日志</h2>
+        <div className="p4-trip-car"><VehicleArtwork appearance={appearanceFor(vehicle)} view={theme === "dark" ? "side" : "front"} darkStage={theme === "dark"} /></div>
+        <DataRows rows={[["总里程", distance(vehicle.odometer)], ["上一次里程", distance(p4DemoTrip.km)],
+          ["平均电耗", `${p4DemoTrip.kwhPer100Km} kWh/100 km`]]} />
+      </section>}
       {tab === "位置" && (
         <div className="split-content">
           <section className="location-panel">
@@ -266,6 +276,7 @@ export function VehicleDetails() {
                 <ArrowUpRight size={17} />
               </a>
             )}
+            {p4 && <button className="secondary-button" onClick={onLocate}>寻车</button>}
           </section>
           <section>
             <h2>停车与环境</h2>
@@ -388,7 +399,7 @@ export function VehicleDetails() {
             </section>
             <section>
               <h2>能力说明</h2>
-              {capabilities.map(([id, label]) => (
+              {capabilities.filter(([id]) => p4 ? id !== "software" && id !== "engine" : id !== "chargeLid").map(([id, label]) => (
                 <div className="list-row" key={id}>
                   <span>{label}</span>
                   <span className={supports(vehicle, id) ? "" : "muted"}>

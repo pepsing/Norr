@@ -30,6 +30,9 @@ use winreg::{
     RegKey,
 };
 
+#[cfg(any(feature = "p4-field-test", feature = "polestar4-test"))]
+const APP_ID: &str = "app.norr.windows.p4test";
+#[cfg(not(any(feature = "p4-field-test", feature = "polestar4-test")))]
 const APP_ID: &str = "app.norr.windows";
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 static APP: OnceLock<tauri::AppHandle> = OnceLock::new();

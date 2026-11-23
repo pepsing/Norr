@@ -88,6 +88,9 @@ pub async fn take_widget_target() -> Result<Option<Target>> {
 
 #[tauri::command]
 pub async fn update_widgets(app: tauri::AppHandle, data: WidgetData) -> Result<()> {
+    if cfg!(all(target_os = "macos", feature = "polestar4-test")) {
+        return Ok(());
+    }
     #[cfg(target_os = "macos")]
     let _update = UPDATE.lock().map_err(|_| "小组件同步锁不可用")?;
     let path = &data.artwork;
@@ -105,17 +108,12 @@ pub async fn update_widgets(app: tauri::AppHandle, data: WidgetData) -> Result<(
     let image_path = directory.join("widget-vehicle.jpg");
     #[cfg(target_os = "macos")]
     let image_path = directory.join(format!("vehicle-{}", path.replace('/', "-")));
-    #[cfg(any(target_os = "ios", target_os = "macos"))]
     let dark_artwork = path.replace("-side.jpg", "-side-cutout.webp");
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     let dark_image_path = directory.join("widget-vehicle-dark.webp");
     #[cfg(target_os = "macos")]
     let dark_image_path = directory.join(format!("vehicle-{}", dark_artwork.replace('/', "-")));
-    for (source, destination) in [
-        (path, &image_path),
-        #[cfg(any(target_os = "ios", target_os = "macos"))]
-        (&dark_artwork, &dark_image_path),
-    ] {
+    for (source, destination) in [(path, &image_path), (&dark_artwork, &dark_image_path)] {
         let asset = app
             .asset_resolver()
             .get(source.clone())
@@ -143,13 +141,9 @@ pub async fn update_widgets(app: tauri::AppHandle, data: WidgetData) -> Result<(
     }
     #[cfg(any(target_os = "ios", target_os = "android"))]
     {
-        let payload = serde_json::json!({"data": data, "imagePath": image_path});
-        #[cfg(target_os = "ios")]
-        let payload = {
-            let mut payload = payload;
-            payload["darkImagePath"] = serde_json::json!(dark_image_path);
-            payload
-        };
+        let payload = serde_json::json!({
+            "data": data, "imagePath": image_path, "darkImagePath": dark_image_path,
+        });
         crate::mobile::call_async("updateWidgets", payload).await
     }
 }

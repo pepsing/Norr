@@ -124,10 +124,43 @@ async fn commit_session(
     session: credentials::Session,
 ) -> Result<credentials::SessionStatus> {
     let client = norr_vehicle_core::china::ChinaClient::new()?;
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    let next_backend = {
+        let path = crate::platform::data_directory()?.join("vehicle-history.json");
+        let path = crate::account_history_path(path, Some(&session), false)?;
+        if path != backend.path {
+            Some(crate::load_backend(path)?)
+        } else {
+            None
+        }
+    };
     credentials::save_session(&session)?;
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    if let Some(next) = next_backend {
+        *backend = next;
+    }
     backend.client = client;
     backend.history.settings.selected_vin = None;
-    #[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
+    #[cfg(all(
+        target_os = "ios",
+        not(any(feature = "p4-field-test", feature = "polestar4-test"))
+    ))]
     let _ = crate::watch::synchronize("", true, true).await;
     flow.finish();
     if let Err(error) = backend.save() {

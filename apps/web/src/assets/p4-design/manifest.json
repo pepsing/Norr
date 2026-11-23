@@ -1,0 +1,16 @@
+{
+  "front-cabin.jpg": {
+    "source": "车主提供的中国区 Polestar App 录屏，00:10.9 空调设置页",
+    "usage": "Norr P4 座舱与车况界面，截取无控件、无账号信息的前排座舱画面",
+    "width": 718,
+    "height": 594,
+    "sha256": "1765c5fa7fd4845ed6a3b4e8fdd41eeebc729a4d037281d78439bde27bb180b5"
+  },
+  "overhead.webp": {
+    "source": "同一车主录屏，00:24.0 车况管理页",
+    "usage": "Norr P4 座舱与车况界面，仅车身俯视图，移除外围背景",
+    "width": 342,
+    "height": 766,
+    "sha256": "f12a2d3b1e402de7f433c8206317253fce277d7c5e7dffd087035eefc2122b29"
+  }
+}

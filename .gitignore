@@ -4,6 +4,8 @@ target/
 apps/native/src-tauri/gen/schemas/
 .npm-cache/
 .playwright-cli/
+output/
+__pycache__/
 *.tsbuildinfo
 *.log
 .DS_Store

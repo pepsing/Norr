@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "./Modal";
 import { capabilityReason, supports, useWorkspace } from "../workspace";
 import type { Schedule } from "../workspace";
+import { isChinaP4 } from "../p4-demo";
 
 export function SectionTabs({
   items,
@@ -102,11 +103,16 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
   const [editing, setEditing] = useState<Schedule | null>(null);
   if (!vehicle) return null;
   const capability = kind === "充电" ? "chargeSchedule" : "climateSchedule";
+  const p4 = isChinaP4(vehicle);
+  const p4Charging = p4 && kind === "充电";
+  const today = p4Charging ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(new Date()) : "";
+  const once = editing?.onceDate !== undefined;
   const allowed =
     supports(vehicle, capability) && scenario === "connected" && !busy;
   const schedules = data.schedules.filter(
     (s) => s.vehicleId === vehicle.id && s.kind === kind,
   );
+  const existing = editing && schedules.some((schedule) => schedule.id === editing.id);
   const read = vehicle.scheduleReads?.[kind] ?? {
     status: schedules.length ? "cached" : "unrequested",
     observedAt: 0,
@@ -117,15 +123,15 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
     failed: "读取失败，保留上次记录",
     cached: "正在显示缓存记录",
     partial:
-      kind === "充电"
+      kind === "充电" && !p4Charging
         ? "全局窗口已读取，地点日程读取失败，完整列表待核对"
         : "仅读取到部分记录，完整列表待核对",
     success:
-      kind === "充电" ? "全局与地点日程已完整读取" : "空调定时列表已读取",
+      kind === "空调" ? "空调定时列表已读取" : p4Charging ? "充电预约列表已读取" : "全局与地点日程已完整读取",
   };
   function save() {
-    if (!editing || !allowed) return;
-    saveSchedule(editing);
+    if (!editing || !allowed || (once ? !editing.onceDate : !editing.days.length)) return;
+    saveSchedule(once ? { ...editing, days: [] } : editing);
     setEditing(null);
   }
   return (
@@ -183,7 +189,7 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
         <EmptyState title={complete ? "已确认没有计划" : "尚无可显示的计划"}>
           <p>
             {complete
-              ? "本次完整读取返回空列表。可添加新的重复计划。"
+              ? (p4Charging ? "本次完整读取返回空列表。可添加单次或重复预约。" : "本次完整读取返回空列表。可添加新的重复计划。")
               : "取得完整列表后，可确认是否设置过计划。"}
           </p>
         </EmptyState>
@@ -196,7 +202,8 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
               {kind === "充电" && ` 至 ${schedule.end}`}
             </h3>
             <p>
-              每周{schedule.days.join("、")}
+              {schedule.onceDate ? `单次 · ${schedule.onceDate}` : `每周${schedule.days.join("、")}`}
+              {p4Charging && schedule.end < schedule.time && " · 次日结束"}
               {schedule.target !== undefined && ` · 目标 ${schedule.target}%`}
               {kind === "空调" && " · 出发时间"}
             </p>
@@ -232,7 +239,7 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
         </div>
       ))}
       {editing && (
-        <Modal title={`编辑${kind}计划`} onClose={() => setEditing(null)}>
+        <Modal className={p4 ? "p4-sheet" : undefined} title={`${p4 && !existing ? "添加" : "编辑"}${kind}计划`} onClose={() => setEditing(null)}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -240,6 +247,13 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
             }}
             className="form-stack"
           >
+            {p4Charging && <label>预约类型<select value={once ? "once" : "weekly"} onChange={e =>
+              setEditing({ ...editing, onceDate: e.target.value === "once" ? today : undefined,
+                days: editing.days.length ? editing.days : ["一", "二", "三", "四", "五"] })}>
+              <option value="weekly">每周重复</option><option value="once">单次</option>
+            </select></label>}
+            {once && <label>开始日期<input type="date" required min={today} value={editing.onceDate}
+              onChange={e => setEditing({ ...editing, onceDate: e.target.value })} /></label>}
             <label>
               {kind === "充电" ? "开始时间" : "出发时间"}
               <input
@@ -264,7 +278,7 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
                 />
               </label>
             )}
-            <fieldset>
+            {!once && <fieldset>
               <legend>重复日期</legend>
               <div className="day-picker">
                 {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
@@ -285,20 +299,19 @@ export function ScheduleList({ kind }: { kind: Schedule["kind"] }) {
                   </button>
                 ))}
               </div>
-            </fieldset>
-            {editing.days.length === 0 && <p role="alert">至少选择一天。</p>}
+            </fieldset>}
+            {!once && editing.days.length === 0 && <p role="alert">至少选择一天。</p>}
             <p className="muted">
-              时间按设备本地时区解释
-              {kind === "充电" && "，结束时间早于开始时间时跨至次日"}
-              。演示计划保存在此浏览器中。
+              {p4 ? <>中国标准时间（UTC+8）。{kind === "充电" && "结束时间早于开始时间时，于次日结束。"}计划保存在本机。</>
+                : <>时间按设备本地时区解释{kind === "充电" && "，结束时间早于开始时间时跨至次日"}。演示计划保存在此浏览器中。</>}
             </p>
             <button
               className="primary-button"
-              disabled={!allowed || !editing.days.length}
+              disabled={!allowed || (once ? !editing.onceDate : !editing.days.length)}
             >
               保存计划
             </button>
-            {schedules.some((s) => s.id === editing.id) && (
+            {existing && (
               <button
                 className="text-button danger-text"
                 type="button"

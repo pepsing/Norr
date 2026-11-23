@@ -27,9 +27,17 @@ pub fn open_path() -> Result<Option<PathBuf>> {
     Ok(Some(path?))
 }
 
+#[cfg(desktop)]
+fn filename(format: &str) -> String {
+    if format == "p4-log" {
+        return "norr-p4-test-log.json".into();
+    }
+    format!("norr-history.{format}")
+}
+
 #[cfg(target_os = "macos")]
 fn save_path(format: &str) -> Result<Option<PathBuf>> {
-    let name = CString::new(format!("norr-history.{format}")).map_err(|_| "文件名无效")?;
+    let name = CString::new(filename(format)).map_err(|_| "文件名无效")?;
     let selected = unsafe { norr_save_path(name.as_ptr()) };
     if selected.is_null() {
         return Ok(None);
@@ -56,8 +64,11 @@ pub fn open_path() -> Result<Option<PathBuf>> {
 fn save_path(format: &str) -> Result<Option<PathBuf>> {
     Ok(rfd::FileDialog::new()
         .set_title("导出车辆记录")
-        .set_file_name(format!("norr-history.{format}"))
-        .add_filter("车辆记录", &[format])
+        .set_file_name(filename(format))
+        .add_filter(
+            "车辆记录",
+            &[if format == "p4-log" { "json" } else { format }],
+        )
         .save_file())
 }
 

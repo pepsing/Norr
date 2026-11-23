@@ -1,0 +1,15 @@
+{
+  "productName": "Norr P4 Demo",
+  "identifier": "app.norr.mac.polestar4.demo",
+  "build": {
+    "beforeBuildCommand": "VITE_P4_FIELD_TEST=demo npm run build --workspace @norr/web"
+  },
+  "app": {
+    "windows": [
+      { "label": "main", "title": "Norr 北行 · Polestar 4 演示", "width": 920, "height": 800, "minWidth": 420, "minHeight": 480 }
+    ]
+  },
+  "bundle": {
+    "macOS": { "infoPlist": "macos/Info.polestar4.plist" }
+  }
+}

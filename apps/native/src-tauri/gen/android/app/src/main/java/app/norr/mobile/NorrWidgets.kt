@@ -58,18 +58,29 @@ object NorrWidgets {
     fun preferences(context: Context) = context.getSharedPreferences("norr-widgets", Context.MODE_PRIVATE)
 
     @Synchronized
-    fun store(context: Context, data: JSONObject, image: File) {
+    fun store(context: Context, data: JSONObject, image: File, darkImage: File? = null) {
         val directory = File(context.filesDir, "widgets").apply { mkdirs() }
+        val imageName = storeImage(directory, image, false)
+        val darkImageName = darkImage?.let { storeImage(directory, it, true) }
+        val record = JSONObject(data.toString())
+            .put("imageName", imageName)
+            .put("darkImageName", darkImageName ?: JSONObject.NULL)
+        check(preferences(context).edit().putString("vehicle", record.toString()).commit())
+        updateAll(context)
+    }
+
+    private fun storeImage(directory: File, image: File, transparent: Boolean): String {
         val bitmap = BitmapFactory.decodeFile(image.absolutePath) ?: error("车辆图片不可用")
         val height = minOf(bitmap.height, (bitmap.width / 3.2).roundToInt())
         val crop = Bitmap.createBitmap(bitmap, 0, ((bitmap.height - height) * 0.6).roundToInt(), bitmap.width, height)
         val scaled = Bitmap.createScaledBitmap(crop, 720, (720.0 * height / bitmap.width).roundToInt(), true)
         val digest = MessageDigest.getInstance("SHA-256").digest(image.readBytes())
-        val imageName = "vehicle-${digest.joinToString("") { "%02x".format(it) }}.jpg"
+        val suffix = if (transparent) "png" else "jpg"
+        val imageName = "vehicle-${digest.joinToString("") { "%02x".format(it) }}.$suffix"
         val imageFile = AtomicFile(File(directory, imageName))
         val output = imageFile.startWrite()
         try {
-            check(scaled.compress(Bitmap.CompressFormat.JPEG, 90, output))
+            check(scaled.compress(if (transparent) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, 90, output))
             imageFile.finishWrite(output)
         } catch (error: Exception) {
             imageFile.failWrite(output)
@@ -79,9 +90,7 @@ object NorrWidgets {
             if (crop !== scaled) crop.recycle()
             if (bitmap !== crop && bitmap !== scaled) bitmap.recycle()
         }
-        val record = JSONObject(data.toString()).put("imageName", imageName)
-        check(preferences(context).edit().putString("vehicle", record.toString()).commit())
-        updateAll(context)
+        return imageName
     }
 
     fun updateAll(context: Context) {
@@ -134,6 +143,8 @@ object NorrWidgets {
         val layout = when {
             small -> R.layout.norr_widget_small
             compact -> R.layout.norr_widget_compact_wide
+            // A separate layout ID clears fixed visibility when returning to system appearance.
+            large && !followSystem -> R.layout.norr_widget_large_fixed
             else -> R.layout.norr_widget_wide
         }
         val views = RemoteViews(context.packageName, layout)
@@ -208,7 +219,17 @@ object NorrWidgets {
             }
             if (large) {
                 val image = BitmapFactory.decodeFile(File(context.filesDir, "widgets/${data.optString("imageName")}").absolutePath)
-                views.setImageViewBitmap(R.id.widget_artwork, image)
+                val darkImage = data.optString("darkImageName").takeIf { it.isNotBlank() }?.let {
+                    BitmapFactory.decodeFile(File(context.filesDir, "widgets/$it").absolutePath)
+                } ?: image
+                views.setImageViewBitmap(R.id.widget_artwork_light, image)
+                views.setImageViewBitmap(R.id.widget_artwork_dark, darkImage)
+                // Night-qualified styles let the launcher choose artwork after a theme change.
+                if (!followSystem) {
+                    views.setViewVisibility(R.id.widget_artwork_light, if (dark) View.GONE else View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_artwork_dark, if (dark) View.VISIBLE else View.GONE)
+                    views.setInt(R.id.widget_artwork, "setBackgroundColor", if (dark) Color.rgb(32, 35, 31) else Color.TRANSPARENT)
+                }
                 views.setContentDescription(R.id.widget_artwork, data.optString("model"))
                 val charging = when (data.optInt("charging")) {
                     1 -> "充电中"

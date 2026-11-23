@@ -5,8 +5,12 @@ edition.workspace = true
 
 [features]
 p4-field-test = []
+polestar4 = ["dep:ring", "dep:base64"]
+polestar4-test = ["polestar4"]
 
 [dependencies]
+ring = { version = "0.17", optional = true }
+base64 = { version = "0.22", optional = true }
 sha2 = "0.10"
 bytes = "1"
 http = "1"

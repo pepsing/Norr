@@ -26,6 +26,15 @@ pub fn charge_target(result: Result<Value>) -> Reading {
 
 pub fn recording_sample(snapshot: &Snapshot) -> Value {
     let mut sample = json!({"collectedAt": snapshot.fetched_at});
+    sample["controls"] = json!(snapshot
+        .vehicle
+        .capabilities
+        .iter()
+        .filter(|(key, _)| key
+            .strip_prefix("norrP4.")
+            .and_then(crate::confirmation::command_group)
+            .is_some())
+        .collect::<std::collections::BTreeMap<_, _>>());
     for (kind, reading) in &snapshot.readings {
         let data = reading
             .value
@@ -36,13 +45,45 @@ pub fn recording_sample(snapshot: &Snapshot) -> Value {
             "battery" => {
                 json!({"percent": data["percent"].as_f64().filter(|n| (0.0..=100.0).contains(n))})
             }
-            "exterior" => json!({"locked": data["locked"].as_bool()}),
+            "exterior" => {
+                let openings = [
+                    "frontLeftWindow",
+                    "frontRightWindow",
+                    "rearLeftWindow",
+                    "rearRightWindow",
+                    "tailgate",
+                    "chargeLid",
+                ]
+                .into_iter()
+                .map(|key| {
+                    (
+                        key,
+                        data["openings"][key]
+                            .as_u64()
+                            .filter(|v| (1..=3).contains(v)),
+                    )
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
+                json!({"locked": data["locked"].as_bool(), "trunkLocked":data["trunkLocked"].as_bool(),"openings":openings})
+            }
             "climate" => json!({
                 "activity": data["activity"].as_str().filter(|s| matches!(*s, "active" | "idle" | "starting" | "unknown")),
-                "interiorTemperature": data["interiorTemperature"].as_f64()
+                "interiorTemperature": data["interiorTemperature"].as_f64(),
+                "exteriorTemperature": data["exteriorTemperature"].as_f64(),
+                "steeringWheelHeatActive":data["steeringWheelHeatActive"].as_bool(),
+                "driverSeatHeatLevel":data["driverSeatHeatLevel"].as_u64().filter(|v| *v <= 3),
+                "passengerSeatHeatLevel":data["passengerSeatHeatLevel"].as_u64().filter(|v| *v <= 3),
+                "driverSeatVentLevel":data["driverSeatVentLevel"].as_u64().filter(|v| *v <= 3),
+                "passengerSeatVentLevel":data["passengerSeatVentLevel"].as_u64().filter(|v| *v <= 3)
             }),
+            "airQuality" => {
+                json!({"state":data["state"].as_u64().filter(|v| matches!(v, 1|2)),"pm25":data["pm25"].as_f64()})
+            }
             "target" => {
-                json!({"referencePercent": data["referencePercent"].as_u64().filter(|n| *n <= 100)})
+                json!({
+                    "percent": data["percent"].as_f64().filter(|n| (0.0..=100.0).contains(n)),
+                    "referencePercent": data["referencePercent"].as_u64().filter(|n| *n <= 100)
+                })
             }
             "odometer" => json!({"km": data["km"].as_f64()}),
             "health" => {
@@ -73,6 +114,7 @@ pub fn recording_sample(snapshot: &Snapshot) -> Value {
         });
         item["observedAt"] = json!(reading.observed_at);
         item["reportedAt"] = json!(reading.reported_at);
+        item["freshnessPending"] = json!(data["freshnessPending"].as_bool());
         sample[kind] = item;
     }
     sample
@@ -111,6 +153,26 @@ mod tests {
         assert_eq!(sample["battery"]["reportedAt"], 4100);
         assert_eq!(sample["climate"]["status"], "failed");
         assert!(sample["climate"]["activity"].is_null());
+    }
+
+    #[test]
+    fn recording_preserves_vehicle_target_and_outside_temperature() {
+        let mut snapshot: Snapshot = serde_json::from_value(json!({
+            "vehicle":{"vin":"TEST","model":"Polestar 4","capabilities":{},"limits":{}},
+            "fetchedAt":5500,"readings":{
+                "climate":{"status":"success","observedAt":5200,"value":{"exteriorTemperature":0}}
+            }
+        }))
+        .unwrap();
+        snapshot.readings.insert(
+            "target".into(),
+            charge_target(Ok(json!({"soc":"905","socTime":"1700000000"}))),
+        );
+        let sample = recording_sample(&snapshot);
+        assert_eq!(sample["target"]["percent"], 90.5);
+        assert!(sample["target"]["referencePercent"].is_null());
+        assert_eq!(sample["target"]["reportedAt"], 1_700_000_000_000u64);
+        assert_eq!(sample["climate"]["exteriorTemperature"], 0.0);
     }
 
     #[test]

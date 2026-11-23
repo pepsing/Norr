@@ -2,11 +2,15 @@ package app.norr.mobile
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.ImageView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
@@ -14,6 +18,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class NorrWidgetThemeTest {
@@ -51,7 +57,7 @@ class NorrWidgetThemeTest {
                     assertEquals(Color.parseColor(if (night) "#B0B5AA" else "#62665E"),
                         root.findViewById<TextView>(R.id.widget_time).currentTextColor)
                     assertEquals(Color.parseColor(if (night) "#000000" else "#F7F7F5"),
-                        (root.background as GradientDrawable).color!!.defaultColor)
+                        (root.findViewById<View>(R.id.widget_root).background as GradientDrawable).color!!.defaultColor)
                     checkLayout(root, size)
                 }
             }
@@ -68,7 +74,7 @@ class NorrWidgetThemeTest {
                     assertEquals(Color.parseColor(if (dark) "#EEEFE9" else "#20221F"),
                         root.findViewById<TextView>(R.id.widget_battery).currentTextColor)
                     assertEquals(Color.parseColor(if (dark) "#000000" else "#F7F7F5"),
-                        (root.background as GradientDrawable).color!!.defaultColor)
+                        (root.findViewById<View>(R.id.widget_root).background as GradientDrawable).color!!.defaultColor)
                 }
             }
         }
@@ -88,6 +94,73 @@ class NorrWidgetThemeTest {
                 assertEquals("门锁未知", missing.findViewById<TextView>(R.id.widget_lock).text.toString())
             }
         }
+    }
+
+    @Test
+    fun artworkUsesHostThemeAndFixedAppearanceKeepsItsSelection() {
+        withArtwork { record ->
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val system = NorrWidgets.render(host(false), 0, record, false, 2, followSystem = true)
+                for (night in listOf(false, true, false)) {
+                    checkArtwork(system.apply(host(night), null), night, night)
+                }
+                for (dark in listOf(false, true)) {
+                    val fixed = NorrWidgets.render(host(!dark), 0, record, dark, 2)
+                    assertTrue("Returning to system must reinflate the artwork", fixed.layoutId != system.layoutId)
+                    for (night in listOf(false, true)) checkArtwork(fixed.apply(host(night), null), dark, dark)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun oldOrMissingDarkArtworkFallsBackToTheSameVehicle() {
+        withArtwork { record ->
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                for (missing in listOf(null, "vehicle-missing-${UUID.randomUUID()}.png")) {
+                    val old = JSONObject(record.toString())
+                    if (missing == null) old.remove("darkImageName") else old.put("darkImageName", missing)
+                    val views = NorrWidgets.render(host(false), 0, old, false, 2, followSystem = true)
+                    checkArtwork(views.apply(host(true), null), true, false)
+                }
+            }
+        }
+    }
+
+    private fun withArtwork(check: (JSONObject) -> Unit) {
+        val directory = File(context.filesDir, "widgets").apply { mkdirs() }
+        val files = mutableListOf<File>()
+        fun image(color: Int): String {
+            val file = File(directory, "vehicle-test-${UUID.randomUUID()}.png")
+            files.add(file)
+            val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+            try {
+                bitmap.eraseColor(color)
+                bitmap.setPixel(2, 2, Color.RED)
+                file.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            } finally {
+                bitmap.recycle()
+            }
+            return file.name
+        }
+        try {
+            check(JSONObject(data.toString()).put("imageName", image(Color.WHITE))
+                .put("darkImageName", image(Color.TRANSPARENT)))
+        } finally {
+            files.forEach { it.delete() }
+        }
+    }
+
+    private fun checkArtwork(root: View, dark: Boolean, transparent: Boolean) {
+        val light = root.findViewById<ImageView>(R.id.widget_artwork_light)
+        val night = root.findViewById<ImageView>(R.id.widget_artwork_dark)
+        assertEquals(if (dark) View.GONE else View.VISIBLE, light.visibility)
+        assertEquals(if (dark) View.VISIBLE else View.GONE, night.visibility)
+        val bitmap = ((if (dark) night else light).drawable as BitmapDrawable).bitmap
+        assertEquals(if (transparent) 0 else 255, Color.alpha(bitmap.getPixel(0, 0)))
+        assertEquals(Color.RED, bitmap.getPixel(2, 2))
+        assertEquals(if (dark) Color.rgb(32, 35, 31) else Color.TRANSPARENT,
+            (root.findViewById<View>(R.id.widget_artwork).background as ColorDrawable).color)
     }
 
     private fun checkLayout(root: View, size: IntArray) {

@@ -3,6 +3,7 @@ import {
   AudioLines,
   Download,
   Fan,
+  PlugZap,
   LockKeyhole,
   LockKeyholeOpen,
   PanelTop,
@@ -16,6 +17,8 @@ import type { LucideIcon } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { CabinAirPanel, ControlCard, ControlRow } from "../components/VehicleControls";
 import { appearanceFor } from "../vehicle-catalog";
+import { isChinaP4, p4DemoAir, p4SetpointLabel } from "../p4-demo";
+import { isP4BodyAction, type P4BodyAction } from "../components/P4BodyDialog";
 import {
   Confirmation,
   EmptyState,
@@ -87,82 +90,82 @@ export function CommandHistory() {
           <p>执行车辆控制后，可以在这里查看结果与后续操作。</p>
         </EmptyState>
       )}
-      {receipts.map((receipt) => (
-        <div className="receipt-row" key={receipt.id}>
-          <div>
-            <h3>{receipt.label}</h3>
-            <p>
-              {new Date(receipt.time).toLocaleTimeString("zh-CN")} ·{" "}
-              {receiptLabels[receipt.status]}
-            </p>
-            {["accepted", "delivered", "completed", "unknown"].includes(
-              receipt.status,
-            ) && <p className="muted">等待独立回读确认车辆结果。</p>}
-            {receipt.observation && (
-              <p className="muted">
-                回读于{" "}
-                {new Date(receipt.observation.time).toLocaleTimeString("zh-CN")}{" "}
-                ·
-                {receipt.observation.result === "match"
-                  ? "目标字段一致"
-                  : receipt.observation.result === "mismatch"
-                    ? "与目标不一致"
-                    : "未取得可用状态"}
+      {receipts.map((receipt) => {
+        const waiting = ["accepted", "delivered", "completed", "unknown"].includes(receipt.status);
+        const signal = isChinaP4(vehicle) && receipt.capability === "locate";
+        return (
+          <div className="receipt-row" key={receipt.id}>
+            <div>
+              <h3>{receipt.label}</h3>
+              <p>
+                {new Date(receipt.time).toLocaleTimeString("zh-CN")} ·{" "}
+                {receiptLabels[receipt.status]}
               </p>
-            )}
+              {waiting && <p className="muted">{signal ? "寻车信号仅持续片刻，实车效果需在车旁观察。" : "等待独立回读确认车辆结果。"}</p>}
+              {receipt.observation && (
+                <p className="muted">
+                  回读于{" "}
+                  {new Date(receipt.observation.time).toLocaleTimeString("zh-CN")}{" "}
+                  ·
+                  {receipt.observation.result === "match"
+                    ? "目标字段一致"
+                    : receipt.observation.result === "mismatch"
+                      ? "与目标不一致"
+                      : "未取得可用状态"}
+                </p>
+              )}
+            </div>
+            <div className="row-actions">
+              {receipt.status === "failed" && (
+                <button
+                  disabled={
+                    busy ||
+                    scenario !== "connected" ||
+                    !vehicle ||
+                    !supports(vehicle, receipt.capability)
+                  }
+                  className="text-button"
+                  onClick={() =>
+                    command(
+                      receipt.label,
+                      receipt.capability,
+                      receipt.changes,
+                      receipt.id,
+                    )
+                  }
+                >
+                  重试
+                </button>
+              )}
+              {waiting && !signal && (
+                <button
+                  disabled={busy || scenario !== "connected"}
+                  className="text-button"
+                  onClick={() => resolveReceipt(receipt.id, false)}
+                >
+                  核对状态
+                </button>
+              )}
+              {canUndo(receipt) && (
+                <button
+                  disabled={
+                    busy ||
+                    scenario !== "connected" ||
+                    !vehicle ||
+                    !supports(vehicle, receipt.capability)
+                  }
+                  className="text-button"
+                  onClick={() => resolveReceipt(receipt.id, true)}
+                >
+                  恢复先前设置（
+                  {Math.max(0, Math.ceil((30000 - (now - receipt.time)) / 1000))}
+                  s）
+                </button>
+              )}
+            </div>
           </div>
-          <div className="row-actions">
-            {receipt.status === "failed" && (
-              <button
-                disabled={
-                  busy ||
-                  scenario !== "connected" ||
-                  !vehicle ||
-                  !supports(vehicle, receipt.capability)
-                }
-                className="text-button"
-                onClick={() =>
-                  command(
-                    receipt.label,
-                    receipt.capability,
-                    receipt.changes,
-                    receipt.id,
-                  )
-                }
-              >
-                重试
-              </button>
-            )}
-            {["accepted", "delivered", "completed", "unknown"].includes(
-              receipt.status,
-            ) && (
-              <button
-                disabled={busy || scenario !== "connected"}
-                className="text-button"
-                onClick={() => resolveReceipt(receipt.id, false)}
-              >
-                核对状态
-              </button>
-            )}
-            {canUndo(receipt) && (
-              <button
-                disabled={
-                  busy ||
-                  scenario !== "connected" ||
-                  !vehicle ||
-                  !supports(vehicle, receipt.capability)
-                }
-                className="text-button"
-                onClick={() => resolveReceipt(receipt.id, true)}
-              >
-                恢复先前设置（
-                {Math.max(0, Math.ceil((30000 - (now - receipt.time)) / 1000))}
-                s）
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
   );
 }
@@ -170,7 +173,7 @@ export function CommandHistory() {
 export function Controls({
   onControl,
 }: {
-  onControl: (control: "lock" | "climate") => void;
+  onControl: (control: "lock" | "climate" | P4BodyAction) => void;
 }) {
   const {
     vehicle,
@@ -191,6 +194,7 @@ export function Controls({
   const [routineName, setRoutineName] = useState<string | null>(null);
   if (!vehicle) return null;
   const disabled = busy || scenario !== "connected";
+  const p4 = isChinaP4(vehicle);
   const actions: {
     label: string;
     title: string;
@@ -208,16 +212,16 @@ export function Controls({
       changes: { windowsOpen: !vehicle.windowsOpen },
     },
     {
-      label: vehicle.tailgateOpen ? "关闭尾门" : "打开尾门",
+      label: p4 ? "解锁尾门" : vehicle.tailgateOpen ? "关闭尾门" : "打开尾门",
       title: "尾门",
       icon: PanelTopOpen,
-      description: vehicle.tailgateOpen ? "已打开" : "已关闭",
+      description: p4 ? (vehicle.trunkLocked === false ? "已解锁" : "已锁定") : vehicle.tailgateOpen ? "已打开" : "已关闭",
       capability: "tailgate",
-      changes: { tailgateOpen: !vehicle.tailgateOpen },
+      changes: p4 ? { trunkLocked: false } : { tailgateOpen: !vehicle.tailgateOpen },
     },
     {
-      label: "鸣笛与闪灯",
-      title: "鸣笛与闪灯",
+      label: p4 ? "选择寻车方式" : "鸣笛与闪灯",
+      title: p4 ? "寻车" : "鸣笛与闪灯",
       icon: AudioLines,
       description: "在停车场寻找车辆",
       capability: "locate",
@@ -251,6 +255,11 @@ export function Controls({
       changes: { software: "P4.2.2" },
     },
   ];
+  if (p4) actions.push({
+    label: vehicle.chargeLidOpen ? "关闭充电口盖" : "打开充电口盖", title: "充电口盖", icon: PlugZap,
+    description: vehicle.chargeLidOpen ? "已打开" : "已关闭", capability: "chargeLid",
+    changes: { chargeLidOpen: !vehicle.chargeLidOpen },
+  });
   return (
     <>
       <SectionTabs
@@ -263,9 +272,10 @@ export function Controls({
         <>
           <div className="control-lead">
             <CabinAirPanel
-              pm25={supports(vehicle, "cleaning") && scenario === "connected" ? 8 : null}
-              aqi={supports(vehicle, "cleaning") && scenario === "connected" ? 18 : null}
+              pm25={supports(vehicle, "cleaning") && scenario === "connected" ? (p4 ? p4DemoAir : 8) : null}
+              aqi={!p4 && supports(vehicle, "cleaning") && scenario === "connected" ? 18 : null}
               note="演示数据"
+              onDetails={p4 ? () => onControl("cleaning") : undefined}
               appearance={vehicle.brand === "Polestar" ? appearanceFor(vehicle) : undefined}
             />
             <ControlCard
@@ -307,7 +317,7 @@ export function Controls({
           </div>
           <section className="control-list" aria-labelledby="vehicle-controls-heading">
             <h2 id="vehicle-controls-heading">车辆功能</h2>
-            {actions.map((action) => (
+            {actions.filter(action => !p4 || !["software", "engine"].includes(action.capability)).map((action) => (
               <ControlRow
                 key={action.capability}
                 icon={action.icon}
@@ -328,7 +338,7 @@ export function Controls({
                     (action.capability === "software" &&
                       vehicle.software === "P4.2.2")
                   }
-                  onClick={() => setPending(action)}
+                  onClick={() => p4 && isP4BodyAction(action.capability) ? onControl(action.capability) : setPending(action)}
                 >
                   {supports(vehicle, action.capability)
                     ? action.label
@@ -364,7 +374,7 @@ export function Controls({
                 <div>
                   <h3>{routine.name}</h3>
                   <p>
-                    锁定车门 · 空调 {temperature(vehicle.targetTemperature)}
+                    锁定车门 · 空调 {p4 ? p4SetpointLabel(vehicle, temperature) : temperature(vehicle.targetTemperature)}
                   </p>
                 </div>
                 <div className="row-actions">
@@ -423,7 +433,7 @@ export function Controls({
           }}
         >
           <p>将对 {vehicle.nickname} 执行此操作。</p>
-          {pending.capability === "tailgate" && (
+          {pending.capability === "tailgate" && !p4 && (
             <p>操作前请确认车辆后方有足够空间。</p>
           )}
           {pending.capability === "software" && (
@@ -436,7 +446,7 @@ export function Controls({
         </Confirmation>
       )}
       {routineName !== null && (
-        <Modal title="新建快捷组合" onClose={() => setRoutineName(null)}>
+        <Modal className={p4 ? "p4-sheet" : undefined} title="新建快捷组合" onClose={() => setRoutineName(null)}>
           <form
             className="form-stack"
             onSubmit={(e) => {

@@ -1,0 +1,37 @@
+{
+  "updated": "2026-11-23",
+  "sourceArtworkManifest": "apps/web/public/images/vehicles/manifest.json",
+  "sourceWidget": "apps/native/src-tauri/ios/Widgets/NorrWidgets.swift",
+  "assetsModified": false,
+  "artworkPairs": 80,
+  "lightSource": "images/vehicles/**/**-side.jpg",
+  "darkSource": "images/vehicles/**/**-side-cutout.webp",
+  "androidCache": {
+    "width": 720,
+    "aspectRatio": 3.2,
+    "lightFormat": "JPEG",
+    "darkFormat": "PNG with alpha"
+  },
+  "resources": [
+    {
+      "file": "apps/native/src-tauri/gen/android/app/src/main/res/layout/norr_widget_wide.xml",
+      "source": "Existing Norr widget layout and iOS artwork palette; adapted for Android RemoteViews",
+      "sha256": "e810209d1949eb2592268412872869e19d7a6a728a04a0367695177659e60492"
+    },
+    {
+      "file": "apps/native/src-tauri/gen/android/app/src/main/res/layout/norr_widget_large_fixed.xml",
+      "source": "Existing Norr widget layout and iOS artwork palette; adapted for Android RemoteViews",
+      "sha256": "9bac6f2239baf27c7151124c3391081da5a2271db3be4ff8c03b5bd51d25cd2b"
+    },
+    {
+      "file": "apps/native/src-tauri/gen/android/app/src/main/res/values/widget_artwork.xml",
+      "source": "Existing Norr widget layout and iOS artwork palette; adapted for Android RemoteViews",
+      "sha256": "27bdd1a0db72cfb43b91d4b952004b221b53a1065a5ece742ee5c9b83bfe40e4"
+    },
+    {
+      "file": "apps/native/src-tauri/gen/android/app/src/main/res/values-night/widget_artwork.xml",
+      "source": "Existing Norr widget layout and iOS artwork palette; adapted for Android RemoteViews",
+      "sha256": "7a9020ab6576ff54ff29e3090defbeb253ac6b29109a3191c73d8a65ac60e931"
+    }
+  ]
+}

@@ -73,6 +73,7 @@ pub async fn read_recording_vehicle(
     state: State<'_, VehicleService>,
     id: i64,
     vin: String,
+    include_snapshot: Option<bool>,
 ) -> Result<Value> {
     let mut backend = state.lock().await;
     let account = signed_in_account()?;
@@ -87,19 +88,36 @@ pub async fn read_recording_vehicle(
     let scope = match super::p4_field::log_scope(&mut backend, &vin).await {
         Ok(scope) => scope,
         Err(error) => {
-            backend.archive.recording_observation(&account, id, now_ms() as i64, &json!({
-                "operation":"readVehicle", "source":"c3", "phase":"failed", "step":"vehicleSelection"
-            }))?;
+            backend.archive.recording_observation(
+                &account,
+                id,
+                now_ms() as i64,
+                &json!({
+                    "operation":"readVehicle", "phase":"failed", "step":"vehicleSelection"
+                }),
+            )?;
             return Err(error);
         }
     };
     if backend.client.account_scope().as_ref() != Some(&account) {
         return Err("账号已变更，请重新选择车辆".into());
     }
-    let result = backend.client.refresh(&vin).await;
+    let source = if backend.client.uses_xchanger(&vin) {
+        "xchanger"
+    } else {
+        "c3"
+    };
+    let result = backend.client.refresh(&vin).await.and_then(|snapshot| {
+        if snapshot.vehicle.vin != vin
+            || backend.client.account_scope().as_ref() != Some(&account)
+            || signed_in_account()? != account
+        {
+            return Err("账号或车辆已变更，请重新读取车况".into());
+        }
+        Ok(snapshot)
+    });
     let time = now_ms() as i64;
-    let mut event =
-        json!({"operation":"readVehicle","source":"c3","vehicleRef":vehicle_reference(id, &scope)});
+    let mut event = json!({"operation":"readVehicle","source":source,"vehicleRef":vehicle_reference(id, &scope)});
     match &result {
         Ok(snapshot) => {
             event["sample"] = norr_vehicle_core::p4_readback::recording_sample(snapshot);
@@ -110,7 +128,60 @@ pub async fn read_recording_vehicle(
     backend
         .archive
         .recording_observation(&account, id, time, &event)?;
-    result.map(|_| event["sample"].take())
+    result.map(|snapshot| {
+        let sample = event["sample"].take();
+        if include_snapshot == Some(true) {
+            json!({"sample":sample, "snapshot":snapshot})
+        } else {
+            sample
+        }
+    })
+}
+
+#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+#[tauri::command]
+pub async fn p4_partner_control(
+    state: State<'_, VehicleService>,
+    partner: State<'_, super::p4_partner::Service>,
+    id: i64,
+    vin: String,
+    operation: super::p4_partner::Operation,
+) -> Result<super::p4_partner::Panel> {
+    let mut backend = state.lock().await;
+    let account = signed_in_account()?;
+    let car = backend
+        .client
+        .vehicles()
+        .await?
+        .iter()
+        .find(|v| {
+            v.vin == vin
+                && v.platform
+                    .as_deref()
+                    .is_some_and(|p| p.eq_ignore_ascii_case("HUANFU"))
+        })
+        .cloned()
+        .ok_or("请在当前账号的车库中选择 Polestar 4")?;
+    if backend.client.account_scope().as_ref() != Some(&account) {
+        return Err("账号已变更，请重新选择车辆".into());
+    }
+    let vehicle_ref = vehicle_reference(id, &format!("{account}/{vin}"));
+    let Backend {
+        client, archive, ..
+    } = &mut *backend;
+    partner
+        .handle(
+            archive,
+            client,
+            super::p4_partner::Scope {
+                account: &account,
+                vehicle: &car,
+                vehicle_ref: &vehicle_ref,
+                recording: id,
+            },
+            operation,
+        )
+        .await
 }
 
 #[tauri::command]

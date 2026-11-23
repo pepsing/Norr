@@ -100,3 +100,16 @@ test("vehicle map defaults and saved AMap settings are isolated per vehicle", ()
     else delete globalThis.localStorage;
   }
 });
+
+
+test("P4 displays trusted GPS locally and keeps legacy or unknown coordinate systems out of the map", () => {
+  const render = (coordinateSystem) => renderToStaticMarkup(createElement(VehicleMap, {
+    snapshot: { vehicle: { vin: "P4TEST", capabilities: { norrGeelyReadOnly: true } },
+      readings: { location: { status: "success", value: { longitude, latitude, coordinateSystem }, reportedAt: 1700000000000 } } },
+    onError: () => {},
+  }));
+  assert.match(render("wgs84"), /显示高德地图/);
+  assert.match(render("wgs84"), /车辆上报/);
+  assert.doesNotMatch(render("wgs84"), /<iframe|<select/);
+  for (const system of ["gcj02", undefined]) assert.doesNotMatch(render(system), /显示高德地图|<iframe/);
+});

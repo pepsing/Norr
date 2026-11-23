@@ -9,6 +9,20 @@ import NativeApp from "./native/NativeApp";
 import { isHarmonyOS } from "./native/platform";
 import "./styles.css";
 
+function AppRoot() {
+  const [showVehicle, setShowVehicle] = React.useState(false);
+  if (import.meta.env.VITE_P4_FIELD_TEST === "demo" ||
+    (!isTauri() && !isHarmonyOS && new URLSearchParams(window.location.search).get("demo") === "p4")) return <App p4 />;
+  if (isTauri() && import.meta.env.VITE_P4_FIELD_TEST === "macos") {
+    return showVehicle
+      ? <NativeApp onFieldLog={() => setShowVehicle(false)} />
+      : <P4FieldApp onViewVehicle={() => setShowVehicle(true)} />;
+  }
+  if (isTauri() && import.meta.env.VITE_P4_FIELD_TEST === "true") return <P4FieldApp />;
+  if (isTauri() && ["ios", "windows"].includes(import.meta.env.VITE_P4_FIELD_TEST)) return <NativeApp p4Logging />;
+  return isTauri() || isHarmonyOS ? <NativeApp /> : <App />;
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>{isTauri() && import.meta.env.VITE_P4_FIELD_TEST === "true" ? <P4FieldApp /> : isTauri() || isHarmonyOS ? <NativeApp /> : <App />}</React.StrictMode>,
+  <React.StrictMode><AppRoot /></React.StrictMode>,
 );

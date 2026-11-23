@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
+import { readBuildConfig } from "./build-config.mjs";
 import { finalizeIOS } from "./finalize-ios.mjs";
 import { finalizeMacOS } from "./finalize-macos.mjs";
 
@@ -12,26 +11,25 @@ if (!["macos", "windows", "android", "ios"].includes(platform)) {
   process.exit(1);
 }
 
-let signingKey = process.env.NORR_POLESTAR_CN_SIGNING_KEY?.trim();
-if (!signingKey) {
-  try {
-    const configuration = parseEnv(
-      readFileSync(new URL("../../../.env.secrets", import.meta.url), "utf8"),
-    );
-    signingKey = configuration.NORR_POLESTAR_CN_SIGNING_KEY?.trim();
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-}
-if (!signingKey) {
-  console.error(
-    "构建登录版本需要 NORR_POLESTAR_CN_SIGNING_KEY。请通过环境变量或仓库根目录 .env.secrets 提供。",
-  );
-  process.exit(1);
-}
 const extraArgs = process.argv.slice(3);
 const fieldTest = extraArgs.includes("--p4-field-test");
-if (fieldTest && !(platform === "ios" && extraArgs.includes("--device"))) throw new Error("P4 实测包需要 iPhoneOS 归档");
+if (fieldTest && !(platform === "windows" || (platform === "ios" && extraArgs.includes("--device")))) throw new Error("P4 实测包支持 Windows 或 iOS 真机");
+const polestar4Test = extraArgs.includes("--polestar4-test");
+let configuration;
+try {
+  configuration = readBuildConfig(process.env, { requireXchanger: !fieldTest });
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+if (polestar4Test && (fieldTest || !["macos", "windows", "ios"].includes(platform) || (platform === "ios" && !extraArgs.includes("--device")))) {
+  console.error("P4 控制包支持 macOS、Windows 或 iOS 真机，不能同时选择旧实测模式。");
+  process.exit(1);
+}
+if (polestar4Test && platform === "macos" && (!process.env.APPLE_SIGNING_IDENTITY || process.env.APPLE_SIGNING_IDENTITY === "-")) {
+  console.error("Polestar 4 测试包需要通过 APPLE_SIGNING_IDENTITY 指定固定签名证书。");
+  process.exit(1);
+}
 const device = platform === "ios" && extraArgs.includes("--device");
 const args =
   platform === "android"
@@ -43,8 +41,16 @@ if (platform === "windows") {
   args.push("--target", "x86_64-pc-windows-msvc");
   if (process.platform !== "win32") args.push("--runner", "cargo-xwin");
 }
-args.push(...extraArgs.filter((arg) => arg !== "--p4-field-test" && (platform !== "ios" || arg !== "--device")));
-if (fieldTest) args.push("--features", "p4-field-test");
+args.push(...extraArgs.filter((arg) => arg !== "--p4-field-test" && arg !== "--polestar4-test" && (platform !== "ios" || arg !== "--device")));
+if (fieldTest) {
+  args.push("--no-default-features", "--features", "p4-field-test");
+  if (platform === "windows") args.push("--config", "src-tauri/tauri.p4-windows-test.conf.json");
+}
+if (polestar4Test) {
+  args.push("--features", "polestar4-test");
+  if (platform === "macos") args.push("--config", "src-tauri/tauri.polestar4.conf.json");
+  if (platform === "windows") args.push("--config", "src-tauri/tauri.p4-windows-test.conf.json");
+}
 const cli = fileURLToPath(
   new URL("../../../node_modules/@tauri-apps/cli/tauri.js", import.meta.url),
 );
@@ -55,12 +61,12 @@ const result = spawnSync(process.execPath, [cli, ...args], {
     ...(platform === "macos"
       ? { PATH: `/usr/bin:/bin:${process.env.PATH ?? ""}` }
       : {}),
-    VITE_P4_FIELD_TEST: fieldTest ? "true" : "false",
-    NORR_POLESTAR_CN_SIGNING_KEY: signingKey,
+    VITE_P4_FIELD_TEST: fieldTest ? "true" : polestar4Test ? platform : "false",
+    ...configuration,
   },
 });
 if (result.error)
   console.error("构建启动失败。请检查 Tauri 和 Rust 开发环境。");
-if (result.status === 0 && platform === "ios") finalizeIOS(device, fieldTest);
-if (result.status === 0 && platform === "macos") finalizeMacOS(extraArgs);
+if (result.status === 0 && platform === "ios") finalizeIOS(device, fieldTest, polestar4Test);
+if (result.status === 0 && platform === "macos") finalizeMacOS(extraArgs, { polestar4Test });
 process.exit(result.status ?? 1);

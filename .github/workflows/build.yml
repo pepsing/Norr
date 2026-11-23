@@ -115,11 +115,17 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo test --workspace --release --locked
       - run: cargo clippy --workspace --all-targets --release --locked -- -D warnings
+      - name: Check P4 adapter
+        if: matrix.platform == 'macos'
+        run: |
+          cargo test --workspace --features polestar4-test --release --locked
+          cargo clippy --workspace --all-targets --features polestar4-test --release --locked -- -D warnings
       - name: Build login-enabled package
         if: inputs.version != '' && github.ref == 'refs/heads/main'
         run: npm run build:${{ matrix.build }} -- --ci
         env:
           NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+          NORR_XCHANGER_APP_SECRET: ${{ secrets.NORR_XCHANGER_APP_SECRET }}
       - name: Archive macOS app
         if: matrix.platform == 'macos' && inputs.version != '' && github.ref == 'refs/heads/main'
         run: |
@@ -185,6 +191,7 @@ jobs:
         run: npm run build:android -- --ci
         env:
           NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+          NORR_XCHANGER_APP_SECRET: ${{ secrets.NORR_XCHANGER_APP_SECRET }}
           NORR_ANDROID_KEYSTORE: ${{ runner.temp }}/norr.keystore
           NORR_ANDROID_STORE_PASSWORD: ${{ secrets.NORR_ANDROID_STORE_PASSWORD }}
           NORR_ANDROID_KEY_ALIAS: ${{ secrets.NORR_ANDROID_KEY_ALIAS }}
@@ -246,19 +253,11 @@ jobs:
           node apps/native/scripts/check-watch.mjs
       - name: Build iOS package
         run: |
-          node --input-type=module <<'NODE'
-          import { writeFileSync } from 'node:fs';
-          import { parseEnv } from 'node:util';
-          const key = process.env.NORR_POLESTAR_CN_SIGNING_KEY;
-          const configuration = `NORR_POLESTAR_CN_SIGNING_KEY=${JSON.stringify(key)}\n`;
-          if (!key || parseEnv(configuration).NORR_POLESTAR_CN_SIGNING_KEY !== key) {
-            throw new Error('Invalid iOS build configuration');
-          }
-          writeFileSync('.env.secrets', configuration, { mode: 0o600 });
-          NODE
+          node apps/native/scripts/write-build-config.mjs
           npm run build:${{ matrix.build }} -- --ci
         env:
           NORR_POLESTAR_CN_SIGNING_KEY: ${{ secrets.NORR_POLESTAR_CN_SIGNING_KEY }}
+          NORR_XCHANGER_APP_SECRET: ${{ secrets.NORR_XCHANGER_APP_SECRET }}
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.artifact }}

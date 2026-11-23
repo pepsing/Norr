@@ -1,6 +1,6 @@
 # Norr 北行
 
-面向 Polestar 车主的车辆管理应用，采用极星风格的界面，提供车辆状态、远程控制、充电管理和本地历史。当前原生服务支持中国区 Polestar 2，Polestar 4 已提供外观素材，车辆服务接入待完成。
+面向 Polestar 车主的车辆管理应用，采用极星风格的界面，提供车辆状态、远程控制、充电管理和本地历史。原生服务支持中国区 Polestar 2，并已接入 Polestar 4 的 xchanger 车况、定位和控制接口。P4 入口按账号、车辆能力和返回状态开放，逐项实车验证仍在进行。
 
 当前各平台状态、实施记录、测试包与待办汇总在[开发进展](docs/PROGRESS.md)。
 
@@ -66,7 +66,7 @@ npm run dev -- --port 5174
 
 依赖由根目录 `package-lock.json` 统一锁定。
 
-原生应用构建使用 Rust 工具链和各平台 SDK。中国区登录配置通过 `NORR_POLESTAR_CN_SIGNING_KEY` 环境变量或根目录 `.env.secrets` 提供，平台签名配置按宿主说明设置。仓库忽略本地配置、签名文件、调试快照和构建产物。GitHub Actions 检查 PR 和主分支代码更新，每天北京时间 03:20 检查尚未发布的提交，有更新时构建四端并发布 alpha 预发行版。手动填写正式版本号可重建全部平台并发布正式版。[下载安装包](https://github.com/pepsing/Norr/releases) · [构建说明](apps/native/README.md#github-actions)
+原生应用构建使用 Rust 工具链和各平台 SDK。中国区登录与 P4 配置通过 `NORR_POLESTAR_CN_SIGNING_KEY`、`NORR_XCHANGER_APP_SECRET` 环境变量或根目录 `.env.secrets` 提供，平台签名配置按宿主说明设置。仓库忽略本地配置、签名文件、调试快照和构建产物。GitHub Actions 检查 PR 和主分支代码更新，每天北京时间 03:20 检查尚未发布的提交，有更新时构建四端并发布 alpha 预发行版。手动填写正式版本号可重建全部平台并发布正式版。[下载安装包](https://github.com/pepsing/Norr/releases) · [构建说明](apps/native/README.md#github-actions)
 
 提交信息中的 `[skip ci]` 跳过推送和 PR 检查。主分支最新提交带有 `[skip release]` 时，定时发布任务跳过构建和发布，手动发布仍可执行。鸿蒙包目前通过本地 DevEco 工具链构建。
 
@@ -95,7 +95,7 @@ npm run dev -- --port 5174
 - 服务处理进度、独立回读结果和定时读取状态。
 - 手机与桌面布局，浅色与深色主题。
 
-中国区 Polestar 2 的核心控制和定时可在演示中操作。中国区 Polestar 4 的 HUANFU / Geely 原生服务仍待接入。Norr 原生厂商接入的实测结果与后续验证条件见[开发进展](docs/PROGRESS.md)。
+中国区 Polestar 2 的核心控制和定时可在演示中操作。Polestar 4 的 HUANFU / Geely 服务通过标准原生构建的 `polestar4` 特性启用，P2 沿用既有接口。P4 支持范围见[控制说明](docs/polestar4-controls.md)，实测结果与后续验证条件见[开发进展](docs/PROGRESS.md)。
 
 ## 开发资料
 

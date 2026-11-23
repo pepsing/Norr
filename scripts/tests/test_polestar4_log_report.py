@@ -104,6 +104,34 @@ class P4LogReportTests(unittest.TestCase):
         self.assertIn("未见明确匹配的上报", result.stdout)
         self.assertNotIn("PRIVATE", result.stdout)
 
+    def test_partner_receipts_distinguish_acceptance_and_fresh_vehicle_reports(self):
+        def command(ref, action, status, reported, observed):
+            return {"vehicleRef": ref, "action": action, "requestedAt": 1000, "status": status,
+                    "reportedAt": reported, "readbackAt": observed, "readback": "回读一致"}
+
+        result = run_report({
+            "format": "norr-ios-session-log", "version": 1, "vehicleControlTransport": "norrPartner",
+            "events": [],
+            "vehicleCommands": [
+                command("PRIVATE-A", {"kind": "target", "percent": 90}, "accepted", 1010, 1020),
+                command("PRIVATE-B", {"kind": "climateStart"}, "accepted", 999, 1020),
+                command("PRIVATE-B", {"kind": "climateStop"}, "unknown", 1100, 1090),
+                command("PRIVATE-B", {"kind": "unlock"}, "accepted", 1010, 1020),
+                command("PRIVATE-A", {"kind": "lock"}, "unknown", 999, 1020),
+                command("PRIVATE-A", {"kind": "climateStart"}, "rejected", 1010, 1020),
+                command("PRIVATE-C", {"kind": "PRIVATE-ACTION"}, "accepted", 1010, 1020),
+            ],
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("车辆 1 · Norr 设置充电上限 90% · 服务已受理，车辆回读一致", result.stdout)
+        self.assertIn("车辆 2 · Norr 解锁 · 服务已受理，车辆回读一致", result.stdout)
+        self.assertIn("车辆 1 · Norr 锁车 · 受理结果未知，等待车辆确认", result.stdout)
+        self.assertEqual(result.stdout.count("等待车辆确认"), 3)
+        self.assertEqual(result.stdout.count("车辆回读一致"), 2)
+        self.assertIn("服务已拒绝", result.stdout)
+        for value in ("车控服务回执：未采集", "无法对照单次操作", "PRIVATE"):
+            self.assertNotIn(value, result.stdout)
+
     def test_rejects_unknown_format_or_event_list(self):
         for log in [{"format": "norr-p4-test-log", "version": 2},
                     {"format": "norr-ios-session-log", "version": 1, "events": {}},

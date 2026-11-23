@@ -26,15 +26,31 @@ pub mod harmonyos;
 #[cfg(target_env = "ohos")]
 use harmonyos::{read, write};
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "polestar4-test")))]
 const SERVICE: &str = "app.norr.mac";
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "macos", feature = "polestar4-test"))]
+const SERVICE: &str = "app.norr.mac.polestar4";
+#[cfg(all(
+    target_os = "windows",
+    any(feature = "p4-field-test", feature = "polestar4-test")
+))]
+const SERVICE: &str = "app.norr.windows.p4test";
+#[cfg(all(
+    target_os = "windows",
+    not(any(feature = "p4-field-test", feature = "polestar4-test"))
+))]
 const SERVICE: &str = "app.norr.windows";
 #[cfg(target_os = "android")]
 const SERVICE: &str = "app.norr.mobile";
-#[cfg(all(target_os = "ios", feature = "p4-field-test"))]
+#[cfg(all(
+    target_os = "ios",
+    any(feature = "p4-field-test", feature = "polestar4-test")
+))]
 const SERVICE: &str = "app.norr.ios.p4test";
-#[cfg(all(target_os = "ios", not(feature = "p4-field-test")))]
+#[cfg(all(
+    target_os = "ios",
+    not(any(feature = "p4-field-test", feature = "polestar4-test"))
+))]
 const SERVICE: &str = "app.norr.ios";
 #[cfg(target_env = "ohos")]
 const SERVICE: &str = "app.norr.harmonyos";
@@ -42,6 +58,10 @@ const SERVICE: &str = "app.norr.harmonyos";
 const LEGACY_SERVICE: &str = "io.kheirallah.hisingen";
 const ACCOUNT: &str = "polestar-china-session";
 const APPLE_EPOCH: f64 = 978_307_200.0;
+
+pub fn storage_namespace() -> &'static str {
+    SERVICE
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,6 +166,35 @@ pub fn save_session(session: &Session) -> Result<()> {
     write(SERVICE, ACCOUNT, &bytes)
 }
 
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+pub(crate) fn geely_session() -> Result<Option<serde_json::Value>> {
+    read(SERVICE, "polestar-geely-session")?
+        .map(|bytes| serde_json::from_slice(&bytes).map_err(|_| "P4 会话格式无效".into()))
+        .transpose()
+}
+
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+pub(crate) fn save_geely(session: &serde_json::Value) -> Result<()> {
+    let bytes = Zeroizing::new(serde_json::to_vec(session).map_err(|_| "P4 会话编码失败")?);
+    write(SERVICE, "polestar-geely-session", &bytes)
+}
+
 pub fn signing_key() -> Result<Zeroizing<String>> {
     if let Some(bytes) = read(SERVICE, "polestar-china-signing-key")? {
         return String::from_utf8(bytes.to_vec())
@@ -205,9 +254,86 @@ pub fn import_hisingen(config: Option<&Path>) -> Result<SessionStatus> {
     status()
 }
 
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+pub(crate) fn geely_signing_key() -> Result<Zeroizing<Vec<u8>>> {
+    resolve_geely_signing_key(option_env!("NORR_XCHANGER_APP_SECRET"), || {
+        read(SERVICE, "polestar-geely-client-config")
+    })
+}
+
+#[cfg(all(
+    feature = "polestar4",
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )
+))]
+fn resolve_geely_signing_key(
+    bundled: Option<&str>,
+    stored: impl FnOnce() -> Result<Option<Zeroizing<Vec<u8>>>>,
+) -> Result<Zeroizing<Vec<u8>>> {
+    if let Some(key) = bundled.map(str::trim).filter(|key| !key.is_empty()) {
+        return Ok(Zeroizing::new(key.as_bytes().to_vec()));
+    }
+    stored()?
+        .filter(|item| !item.is_empty())
+        .ok_or_else(|| "此安装包缺少 P4 服务配置，请安装包含 P4 配置的版本".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    #[test]
+    fn bundled_p4_key_does_not_access_local_keychain() {
+        let key = resolve_geely_signing_key(Some("fixture-bundled"), || {
+            panic!("bundled P4 configuration must not read the keychain")
+        })
+        .unwrap();
+        assert_eq!(key.as_slice(), b"fixture-bundled");
+    }
+
+    #[cfg(all(
+        feature = "polestar4",
+        any(
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "windows",
+            target_os = "android"
+        )
+    ))]
+    #[test]
+    fn unbundled_p4_build_keeps_local_configuration_fallback() {
+        for bundled in [None, Some("  ")] {
+            let key = resolve_geely_signing_key(bundled, || {
+                Ok(Some(Zeroizing::new(b"fixture-local".to_vec())))
+            })
+            .unwrap();
+            assert_eq!(key.as_slice(), b"fixture-local");
+        }
+        assert!(resolve_geely_signing_key(None, || Ok(None)).is_err());
+        assert!(resolve_geely_signing_key(None, || Ok(Some(Zeroizing::new(vec![])))).is_err());
+        assert!(resolve_geely_signing_key(None, || Err("storage unavailable".into())).is_err());
+    }
 
     #[test]
     fn swift_epoch_and_outer_expiry_do_not_block_global_session() {

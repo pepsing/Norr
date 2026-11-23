@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tauri dev",
+    "build:p4-demo": "PATH=/usr/bin:/bin:$PATH tauri build --bundles app --features p4-demo --config src-tauri/tauri.p4-demo.conf.json",
     "build": "node scripts/build.mjs"
   },
   "devDependencies": {

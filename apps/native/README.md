@@ -1,5 +1,8 @@
 # Norr 原生应用
 
+2026-11-23 P4 更新：标准 macOS、Windows、Android、iOS 构建默认启用 `polestar4`，包含 xchanger 车况、定位与 21 个控制动作，保留原应用标识及 P2 路径。iOS、Android、Windows 从「设置 → 隐私与数据」记录并导出 P4 诊断日志。构建同时需要登录与 xchanger 两项配置，程序从 `.env.secrets` 或环境变量读取。独立 `polestar4-test` 继续隔离应用与凭据；后文早期测试范围为历史记录。
+
+
 macOS 应用标识为 `app.norr.mac`，Windows 为 `app.norr.windows`，Android 为 `app.norr.mobile`，iOS 为 `app.norr.ios`。四端共用 React 页面、Tauri IPC 与 Rust 车辆核心，直连厂商 REST 和原生 HTTP/2 gRPC。当前车辆服务适配中国区 Polestar 2 的 ICUP / AccountLinking 平台。
 
 各平台当前完成度、测试包和待办汇总在[开发进展](../../docs/PROGRESS.md)。本文保留构建说明与历次验证详情。
@@ -125,9 +128,30 @@ npm run build:android
 
 ## Windows 测试版
 
+### P4 控制测试包
+
+`npm run build:windows:p4` 现使用 `polestar4-test`，生成 Windows 10/11 x64 的完整 P4 界面，包含 21 项 xchanger 控制、定位读取、车辆回读和诊断日志。日志在「设置 → 隐私与数据」手动开始、完成并导出。构建要求两项签名配置，程序从环境或根目录 `.env.secrets` 读取，不输出配置值。
+
+产品名仍为 `Norr P4 Test`，标识仍为 `app.norr.windows.p4test`，保留原测试包的数据目录和 DPAPI 凭据命名空间，与普通 Windows 包分开。2026-11-23 安装包、操作说明和检查结果见 [Windows P4 构建与验证](../../docs/polestar4-windows-testing.md)。Windows 车控使用应用内确认，已移除 Windows Hello 强制验证。Windows 安装运行、原生保存对话框与实车执行仍待设备验证。
+
+### 旧 P4 朋友实测包记录
+
+旧 `p4-field-test` 构建用于记录官方 App 或车上的操作。首次启动用本人绑定车辆的中国区手机号按原流程登录。测试包有独立的 Windows 凭据和数据目录。车库中只有一台 P4 时自动开始记录，有多台时先选车。
+
+在测试包选择操作位置和项目，记录「准备操作」。在手机官方 App 或车上完成操作，记录「官方 App 提示已受理」、实际观察到的变化或错误，然后导出 JSON。日志记录该账号选车成功的时间和最近七天的手动标记。本包读取账号车库，实车状态可与另一台已配置 Norr P4 的 Mac 的车况导出按时间对照。Windows 测试日志不包含官方 App 的请求或签名信息。
+
+本轮交付检查（Windows 界面采用模拟原生接口，未在 Windows 实机收发短信）：
+
+- Hard Gate PASS。登录前、无 P4 或多车未选时均无法记录。Windows 权限处理仅向测试界面开放登录、查车库与测试日志操作。
+- Purpose Gate PASS。已通过界面验证选择来源、记录结果、导出。已通过数据库测试验证重新打开、账号隔离、自动事件和手动观察分列。
+- Liveliness PASS。沿用 Norr 原有手机号登录表单、测试日志控件与状态反馈。
+- Craftsmanship PASS。前端 26 项、默认原生 48 项测试通过。已校验 NSIS 安装包及其中 x64 可执行文件，实机滑块、短信与 Windows 保存对话框留待朋友验证。
+
+### 普通 Windows 包
+
 首版目标为 Windows 10/11 x64。账号登录使用中国大陆手机号和短信验证码，获取短信前通过独立 WebView2 窗口完成官方滑块。登录会话由当前 Windows 用户的 DPAPI 加密后保存在 `%LOCALAPPDATA%\app.norr.windows\credentials`，重启后读取并按需续期。
 
-已接入 Windows 文件选择与导出、托盘、启动项、系统通知、通知点击返回、睡眠唤醒事件和外部地图链接。解锁等需要身份确认的车辆操作调用 Windows Hello，需在 Windows 中配置 PIN 或生物识别。Hisingen 导入仅保留在 macOS 开发环境。
+已接入 Windows 文件选择与导出、托盘、启动项、系统通知、通知点击返回、睡眠唤醒事件和外部地图链接。Windows 车辆操作经应用内确认后，核对车辆能力与服务授权，再发送请求，无需配置 Windows Hello。Hisingen 导入仅保留在 macOS 开发环境。
 
 安装包为 `target/x86_64-pc-windows-msvc/release/bundle/nsis/Norr_0.1.0_x64-setup.exe`。按当前用户安装，包含 WebView2 安装引导程序，缺少运行环境时联网下载。此测试包尚未进行 Windows 代码签名。
 
@@ -177,6 +201,7 @@ GitHub 定时任务可能因负载延迟，公开仓库连续 60 天无活动时
 | Secret | 内容 |
 | --- | --- |
 | `NORR_POLESTAR_CN_SIGNING_KEY` | 中国区登录构建配置，与本地构建使用同一变量 |
+| `NORR_XCHANGER_APP_SECRET` | P4 xchanger 签名配置。桌面、Android 和 iOS 打包步骤均传入，由 macOS / Windows / iOS P4 控制适配器使用 |
 | `NORR_ANDROID_KEYSTORE_BASE64` | Android 签名 keystore 的 Base64 内容 |
 | `NORR_ANDROID_STORE_PASSWORD` | keystore 密码 |
 | `NORR_ANDROID_KEY_ALIAS` | 签名别名 |
@@ -188,7 +213,7 @@ PR 检查仅运行无需生产配置的测试。仓库写权限允许修改主�
 
 本轮在 macOS 交叉编译得到 Windows x64 程序与 NSIS 安装包，检查了安装包中的主程序、WebView2 引导程序和通知所需的快捷方式标识。Windows 专属代码及测试目标通过编译检查。macOS 的 36 项开发测试与 37 项 release 测试通过。浏览器模拟 Windows 环境验证了 6 组登录布局、登录错误与取消、重试、账号切换、无车账号和系统设置文案，页面错误为 0。
 
-Windows 安装运行、DPAPI 实际读写、WebView2 官方滑块、真实短信、Windows Hello、通知与启动唤醒仍待实机验证。当前开发机为 macOS，Windows 专属测试尚未在 Windows 上执行。
+Windows 安装运行、DPAPI 实际读写、WebView2 官方滑块、真实短信、通知与启动唤醒仍待实机验证。当前开发机为 macOS，Windows 专属测试尚未在 Windows 上执行。
 
 车友首轮验证按以下顺序进行。
 
@@ -218,6 +243,10 @@ npm run build:mac
 构建产物位于 `target/release/bundle/macos/Norr.app`，可复制到应用程序目录后打开。应用使用本地 ad-hoc 签名，Developer ID 签名与公证待配置。
 
 `build:mac` 从环境变量 `NORR_POLESTAR_CN_SIGNING_KEY` 或仓库根目录 `.env.secrets` 的同名字段读取中国区应用签名配置，并编入原生核心。此配置用于厂商登录、短信和续期请求，打包后用户可直接登录。`.env.secrets` 被 Git 忽略。应用签名配置可从安装包提取，构建注入用于避免把配置值写入 Git，用户登录授权单独保存在钥匙串。CI 可通过同名环境变量提供配置。`dev:mac` 可从已配置的本机钥匙串读取，或在运行前设置同名环境变量。
+
+`build:mac:p4` 还要求 `NORR_XCHANGER_APP_SECRET`。每个配置项独立选择环境变量，未设置或为空时再读取 `.env.secrets`。macOS P4 测试包优先使用编入的 xchanger 配置，开发构建没有编入值时仍可读取原有钥匙串条目。iOS 的 Xcode 构建子进程使用同一配置解析逻辑；CI 为它创建权限为 `0600` 的临时 `.env.secrets`，打包结束后删除。配置脚本不输出值，也不覆盖已有配置文件。
+
+配置注入不改变 P4 功能开关：xchanger 适配器由 macOS / Windows / iOS 的 `polestar4-test` 启用，普通四端包和旧 iOS/Windows `p4-field-test` 包不会因传入 key 自动启用。`npm run build:ios:p4` 生成含 21 项控制与诊断日志的 Build 6 未签名 IPA；`npm run build:windows:p4` 生成同范围的 Windows x64 安装包；两者日志入口均为「设置 → 隐私与数据」。2026-11-23 已在此适配器接入 21 个控制动作，包括空调启停、方向盘加热、前排座椅加热与通风、门锁、尾门解锁、车窗开闭与通风、寻车、净化、充电口盖和充电上限，按当前账号、车辆和服务能力判定能否发送。写入经 xchanger 签名后发送一次，服务受理与独立车辆回读分别记录；本轮未操作实车。范围和验证见 [P4 控制接入](../../docs/polestar4-controls.md)。GitHub 的 macOS 检查额外运行 P4 feature 的测试和 Clippy，使用固定样本，不需要生产 key 或车辆账号。
 
 开发前检查 1420 端口。
 

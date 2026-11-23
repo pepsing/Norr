@@ -13,6 +13,8 @@ npm run dev
 
 Open the local URL printed by Vite. `npm run build` checks TypeScript and builds the frontend.
 
+Append `?demo=p4` to the local URL to open the Chinese-market Polestar 4 demo. The iOS field-test app uses the same interface under “查看功能演示”. [P4 design and screenshots](../../docs/design/polestar-4/README.md)
+
 ## Design coverage
 
 | Area | Implemented preview |
@@ -31,7 +33,7 @@ Open the local URL printed by Vite. `npm run build` checks TypeScript and builds
 
 The selected brand, region and model seed an explicit demo capability profile in `src/capabilities.ts`. Controls require both account permission and an explicit capability flag. A missing flag, `false`, an unfinished adapter and permission denial have distinct explanations. Settings can preview the missing, unsupported and permission-denied cases.
 
-Chinese Polestar 2 examples expose the core controls and climate/charging schedules described in the updated [stack research](../../docs/research/web-pwa-native-stack-2026-11-12.md). Charging-location writes remain unavailable, and Chinese Polestar 4 capabilities remain unchecked while that adapter is unverified. Volvo examples expose hybrid and engine flows and show a vehicle-image placeholder. These are demonstration profiles; integration must supply actual account permissions and per-vehicle capabilities.
+Chinese Polestar 2 examples expose the core controls and climate/charging schedules described in the updated [stack research](../../docs/research/web-pwa-native-stack-2026-11-12.md). Charging-location writes remain unavailable, and the Chinese Polestar 4 demo exercises lock, cabin climate, seat heating and ventilation, windows, trunk unlocking, charging flap, charge limit, finding the vehicle and cabin cleaning with simulated data. Volvo examples expose hybrid and engine flows and show a vehicle-image placeholder. These are demonstration profiles; integration must supply actual account permissions and per-vehicle capabilities.
 
 ## Data and integration
 

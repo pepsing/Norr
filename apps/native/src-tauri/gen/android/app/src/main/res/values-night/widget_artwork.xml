@@ -1,0 +1,9 @@
+<resources>
+    <color name="widget_artwork_background">#20231F</color>
+    <style name="NorrWidgetLightArtwork">
+        <item name="android:visibility">gone</item>
+    </style>
+    <style name="NorrWidgetDarkArtwork">
+        <item name="android:visibility">visible</item>
+    </style>
+</resources>

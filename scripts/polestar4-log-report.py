@@ -110,19 +110,47 @@ def ios_samples(events, vehicles, result):
     return {ref: {field: vehicle_reports(group, field) for field in ("exterior", "climate")} for ref, group in samples.items()}
 
 
+def partner_results(log, vehicles):
+    result = []
+    states = {"accepted": "服务已受理", "rejected": "服务已拒绝", "unknown": "受理结果未知"}
+    for row in rows(log, "vehicleCommands"):
+        ref, when, action = row.get("vehicleRef"), row.get("requestedAt"), row.get("action")
+        if not isinstance(ref, str) or not ref or not valid_time(when) or not isinstance(action, dict):
+            continue
+        kind = action.get("kind")
+        if kind == "target" and type(action.get("percent")) is int and 1 <= action["percent"] <= 100:
+            label = f"设置充电上限 {action['percent']}%"
+        elif kind in ACTIONS:
+            label = ACTIONS[kind][0]
+        else:
+            continue
+        car = vehicles.setdefault(ref, len(vehicles) + 1)
+        status = states.get(row.get("status"), "受理结果未知")
+        evidence = ""
+        if row.get("status") != "rejected":
+            observed, reported = row.get("readbackAt"), row.get("reportedAt")
+            fresh = valid_time(reported) and valid_time(observed) and when < reported <= observed <= when + WINDOW_MS
+            evidence = "，车辆回读一致" if fresh and row.get("readback") == "回读一致" else "，等待车辆确认"
+        result.append(f"{timestamp(when)}  车辆 {car} · Norr {label} · {status}{evidence}")
+    return result
+
+
 def report(log):
     if not isinstance(log, dict) or type(log.get("version")) is not int or log["version"] != 1:
         raise ValueError("不支持的日志版本")
-    result = ["车控服务回执：未采集（含服务受理和操作结果）"]
+    partner_log = log.get("format") == "norr-ios-session-log" and log.get("vehicleControlTransport") == "norrPartner"
+    result = [] if partner_log else ["车控服务回执：未采集（含服务受理和操作结果）"]
     reports = {}
     vehicle_scoped = {}
     vehicles = {}
-    if log.get("format") == "norr-ios-session-log" and log.get("vehicleControlTransport") is None:
+    if log.get("format") == "norr-ios-session-log" and log.get("vehicleControlTransport") in (None, "norrPartner"):
         events = rows(log, "events")
         notes = [row for row in events if row.get("operation") == "manualObservation"]
         count = sum(row.get("operation") == "readGarage" and row.get("phase") == "completed" for row in events)
         result.append(f"读取车库成功 {count} 次。")
         vehicle_scoped = ios_samples(events, vehicles, result)
+        if partner_log:
+            result.extend(partner_results(log, vehicles))
         if not vehicle_scoped:
             result.append("本轮未采集可用的车辆门锁或空调读数。")
         clock = "time"
@@ -140,7 +168,7 @@ def report(log):
     notes = sorted((row for row in notes if row.get("action") in ACTIONS and valid_time(row.get(clock))),
                    key=lambda row: row[clock])
     if not notes:
-        return result + ["没有门锁或空调启停的人工标记，无法对照单次操作。"]
+        return result if partner_log else result + ["没有门锁或空调启停的人工标记，无法对照单次操作。"]
 
     for i, row in enumerate(notes):
         label, field, target = ACTIONS[row["action"]]

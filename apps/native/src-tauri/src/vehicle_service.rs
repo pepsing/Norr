@@ -28,13 +28,32 @@ pub(crate) fn ios_service(path: std::path::PathBuf) -> Result<VehicleService> {
 }
 
 impl Backend {
-    pub(crate) fn apply_readback(&mut self, snapshot: &Snapshot) {
+    pub(crate) fn apply_readback(&mut self, snapshot: &Snapshot) -> Result<()> {
         let account = self.client.account_scope();
         for receipt in &mut self.history.receipts {
             if receipt.account_scope.is_none() || receipt.account_scope == account {
+                #[cfg(all(
+                    any(target_os = "ios", target_os = "windows", target_os = "android"),
+                    feature = "polestar4"
+                ))]
+                let before = (receipt.readback.clone(), receipt.readback_at);
                 confirmation::update(receipt, snapshot);
+                #[cfg(all(
+                    any(target_os = "ios", target_os = "windows", target_os = "android"),
+                    feature = "polestar4"
+                ))]
+                if snapshot.vehicle.uses_xchanger()
+                    && receipt.command.vin == snapshot.vehicle.vin
+                    && before != (receipt.readback.clone(), receipt.readback_at)
+                {
+                    if let Some(account) = &account {
+                        self.archive
+                            .xchanger_receipt(account, receipt, "readback")?;
+                    }
+                }
             }
         }
+        Ok(())
     }
 
     pub(crate) async fn submit(
@@ -53,7 +72,13 @@ impl Backend {
         command: Command,
         prepared: &PreparedCommand,
     ) -> Result<Receipt> {
-        let readback = confirmation::endpoint(&command.action).map(|_| "等待车辆回读".into());
+        let readback = if self.client.uses_xchanger(&command.vin)
+            && confirmation::command_group(&command.action) == Some("find")
+        {
+            Some("鸣笛或闪灯结果请现场核对".into())
+        } else {
+            confirmation::endpoint(&command.action).map(|_| "等待车辆回读".into())
+        };
         let receipt = Receipt {
             id: uuid::Uuid::new_v4().to_string(),
             command,
@@ -65,6 +90,16 @@ impl Backend {
             baseline_timer_ids: prepared.baseline_timer_ids.clone(),
             account_scope: self.client.account_scope(),
         };
+        #[cfg(all(
+            any(target_os = "ios", target_os = "windows", target_os = "android"),
+            feature = "polestar4"
+        ))]
+        if self.client.uses_xchanger(&receipt.command.vin) {
+            if let Some(account) = self.client.account_scope() {
+                self.archive
+                    .xchanger_receipt(&account, &receipt, "submitted")?;
+            }
+        }
         self.history.receipts.push(receipt.clone());
         let evicted = (self.history.receipts.len() > 2000).then(|| self.history.receipts.remove(0));
         if let Err(error) = self.save() {
@@ -87,12 +122,31 @@ impl Backend {
                 receipt.status = status;
                 receipt.message = message;
             }
-            Err(error) => receipt.message = format!("{error}。执行结果待回读核对"),
+            Err(error) => {
+                let check = if self.client.uses_xchanger(&receipt.command.vin)
+                    && confirmation::command_group(&receipt.command.action) == Some("find")
+                {
+                    "鸣笛或闪灯结果请现场核对，勿重复发送"
+                } else {
+                    "执行结果待回读核对"
+                };
+                receipt.message = format!("{error}。{check}");
+            }
         }
         if receipt.status == "rejected" {
             receipt.readback = None;
         }
-        self.replace_receipt(receipt)
+        self.replace_receipt(receipt)?;
+        #[cfg(all(
+            any(target_os = "ios", target_os = "windows", target_os = "android"),
+            feature = "polestar4"
+        ))]
+        if self.client.uses_xchanger(&receipt.command.vin) {
+            if let Some(account) = self.client.account_scope() {
+                self.archive.xchanger_receipt(&account, receipt, "result")?;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn replace_receipt(&mut self, receipt: &Receipt) -> Result<()> {

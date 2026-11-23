@@ -16,6 +16,14 @@ pub struct Vehicle {
     pub installed_version: Option<String>,
 }
 
+impl Vehicle {
+    pub fn uses_xchanger(&self) -> bool {
+        ["norrXchanger", "norrGeelyReadOnly"]
+            .iter()
+            .any(|key| self.capabilities.get(*key) == Some(&Some(true)))
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Reading {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal } from "../components/Modal";
 import {
   readingText,
+  isNativeP4,
   scheduleText,
   timeText,
   unavailableReason,
@@ -86,6 +87,17 @@ export function SchedulePanel({
   const valid =
     start !== null && (climate ? validDays : end !== null && end !== start);
 
+  if (isNativeP4(vehicle)) {
+    if (climate) return <details className="native-section"><summary>空调日程</summary><p>空调日程数据待接入。</p></details>;
+    const reservation = snapshot?.readings.p4Reservations;
+    const entries = reservation?.status === "success" && Array.isArray(reservation.value?.entries)
+      ? reservation.value.entries as {start: string | null}[] : undefined;
+    return <section className="native-section"><h2>充电预约</h2>
+      <p className="muted">{readingText(snapshot,"p4Reservations")}</p>
+      {entries?.length === 0 && <p>暂无充电预约</p>}
+      {entries?.map((plan,index) => <p key={index}>预约 {index+1} · {plan.start ?? "开始时间待核实"}</p>)}
+    </section>;
+  }
   return (
     <section className="native-section">
       <div className="section-heading">
