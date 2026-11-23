@@ -1,5 +1,13 @@
 # Norr 开发进展
 
+## 2026-11-23 Android P4 会话目录与文件锁修复
+
+反馈中的“用户目录不可用”来自 P4 会话锁在 Android 上仍读取 `HOME/Library/Application Support`。改为移动插件初始化时传入应用私有数据目录，未初始化时明确报错。Android 16 ARM64 隔离模拟器进一步确认 Rust 1.91 的 `File::try_lock()` 返回 Unsupported，而系统 `flock` 可用；Android 改用非阻塞独占 `flock`，随文件关闭释放，真实锁冲突与其他系统错误分别报告。桌面锁位置、凭据存储、会话恢复与车控发送策略保持兼容。
+
+本地 101 项原生测试、40 项脚本测试、工作区严格 Clippy、Android 核心严格 Clippy 与 actionlint 通过。新增回归在宿主和实际 Android ARM64 测试程序中运行：子进程移除 HOME，校验初始化、私有目录、中文路径、0600 权限、独占锁、释放与重复初始化。Android 测试在隔离模拟器运行，未访问真实用户凭据或发送实车请求；反馈手机的登录和车况仍待更新后验收。
+
+发布工作流新增 `platform=android`，本次仅构建和发布 Android APK。提交使用现有 `[skip ci]` / `[skip release]` 标记避免默认或定时全平台构建，再手动运行 Android 发布任务。验收：Hard Gate PASS（固定样本与隔离模拟器）；Purpose Gate PASS（覆盖目录和锁两处阻断）；Liveliness 不适用（无界面改动）；Craftsmanship PASS（Android 运行时、文件锁和单平台发布回归）。
+
 ## 2026-11-23 P4 会话恢复修复
 
 对照官方 Android 4.25.0，修复 build 1020 在一次续期拒绝后持久阻断当前登录的问题。旧失败标记可迁移；续期授权被拒绝时用中国区外层 token 重新交换，失败限频 60 秒，成功后继续只读回读。补齐嵌套错误码、实际 HTTP 状态和授权 / 签名 / 服务异常分类，校验账号一致，保留缺省续期字段。车辆写入仍只发一次。

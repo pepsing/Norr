@@ -28,3 +28,6 @@ pub fn now_ms() -> u64 {
     )
 ))]
 mod geely;
+
+#[cfg(all(feature = "polestar4", target_os = "android"))]
+pub use geely::initialize_android_directory as initialize_p4_android_directory;

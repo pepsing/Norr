@@ -86,6 +86,8 @@ xcrun simctl launch booted app.norr.ios
 
 ## Android 测试版
 
+P4 会话锁使用移动插件初始化的应用私有数据目录，不依赖 `HOME`，不需要外部存储权限。Android 使用系统 `flock` 持有会话更新锁；桌面平台保留与验证工具一致的锁位置。
+
 首版构建 ARM64 APK，最低 Android 7.0，目标 Android 16。复用车辆、控制、充电、记录和设置页面，随包提供 P2/P4 外观素材。车辆服务能力沿用桌面版，P4 的 HUANFU 服务仍待接入。
 
 Android 接入官方短信验证 WebView、Android Keystore AES-GCM 凭据存储、设备锁屏身份确认、系统通知、通知返回、系统文件选择与备份导出，以及外部地图链接。验证 WebView 仅接收官方主页面的来源限定消息，完成验证后由 Rust 发送短信。Hisingen 导入限定在 macOS 开发构建。
@@ -171,7 +173,7 @@ npm run build:windows
 
 - PR 执行前端测试、类型检查与生产构建，以及 macOS、Windows 的 Rust 格式、release 测试和严格 Clippy。
 - 每天北京时间 03:20（UTC 19:20）检查 main。有上次成功发布的全平台版本之后的新提交时生成四端测试包，版本按 `v0.1.0-alpha.1`、`v0.1.0-alpha.2` 递增。提交判断包含文档更新，也会补上此前构建失败而尚未发布的提交。
-- alpha 发布的所选平台与上次覆盖该平台的成功发布源提交一致时，只运行提交检查任务。手动发布时，在 `Release packages` 选择 main，`platform` 选 `all` 构建全部平台，选 `windows` 只构建 Windows x64，选 `ios-ipa` 只构建 iPhone / iPad 真机 IPA。单平台发布保留前端检查和对应平台验证，每日任务仍会补齐全平台版本。
+- alpha 发布的所选平台与上次覆盖该平台的成功发布源提交一致时，只运行提交检查任务。手动发布时，在 `Release packages` 选择 main，`platform` 选 `all` 构建全部平台，选 `android` 只构建 Android ARM64 APK，选 `windows` 只构建 Windows x64，选 `ios-ipa` 只构建 iPhone / iPad 真机 IPA。单平台发布保留前端检查和对应平台验证，每日任务仍会补齐全平台版本。
 - 发布正式版时填写 `version`，例如 `0.1.0`，并选择 `platform=all`。同一提交可从 alpha 晋升正式版，所有包使用正式版本号与更高的构建号重新构建。正式版发布说明由 `docs/releases/<版本>.md` 提供，验证通过后标记为 Latest。留空 `version` 可发布 alpha，也可为指定 alpha 提供同名发布说明。正式版之后的自动 alpha 从下一补丁版本开始，例如 `0.1.1-alpha.1`。
 - 所选平台检查与打包全部通过后创建发布草稿，上传安装包与 `SHA256SUMS.txt`，验证上传文件的 SHA-256 后发布。alpha 标记为预发行版。并发发布串行执行，上传中断后可复用同一提交、同一平台选择的草稿与版本号。
 - 安装包直接附在 Release 页面，Actions 中另保留 14 天的构建产物。[Release 下载](https://github.com/pepsing/Norr/releases) · [每日发布运行](https://github.com/pepsing/Norr/actions/workflows/release.yml)

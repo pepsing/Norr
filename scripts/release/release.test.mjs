@@ -73,13 +73,43 @@ test('Windows-only publication leaves other platforms eligible for the next full
   assert.equal(plan.version, '0.1.0-alpha.3');
 });
 
+test('Android-only publication retains its scope and produces only an APK and checksum', () => {
+  const full = { draft: false, sha: 'b'.repeat(40), tag_name: 'v0.1.0-alpha.1', published_at: '2026-11-12T00:00:00Z' };
+  const android = { draft: false, sha: initial.sha, tag_name: 'v0.1.0-alpha.2', published_at: '2026-11-13T00:00:00Z',
+    body: '<!-- norr-release {"buildNumber":1002,"platform":"android"} -->' };
+  const input = { ...initial, releases: [full, android] };
+  assert.equal(planRelease({ ...input, platform: 'android' }).publish, false);
+  for (const platform of ['all', 'windows', 'ios-ipa']) {
+    const plan = planRelease({ ...input, platform });
+    assert.equal(plan.publish, true);
+    assert.equal(plan.previousTag, full.tag_name);
+  }
+  const directory = mkdtempSync(join(tmpdir(), 'norr-android-release-'));
+  try {
+    mkdirSync(join(directory, 'Norr-android-arm64'));
+    writeFileSync(join(directory, 'Norr-android-arm64', 'Norr.apk'), 'android-package');
+    writeFileSync(join(directory, 'unrelated.zip'), 'not-selected');
+    const plan = { ...planRelease({ ...initial, platform: 'android' }), previousTag: full.tag_name };
+    const files = prepareAssets(plan.version, directory, 'android');
+    assert.deepEqual(files.map(file => file.name), [`Norr_${plan.version}_android-arm64.apk`, 'SHA256SUMS.txt']);
+    const checksum = createHash('sha256').update('android-package').digest('hex');
+    assert.equal(readFileSync(files[1].path, 'utf8').trim(), `${checksum}  ${files[0].name}`);
+    const notes = renderNotes(plan, [], [], 'pepsing/Norr', 'https://github.com/pepsing/Norr/actions/runs/1');
+    assert.match(notes, /android-arm64.apk/);
+    assert.doesNotMatch(notes, /macos-arm64.zip|windows-x64-setup.exe|ios-arm64/);
+    assert.match(notes, /"platform":"android"/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('single-platform releases only satisfy their own platform and retain the correct baseline', () => {
   const full = { draft: false, sha: 'b'.repeat(40), tag_name: 'v0.1.0-alpha.10', published_at: '2026-11-14T00:00:00Z' };
   const ios = { draft: false, sha: initial.sha, tag_name: 'v0.1.0-alpha.11', published_at: '2026-11-14T01:00:00Z',
     body: '<!-- norr-release {"buildNumber":1011,"platform":"ios-ipa"} -->' };
   const input = { ...initial, releases: [full, ios] };
   assert.equal(planRelease({ ...input, platform: 'ios-ipa' }).publish, false);
-  for (const platform of ['all', 'windows']) {
+  for (const platform of ['all', 'android', 'windows']) {
     const plan = planRelease({ ...input, platform });
     assert.equal(plan.publish, true);
     assert.equal(plan.previousTag, full.tag_name);
@@ -117,12 +147,12 @@ test('IPA-only release publishes Watch and no-Watch packages with distinct check
   }
 });
 
-test('workflow selects only the device build for IPA-only dispatches', () => {
+test('workflow limits desktop and iOS matrices to the selected platform', () => {
   const workflow = readFileSync('.github/workflows/build.yml', 'utf8');
   const source = workflow.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\n\s+NODE/)[1];
   const directory = mkdtempSync(join(tmpdir(), 'norr-matrix-'));
   try {
-    for (const platform of ['all', 'windows', 'ios-ipa']) {
+    for (const platform of ['all', 'android', 'windows', 'ios-ipa']) {
       const output = join(directory, platform);
       execFileSync(process.execPath, ['--input-type=module'], { input: source,
         env: { ...process.env, RELEASE_PLATFORM: platform, GITHUB_OUTPUT: output } });
@@ -196,7 +226,7 @@ test('notes include actual changes and issue links without claiming open issues 
 
 test('every release links the current repository self-signing guide once', () => {
   assert.ok(readFileSync('docs/ios-self-signing.md', 'utf8').includes('NorrWidgets.appex'));
-  for (const platform of ['all', 'windows', 'ios-ipa']) {
+  for (const platform of ['all', 'android', 'windows', 'ios-ipa']) {
     const plan = { ...planRelease({ ...initial, platform }), previousTag: 'v0.1.0-alpha.1' };
     const notes = renderNotes(plan, [], [], 'example/Norr', 'https://github.com/example/Norr/actions/runs/1');
     const guide = 'https://github.com/example/Norr/blob/main/docs/ios-self-signing.md';
@@ -263,7 +293,7 @@ test('stable promotion rebuilds the same alpha source with a higher native build
   assert.equal(plan.tag, 'v0.1.0');
   assert.equal(plan.buildNumber, 1015);
   assert.equal(plan.previousTag, alpha.tag_name);
-  for (const platform of ['windows', 'ios-ipa']) {
+  for (const platform of ['android', 'windows', 'ios-ipa']) {
     assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0', platform }), /all platforms/);
   }
   assert.throws(() => planRelease({ ...initial, stableVersion: '0.1.0-alpha.15' }), /plain version/);

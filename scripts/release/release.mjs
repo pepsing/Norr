@@ -17,9 +17,11 @@ const packages = [
 ];
 
 function releasePackages(platform = 'all') {
-  if (!['all', 'windows', 'ios-ipa'].includes(platform)) throw new Error('Invalid release platform');
+  if (!['all', 'android', 'windows', 'ios-ipa'].includes(platform)) throw new Error('Invalid release platform');
   return packages.filter(([name, , suffix]) => platform === 'all'
-    || (platform === 'ios-ipa' ? suffix.endsWith('.ipa') : name === 'Norr-windows-x64'));
+    || (platform === 'ios-ipa' && suffix.endsWith('.ipa'))
+    || (platform === 'windows' && name === 'Norr-windows-x64')
+    || (platform === 'android' && name === 'Norr-android-arm64'));
 }
 
 export function releaseMetadata(release) {

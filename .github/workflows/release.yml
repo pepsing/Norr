@@ -13,7 +13,7 @@ on:
         description: 构建平台
         type: choice
         default: all
-        options: [all, windows, ios-ipa]
+        options: [all, android, windows, ios-ipa]
 
 permissions:
   contents: read

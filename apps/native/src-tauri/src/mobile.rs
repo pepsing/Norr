@@ -71,6 +71,8 @@ pub fn init() -> TauriPlugin<Wry> {
             DATA_DIRECTORY
                 .set(app.path().app_data_dir()?.join("files"))
                 .map_err(|_| "移动应用数据目录重复初始化")?;
+            #[cfg(all(target_os = "android", feature = "polestar4"))]
+            norr_vehicle_core::initialize_p4_android_directory(data_directory()?)?;
             #[cfg(target_os = "android")]
             norr_vehicle_core::credentials::android::initialize(Box::new(Storage))?;
             Ok(())

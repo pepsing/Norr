@@ -13,7 +13,10 @@ mod session;
 use error::RequestError;
 mod readings;
 mod signing;
+mod storage;
 pub use control::{execute_control, prepare_control, validate_control, PreparedControl};
+#[cfg(target_os = "android")]
+pub use storage::initialize_android_directory;
 
 pub fn candidate(car: &Vehicle) -> bool {
     car.platform

@@ -1,9 +1,6 @@
 use super::{credentials, readings, Api, Method, Session, Value};
 use crate::{now_ms, Result};
 use serde_json::json;
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
-use std::{fs::OpenOptions, path::PathBuf};
 
 const RECOVERY_INTERVAL: f64 = 60.;
 
@@ -37,24 +34,7 @@ impl Api<'_> {
                 })
                 .await;
         }
-        // The verification tool rotates the same grant under this file lock.
-        #[cfg(not(target_os = "windows"))]
-        let directory = PathBuf::from(std::env::var_os("HOME").ok_or("用户目录不可用")?)
-            .join("Library/Application Support");
-        #[cfg(target_os = "windows")]
-        let directory =
-            PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("Windows 用户目录不可用")?);
-        let path = directory
-            .join(credentials::storage_namespace())
-            .join("geely-probe.lock");
-        std::fs::create_dir_all(path.parent().ok_or("P4 会话目录无效")?)
-            .map_err(|_| "无法创建 P4 会话目录")?;
-        let mut options = OpenOptions::new();
-        options.create(true).truncate(false).read(true).write(true);
-        #[cfg(unix)]
-        options.mode(0o600);
-        let lock = options.open(path).map_err(|_| "无法访问 P4 会话锁")?;
-        lock.try_lock().map_err(|_| "P4 会话正在更新，请稍后刷新")?;
+        let _lock = super::storage::lock()?;
         self.grant_from_cache(
             session,
             rejected,
