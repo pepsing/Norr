@@ -712,6 +712,7 @@ mod tests {
                     key,
                     device: "fixture-device".into(),
                     endpoint: Some(endpoint),
+                    sessions: None,
                 };
                 let grant = json!({"userId":"fixture-user","accessToken":"fixture-token","clientId":"fixture-client"});
                 let command = command(action, value);
@@ -773,6 +774,7 @@ mod tests {
             key: hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, b"fixture-secret"),
             device: "fixture".into(),
             endpoint: Some(endpoint),
+            sessions: None,
         };
         let result = tokio::runtime::Runtime::new().unwrap().block_on(send_control(&api,
             &json!({"userId":"fixture-user","accessToken":"fixture-token","clientId":"fixture-client"}), &command("target", Some(90.0))));
@@ -795,7 +797,7 @@ mod tests {
         ] {
             let (endpoint, captured) = server(200, json!({"code":1000,"data":data}), Duration::ZERO);
             let http = Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().unwrap();
-            let api = Api { http: &http, key: hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, b"fixture-secret"), device: "fixture".into(), endpoint: Some(endpoint) };
+            let api = Api { http: &http, key: hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, b"fixture-secret"), device: "fixture".into(), endpoint: Some(endpoint), sessions: None };
             let reader = VehicleRead { api: &api, session: &session, grant: json!({"userId":"fixture-user","accessToken":"fixture-token","clientId":"fixture-client"}), renewed: Default::default() };
             let reading = tokio::runtime::Runtime::new().unwrap().block_on(reader.control_reading(&vehicle(), kind)).unwrap();
             assert_eq!(reading.status, "success");

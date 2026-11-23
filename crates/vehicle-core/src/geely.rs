@@ -6,18 +6,14 @@ use crate::{
 use reqwest::{Client, Method, Url};
 use ring::hmac;
 use serde_json::{json, Value};
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
-use std::{fs::OpenOptions, path::PathBuf};
 mod availability;
 mod control;
+mod error;
+mod session;
+use error::RequestError;
 mod readings;
 mod signing;
 pub use control::{execute_control, prepare_control, validate_control, PreparedControl};
-
-const UNAUTHORIZED: &str = "P4 服务返回 HTTP 401";
-const LOGIN_REQUIRED: &str = "P4 会话续期被拒绝（HTTP 401），请重新登录中国区账号";
-const READ_REJECTED: &str = "P4 续期后读取车况仍返回 HTTP 401，请核对账号的车辆访问权限";
 
 pub fn candidate(car: &Vehicle) -> bool {
     car.platform
@@ -31,6 +27,8 @@ struct Api<'a> {
     device: String,
     #[cfg(test)]
     endpoint: Option<String>,
+    #[cfg(test)]
+    sessions: Option<std::sync::Arc<tokio::sync::Mutex<Value>>>,
 }
 
 impl Api<'_> {
@@ -47,6 +45,8 @@ impl Api<'_> {
                 .collect(),
             #[cfg(test)]
             endpoint: None,
+            #[cfg(test)]
+            sessions: None,
         })
     }
 
@@ -119,136 +119,12 @@ impl Api<'_> {
         params: &[(&str, &str)],
         body: Option<Value>,
         grant: &Value,
-    ) -> Result<Value> {
+    ) -> std::result::Result<Value, RequestError> {
         let (status, data) = self
             .raw_request(method, host, path, params, body, grant)
-            .await?;
-        if status == 401 || data["code"] == 1402 || data["code"] == "1402" {
-            return Err(UNAUTHORIZED.into());
-        }
-        if !(200..300).contains(&status) {
-            return Err(format!("P4 服务返回 HTTP {status}"));
-        }
-        if !data.is_object()
-            || !data["error"].is_null()
-            || data["success"] == false
-            || data["isSuccess"] == false
-        {
-            return Err("P4 服务未接受请求".into());
-        }
-        if let Some(code) = data.get("code") {
-            if code != "1000" && code != 1000 {
-                return Err("P4 请求被拒绝".into());
-            }
-            return Ok(data["data"].clone());
-        }
-        Ok(data)
-    }
-
-    async fn grant(&self, session: &Session, rejected: Option<&Value>) -> Result<Value> {
-        // The verification tool rotates the same grant under this file lock.
-        #[cfg(not(target_os = "windows"))]
-        let path = PathBuf::from(std::env::var_os("HOME").ok_or("用户目录不可用")?)
-            .join("Library/Application Support");
-        #[cfg(target_os = "windows")]
-        let path = PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("Windows 用户目录不可用")?);
-        let path = path
-            .join(credentials::storage_namespace())
-            .join("geely-probe.lock");
-        std::fs::create_dir_all(path.parent().ok_or("P4 会话目录无效")?)
-            .map_err(|_| "无法创建 P4 会话目录")?;
-        let mut options = OpenOptions::new();
-        options.create(true).truncate(false).read(true).write(true);
-        #[cfg(unix)]
-        options.mode(0o600);
-        let lock = options.open(path).map_err(|_| "无法访问 P4 会话锁")?;
-        lock.try_lock().map_err(|_| "P4 会话正在更新，请稍后刷新")?;
-        let scope = session.account_scope();
-        let stored = credentials::geely_session()?.unwrap_or_default();
-        let mut grant = stored["grant"].clone();
-        let now = now_ms() as f64 / 1000.;
-        let same_account = stored["accountHash"] == scope;
-        let rejected_login = stored["reloginIssuedAt"].as_f64();
-        if same_account && rejected_login == Some(session.issued_at) {
-            return Err(LOGIN_REQUIRED.into());
-        }
-        let can_renew = same_account
-            && rejected_login.is_none()
-            && grant["refreshToken"]
-                .as_str()
-                .is_some_and(|v| !v.is_empty());
-        if let Some(previous) = rejected {
-            if !can_renew || previous["userId"] != grant["userId"] {
-                return Err("P4 账号会话已变化，请重新读取车辆".into());
-            }
-        }
-        if can_renew {
-            if stored["savedAt"].as_f64().unwrap_or(0.)
-                + readings::num(&grant["expiresIn"]).unwrap_or(0.)
-                > now + 60.
-                && rejected.is_none_or(|old| old["accessToken"] != grant["accessToken"])
-            {
-                return Ok(grant);
-            }
-            let fresh = self
-                .request(
-                    Method::PUT,
-                    "user-api",
-                    "/auth/account/session/secure",
-                    &[],
-                    Some(json!({"refreshToken":grant["refreshToken"]})),
-                    &grant,
-                )
-                .await;
-            let fresh = match fresh {
-                Err(e) if e == UNAUTHORIZED => {
-                    let mut blocked = stored;
-                    blocked["reloginIssuedAt"] = json!(session.issued_at);
-                    credentials::save_geely(&blocked)?;
-                    return Err(LOGIN_REQUIRED.into());
-                }
-                result => result?,
-            };
-            if fresh.get("userId").is_some_and(|id| id != &grant["userId"]) {
-                return Err("P4 续期返回的账号与当前账号不一致".into());
-            }
-            if fresh["accessToken"]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .is_none()
-            {
-                return Err("P4 续期缺少授权".into());
-            }
-            for (k, v) in fresh.as_object().ok_or("P4 续期格式无效")? {
-                grant[k] = v.clone();
-            }
-        } else {
-            let token = session
-                .login
-                .extra
-                .get("accessToken")
-                .and_then(Value::as_str)
-                .ok_or("缺少中国区外层授权")?;
-            grant = self
-                .request(
-                    Method::POST,
-                    "user-api",
-                    "/auth-center/account/session",
-                    &[],
-                    Some(json!({"identityType":"polestar","accessToken":token})),
-                    &Value::Null,
-                )
-                .await?;
-        }
-        if ["userId", "clientId", "refreshToken", "accessToken"]
-            .iter()
-            .any(|k| grant[*k].as_str().is_none_or(str::is_empty))
-            || readings::num(&grant["expiresIn"]).is_none_or(|n| n <= 0.)
-        {
-            return Err("P4 服务未返回完整授权".into());
-        }
-        credentials::save_geely(&json!({"accountHash":scope,"savedAt":now,"grant":grant}))?;
-        Ok(grant)
+            .await
+            .map_err(RequestError::Other)?;
+        error::response(status, data)
     }
 }
 
@@ -328,8 +204,8 @@ impl VehicleRead<'_> {
                 .request(Method::GET, host, path, params, None, &self.grant)
                 .await
             {
-                Err(error) if error == UNAUTHORIZED => {}
-                result => return result,
+                Err(error) if error.authentication() => {}
+                result => return result.map_err(|error| error.message("车辆读取")),
             }
         }
         let grant = self
@@ -342,10 +218,13 @@ impl VehicleRead<'_> {
             .request(Method::GET, host, path, params, None, grant)
             .await
             .map_err(|error| {
-                if error == UNAUTHORIZED {
-                    READ_REJECTED.into()
+                if error.authentication() {
+                    format!(
+                        "{}，请核对账号的车辆访问权限",
+                        error.message("会话恢复后的车辆读取")
+                    )
                 } else {
-                    error
+                    error.message("车辆读取")
                 }
             })
     }

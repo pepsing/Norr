@@ -132,7 +132,7 @@ APK 在 `com/baselinelibrary/net/CustomOkHttpClientUtil.java` 为每个请求添
 - 交换请求体：`{"identityType":"polestar","accessToken":"<外层令牌>"}`。`identityType` 放在 body 里。
 - 续期请求体：`{"refreshToken":"<refreshToken>"}`。响应只返回新的 accessToken、expiresIn、refreshFailureTime，**不返回新 refreshToken**。合并时必须保留原 refreshToken、userId、clientId。
 - 实测 `expiresIn` 为 7200 秒，`refreshFailureTime` 约 30 天后。
-- 响应码 `1402` 表示访问令牌无效。APK 收到 1402 后先续期再重放请求。`1403`、`1404`、`1408` 要求重新登录。
+- 响应码 `1402` 表示访问令牌无效。APK 收到 1402 后先续期再重放请求。`1403`、`1404`、`1408` 触发 SDK 重新登录；管理器重新初始化会用中国区外层 token 再交换会话。Norr 对只读请求恢复一次；续期授权被拒绝时重新交换，失败后限频 60 秒，迁移旧版永久失败标记。签名错误与网络 / 5xx 异常单独报告，保留凭据和实际 HTTP / 业务码。详见 [token 续期对照](polestar4-token-refresh-audit.md)。
 
 ## 接口
 
@@ -215,7 +215,7 @@ body 原样参与 MD5，签名用的字节必须和发送的字节完全一致�
 | 密钥 | 编译期 `NORR_XCHANGER_APP_SECRET`，未编入时回退到原钥匙串条目 | 编译期 `NORR_XCHANGER_APP_SECRET` |
 | Accept | `application/json` | `application/json;responseformat=3` |
 | 设备标识 | 每台设备独立 | 写死同一个 UUID 和回退 clientId |
-| 续期 | 主动续期，校验账号一致；读取遇到 1402 可续期重试一次，写入不重放 | 收到 1402 后重新交换 |
+| 续期 | 主动续期，校验账号一致；读取授权失效时续期或重新交换后重试一次，失败限频，写入不重放 | 收到 1402 后重新交换 |
 | 能力 | 读取、空调启停与充电上限写入；发送前核对当前车库与能力 | 读取，加空调与充电上限写入 |
 
 2026-11-23，本地 macOS P4 测试适配器已接入上述两类车控，使用同一个签名实现发送真实 HTTP PUT。固定样本与本机 HTTP 服务验证了请求、签名、回执及独立回读，当前修改尚未做实车写入验证。实现范围与验收见 [P4 控制接入](polestar4-controls.md)。
