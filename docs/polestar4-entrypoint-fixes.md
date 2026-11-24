@@ -1,6 +1,6 @@
 # P4 现有入口适配修复
 
-2026-11-24，保留 P2 的现有功能范围。前轮交付本地 macOS `0.2.1-dev.1023`；下述剩余问题修复尚未打入分发包，GitHub 与 TestFlight 不更新。
+2026-11-24，保留 P2 的现有功能范围。前轮交付本地 macOS `0.2.1-dev.1023`；本次适配与下述剩余问题修复已发布为 GitHub `0.2.1-alpha.8` 和 TestFlight `0.2.1 (1024)`，TestFlight 的 Norr 公测组已显示“正在测试”。此前桌面测试包未替换。
 
 ## 变更
 
@@ -31,7 +31,7 @@ P4 真机 Siri 语音、冷启动、iPhone/Watch 授权传递、手表网络与�
 
 本轮通过 108 项工作区 Rust 测试、30 项前端测试、42 项脚本测试及 Swift Siri/Watch 固定样本。Watch 使用 `URLProtocol` 模拟能力接口 503、缺少车辆类型与车辆不在车库，未连接真实服务。组件测试覆盖重复清空、保留车图、换号/换车、旧时间拒绝、旧记录兼容；Siri 测试覆盖局部合并、回执更新、落盘恢复和账号历史隔离。
 
-工作区与 iOS ARM64 严格 Clippy、iOS ARM64 库构建、Watch 模拟器构建通过；iOS 静态库已核对 `norr_widget_readback` Swift 桥接符号。日志位于 `target/p4-remaining-fixes-20261124/`。本轮未读取真实凭据、发送实车请求或生成分发包。此前桌面 `0.2.1-dev.1023` 不包含本节新增改动；Apple 系统调度、真机语音、配对传输与实车行为仍需验收。
+工作区与 iOS ARM64 严格 Clippy、iOS ARM64 库构建、Watch 模拟器构建通过。随后的签名归档发现 Release 优化未导出 `norr_widget_readback`，已将桥接函数声明为 public，完整归档及 GitHub 两类 iOS 构建通过。修复开发未读取真实会话或发送实车请求；发布时按授权读取本地构建密钥并核对注入。检查日志分别位于 `target/p4-remaining-fixes-20261124/` 与 `target/p4-entrypoint-release-20261124/`。此前桌面 `0.2.1-dev.1023` 不包含本节新增改动；Apple 系统调度、真机语音、配对传输与实车行为仍需验收。
 
 ## macOS 测试
 
