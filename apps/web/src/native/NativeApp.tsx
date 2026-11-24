@@ -290,12 +290,15 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   }, [vehicle?.vin, vehicle?.model]);
 
   useEffect(() => {
-    if (p4Logging || !supportsWidgets || !snapshot || snapshot.vehicle.vin !== vin) {
+    if (p4Logging || !supportsWidgets) {
       setWidgetError("");
       return;
     }
     let disposed = false;
-    const data = widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model));
+    const data = snapshot && snapshot.vehicle.vin === vin
+      ? widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model))
+      : null;
+    if (!data && !isAndroid) return;
     widgetSync.current = widgetSync.current
       .then(() => native.updateWidgets(data))
       .then(() => { if (!disposed) setWidgetError(""); })

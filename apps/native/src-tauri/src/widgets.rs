@@ -87,7 +87,13 @@ pub async fn take_widget_target() -> Result<Option<Target>> {
 }
 
 #[tauri::command]
-pub async fn update_widgets(app: tauri::AppHandle, data: WidgetData) -> Result<()> {
+pub async fn update_widgets(app: tauri::AppHandle, data: Option<WidgetData>) -> Result<()> {
+    let Some(data) = data else {
+        #[cfg(target_os = "android")]
+        return crate::mobile::call_async("clearWidgets", serde_json::json!({})).await;
+        #[cfg(not(target_os = "android"))]
+        return Err("此平台尚不支持清除小组件数据".into());
+    };
     if cfg!(all(target_os = "macos", feature = "polestar4-test")) {
         return Ok(());
     }

@@ -1,6 +1,7 @@
 package app.norr.mobile
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -43,6 +44,26 @@ class NorrWidgetThemeTest {
         configuration.uiMode = (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
             if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
         return context.createConfigurationContext(configuration)
+    }
+
+    @Test
+    fun clearingVehicleRemovesReadingsAndKeepsWidgetAppearance() {
+        val preferences = context.getSharedPreferences("widget-clear-test-${UUID.randomUUID()}", Context.MODE_PRIVATE)
+        val isolated = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int) = preferences
+        }
+        try {
+            assertTrue(preferences.edit().putString("vehicle", data.toString())
+                .putString("appearance-42", "dark").commit())
+            NorrWidgets.clear(isolated)
+            assertEquals(null, preferences.getString("vehicle", null))
+            assertEquals("dark", preferences.getString("appearance-42", null))
+            NorrWidgets.clear(isolated)
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val root = NorrWidgets.render(host(false), 0, null, false, 2).apply(host(false), null)
+                assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty).visibility)
+            }
+        } finally { preferences.edit().clear().commit() }
     }
 
     @Test

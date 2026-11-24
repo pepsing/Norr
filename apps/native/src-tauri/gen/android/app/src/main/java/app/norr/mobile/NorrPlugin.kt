@@ -12,9 +12,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import android.util.Base64
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.appcompat.app.AppCompatActivity
@@ -29,11 +26,6 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.File
-import java.security.KeyStore
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 import kotlin.concurrent.thread
 import org.json.JSONObject
 
@@ -48,9 +40,7 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     private var widgetTarget: JSObject? = null
     private var webView: WebView? = null
     private var verification: PhoneVerification? = null
-    private val preferences by lazy {
-        activity.getSharedPreferences("norr-credentials", Context.MODE_PRIVATE)
-    }
+    private val credentials by lazy { NorrCredentialStore(activity) }
 
     override fun load(webView: WebView) {
         this.webView = webView
@@ -105,6 +95,16 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun clearWidgets(invoke: Invoke) {
+        try {
+            NorrWidgets.clear(activity)
+            invoke.resolve()
+        } catch (_: Exception) {
+            invoke.reject("小组件数据清除失败，请重试。")
+        }
+    }
+
+    @Command
     fun updateWidgets(invoke: Invoke) {
         try {
             val args = invoke.getArgs()
@@ -126,56 +126,13 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
         intent.removeExtra("norrVin")
     }
 
-    private fun key(): SecretKey {
-        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        val alias = "norr-session-v1"
-        (store.getKey(alias, null) as? SecretKey)?.let {
-            return it
-        }
-        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-            .apply {
-                init(
-                    KeyGenParameterSpec.Builder(
-                            alias,
-                            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                        )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .build(),
-                )
-            }
-            .generateKey()
-    }
-
-    private fun account(invoke: Invoke): String {
-        val value = invoke.getArgs().getString("account")
-        require(
-            value in listOf("polestar-china-session", "polestar-china-signing-key", "device-id"),
-        )
-        return value
-    }
-
     @Command
     fun readCredential(invoke: Invoke) {
         try {
-            val account = account(invoke)
-            val stored = preferences.getString(account, null)
-            if (stored == null) {
-                invoke.resolve(JSObject().put("value", JSONObject.NULL) as JSObject)
-                return
-            }
-            val record = JSONObject(stored)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(
-                Cipher.DECRYPT_MODE,
-                key(),
-                GCMParameterSpec(128, Base64.decode(record.getString("iv"), Base64.NO_WRAP)),
-            )
-            cipher.updateAAD(account.toByteArray(Charsets.UTF_8))
-            val bytes = cipher.doFinal(Base64.decode(record.getString("data"), Base64.NO_WRAP))
-            val result = JSObject().put("value", bytes.toString(Charsets.UTF_8)) as JSObject
-            bytes.fill(0)
-            invoke.resolve(result)
+            val value = credentials.read(invoke.getArgs().getString("account"))
+            invoke.resolve(JSObject().put("value", value ?: JSONObject.NULL) as JSObject)
+        } catch (_: UnsupportedCredentialAccount) {
+            invoke.reject("不支持的本机凭据类型，请更新应用。")
         } catch (_: Exception) {
             invoke.reject("无法解密本机登录会话，请重新登录。")
         }
@@ -184,23 +141,11 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun writeCredential(invoke: Invoke) {
         try {
-            val account = account(invoke)
-            val bytes = invoke.getArgs().getString("value").toByteArray(Charsets.UTF_8)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key())
-            cipher.updateAAD(account.toByteArray(Charsets.UTF_8))
-            val encrypted =
-                try {
-                    cipher.doFinal(bytes)
-                } finally {
-                    bytes.fill(0)
-                }
-            val record =
-                JSONObject()
-                    .put("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-                    .put("data", Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            check(preferences.edit().putString(account, record.toString()).commit())
+            val args = invoke.getArgs()
+            credentials.write(args.getString("account"), args.getString("value"))
             invoke.resolve()
+        } catch (_: UnsupportedCredentialAccount) {
+            invoke.reject("不支持的本机凭据类型，请更新应用。")
         } catch (_: Exception) {
             invoke.reject("Android 安全存储写入失败，请重试。")
         }

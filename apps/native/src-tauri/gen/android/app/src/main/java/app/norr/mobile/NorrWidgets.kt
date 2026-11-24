@@ -58,6 +58,12 @@ object NorrWidgets {
     fun preferences(context: Context) = context.getSharedPreferences("norr-widgets", Context.MODE_PRIVATE)
 
     @Synchronized
+    fun clear(context: Context) {
+        check(preferences(context).edit().remove("vehicle").commit())
+        updateAll(context)
+    }
+
+    @Synchronized
     fun store(context: Context, data: JSONObject, image: File, darkImage: File? = null) {
         val directory = File(context.filesDir, "widgets").apply { mkdirs() }
         val imageName = storeImage(directory, image, false)
