@@ -1,6 +1,6 @@
 #import "NorrWindowRegions.h"
 
-void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL)) {
+void NorrTrackWindowDivision(UIView *view, void (^hingeAvailabilityChanged)(BOOL)) {
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270100
     if (@available(iOS 27.1, *)) {
         __weak UIView *target = view;
@@ -8,7 +8,7 @@ void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL)) {
             [changedView setNeedsLayout];
         }];
         [view addInteraction:[[UIHingeInteraction alloc] initWithUpdateHandler:^(UIHingeInteraction *interaction, UIHingeInteractionUpdate *update) {
-            hingeChanged(update.hinge != nil && update.hinge.status == UIHingeStatusClosed);
+            hingeAvailabilityChanged(update.hinge != nil);
             [target setNeedsLayout];
         }]];
     }

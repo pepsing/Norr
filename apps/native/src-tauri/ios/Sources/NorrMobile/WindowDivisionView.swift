@@ -6,7 +6,7 @@ final class WindowDivisionView: UIView {
   private weak var webView: WKWebView?
   private var loading: NSKeyValueObservation?
   private var lastDivision: WindowDivision?
-  private var hingeClosed = false
+  private var hasHinge = false
   private var lastSideTabs: Bool?
   private var hideTabs: (() -> Void)?
 
@@ -17,7 +17,7 @@ final class WindowDivisionView: UIView {
     accessibilityElementsHidden = true
     autoresizingMask = [.flexibleWidth, .flexibleHeight]
     webView.addSubview(self)
-    NorrTrackWindowDivision(self) { [weak self] closed in self?.hingeClosed = closed }
+    NorrTrackWindowDivision(self) { [weak self] present in self?.hasHinge = present }
     if #available(iOS 26.0, *) {
       let tabs = VehicleTabBar(webView: webView)
       hideTabs = { [weak tabs] in tabs?.hide() }
@@ -37,7 +37,7 @@ final class WindowDivisionView: UIView {
     super.layoutSubviews()
     guard let webView, window != nil, !webView.isLoading else { return }
     let division = WindowDivision(region: NorrWindowDivision(self), in: bounds)
-    let sideTabs = hingeClosed && NorrHasVerticalBarEdge(self)
+    let sideTabs = hasHinge && division == nil && NorrHasVerticalBarEdge(self)
     guard division != lastDivision || sideTabs != lastSideTabs else { return }
     lastSideTabs = sideTabs
     lastDivision = division
