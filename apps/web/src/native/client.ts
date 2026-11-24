@@ -159,7 +159,7 @@ export const native = {
         invoke<SessionStatus>("import_hisingen", { configPath })
     : undefined,
   connect: () => invoke<NativeVehicle[]>("connect"),
-  refresh: (vin: string) => invoke<Snapshot>("refresh", { vin }),
+  refresh: (vin: string, receiptId?: string) => invoke<Snapshot>("refresh", { vin, ...(receiptId && { receiptId }) }),
   history: () => invoke<History>("history"),
   historyReport: (vin: string, start: number, end: number) =>
     invoke<HistoryReport>("history_report", { vin, start, end }),

@@ -7,20 +7,25 @@ struct SiriVehicle: AppEntity {
     static let defaultQuery = VehicleQuery()
 
     let id: String
-    let name: String
+    @Property(title: "车辆名称") var name: String
     let trunkUnlockOnly: Bool
 
     init(_ option: SiriVehicleOption) {
         id = option.id
-        name = option.name
         trunkUnlockOnly = option.trunkUnlockOnly ?? false
+        name = option.name
     }
 
     var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
 }
 
 @available(iOS 16.0, *)
-struct VehicleQuery: EntityQuery {
+struct VehicleQuery: EntityStringQuery {
+    func entities(matching string: String) async throws -> [SiriVehicle] {
+        let options = try await suggestedEntities()
+        return string.isEmpty ? options : options.filter { $0.name.localizedStandardContains(string) }
+    }
+
     func entities(for identifiers: [SiriVehicle.ID]) async throws -> [SiriVehicle] {
         let vehicles = try await suggestedEntities()
         return try identifiers.map { id in
@@ -33,6 +38,17 @@ struct VehicleQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [SiriVehicle] {
         try await (SiriBridge.run(.vehicles).vehicles ?? []).map(SiriVehicle.init)
+    }
+}
+
+@available(iOS 16.0, *)
+struct ListNorrVehiclesIntent: AppIntent {
+    static let title: LocalizedStringResource = "获取北行车辆列表"
+    static var openAppWhenRun: Bool { false }
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
+
+    func perform() async throws -> some IntentResult & ReturnsValue<[SiriVehicle]> {
+        .result(value: try await VehicleQuery().suggestedEntities())
     }
 }
 

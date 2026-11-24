@@ -106,9 +106,14 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
         phase = "sending"
         do {
             let rejected: Bool
+            var rejectionMessage = "车辆拒绝执行，请检查车门与当前权限"
             if let xchanger, let p4Request {
                 let (http, data) = try await xchanger.raw(p4Request)
                 rejected = WatchXchanger.rejected(http: http, data: data)
+                if rejected {
+                    do { _ = try WatchXchanger.response(http: http, data: data) }
+                    catch { rejectionMessage = error.localizedDescription }
+                }
             } else if let endpoint {
                 let data = try await grpc(endpoint, path: "/invocation.InvocationService/\(method)", body: body, grant: grant)
                 let outer = try WatchWire(data)
@@ -118,14 +123,19 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
             try ensureCurrent(epoch)
             if rejected {
                 try clearPending(record)
-                throw WatchFailure(message: "车辆拒绝执行，请检查车门与当前权限")
+                throw WatchFailure(message: rejectionMessage)
             }
             phase = "pending"
             notice = "请求已返回，正在核对车辆状态"
-            for _ in 0..<5 {
-                try await Task.sleep(nanoseconds: 4_000_000_000)
+            for delay in [3, 5, 8, 12, 16] {
+                try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
                 try ensureCurrent(epoch)
-                let snapshot = try await fetch()
+                if Date().timeIntervalSince(record.sentAt) >= 60 { break }
+                let snapshot: WatchSnapshot
+                do { snapshot = try await fetch(verifying: true) }
+                catch let error as URLError where [.timedOut, .networkConnectionLost, .notConnectedToInternet].contains(error.code) && delay < 16 {
+                    continue
+                }
                 if snapshot.confirms(record) {
                     try clearPending(record)
                     phase = "confirmed"
@@ -134,6 +144,8 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
             }
         } catch {
             if !pendingCommands.records.contains(where: { $0.id == record.id }) || generation != epoch { throw error }
+            phase = "pending"
+            throw WatchFailure(message: "\(error.localizedDescription)。操作结果待核对，可重新读取车况")
         }
         phase = "pending"
         throw WatchFailure(message: "结果待核对，请读取车辆状态。指令不会自动重发")
@@ -147,7 +159,7 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
         }
         busy = true
         defer { busy = false }
-        let snapshot = try await fetch()
+        let snapshot = try await fetch(verifying: true)
         guard snapshot.confirms(record) else {
             if !record.blocks(record.action) {
                 phase = "unconfirmed"
@@ -193,9 +205,16 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
         guard generation == epoch else { throw WatchFailure(message: "车辆或登录态已变更，请重新读取") }
     }
 
-    private func fetch() async throws -> WatchSnapshot {
+    private func fetch(verifying: Bool = false) async throws -> WatchSnapshot {
         let grant = try validAuthorization()
         let epoch = generation
+        if verifying, let authorization = grant.xchanger {
+            var snapshot = try await WatchXchanger(grant: authorization, vin: grant.vin).commandReadback()
+            try ensureCurrent(epoch)
+            snapshot.chargeTarget = cachedSnapshot?.chargeTarget
+            try save(snapshot, account: grant.account)
+            return snapshot
+        }
         capabilities = [:]
         if let authorization = grant.xchanger {
             let (snapshot, permissions) = try await WatchXchanger(grant: authorization, vin: grant.vin).fetch()

@@ -69,6 +69,7 @@ import type {
   SessionStatus,
   Snapshot,
 } from "./client";
+import { useIOSTabBar } from "./useIOSTabBar";
 import "./native.css";
 import { widgetData } from "./widgets";
 import type { WidgetTarget } from "./widgets";
@@ -123,6 +124,7 @@ function valueText(value: number | null, unit = "", digits = 0): string {
 
 export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLog?: () => void; p4Logging?: boolean }) {
   const [page, setPage] = useState("vehicle");
+  useIOSTabBar(pages, setPage);
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [page]);
@@ -448,16 +450,16 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     return next;
   }
 
-  async function refresh(): Promise<RefreshOutcome> {
+  async function refresh(receiptId?: string): Promise<RefreshOutcome> {
     if (busy || refreshing.current) return "cancelled";
     refreshing.current = true;
     setBusy(true);
     setError("");
     try {
       let next: Snapshot | undefined;
-      if (!connected || !vin) next = await connect(vin);
+      if (!receiptId && (!connected || !vin)) next = await connect(vin);
       else {
-        next = await native.refresh(vin);
+        next = await native.refresh(vin, receiptId);
         if (next.vehicle.vin !== selectedVehicle.current) return "cancelled";
         setSnapshot(next);
         await reloadHistory();
@@ -467,7 +469,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
       return refreshOutcome(next);
     } catch (problem) {
       setError(String(problem));
-      setConnected(false);
+      if (!receiptId) setConnected(false);
       return "error";
     } finally {
       refreshing.current = false;
@@ -478,6 +480,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   async function selectVehicle(selected: string) {
     setDialog(null);
     setVehicleSheet(null);
+    setNotice("");
     selectedVehicle.current = selected;
     setVin(selected);
     setSnapshot(
@@ -589,11 +592,14 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     setError("");
     try {
       const receipt = await native.command(dialog);
+      if (selectedVehicle.current !== receipt.command.vin) return;
       setNotice(receipt);
       setDialog(null);
       await reloadHistory();
       if (!receipt.readback && receipt.status !== "rejected" && !(p4 && p4FindActions.includes(dialog.action))) {
-        setSnapshot(await native.refresh(dialog.vin));
+        const next = await native.refresh(dialog.vin);
+        if (next.vehicle.vin !== selectedVehicle.current) return;
+        setSnapshot(next);
         await reloadHistory();
       }
     } catch (problem) {
@@ -675,6 +681,16 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
       ? null
       : (history.receipts.find((receipt) => receipt.id === notice.id) ??
         notice);
+  const pendingReceipt = noticeReceipt?.command.vin === vin && noticeReceipt.readback &&
+    noticeReceipt.status !== "rejected" && noticeReceipt.readback !== "回读一致" &&
+    !p4FindActions.includes(noticeReceipt.command.action) ? noticeReceipt : null;
+  const [delayedReceipt, setDelayedReceipt] = useState("");
+  useEffect(() => {
+    if (!pendingReceipt) return;
+    const id = window.setTimeout(() => setDelayedReceipt(pendingReceipt.id),
+      Math.max(0, pendingReceipt.time + 60_000 - Date.now()));
+    return () => window.clearTimeout(id);
+  }, [pendingReceipt?.id, pendingReceipt?.time]);
   const noticeText = noticeReceipt
     ? [
         actionLabels[noticeReceipt.command.action],
@@ -766,6 +782,12 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         {notice && (
           <div className="native-notice" role="status">
             <span>{noticeText}</span>
+            {pendingReceipt && delayedReceipt === pendingReceipt.id && <span>已超过一分钟，仍未取得匹配的车辆上报。</span>}
+            {pendingReceipt && (
+                <button className="text-button" disabled={busy} onClick={() => void refresh(pendingReceipt.id)}>
+                  {busy ? "正在读取车况…" : "重新核对车况"}
+                </button>
+              )}
             <button className="text-button" onClick={() => setNotice("")}>
               收起
             </button>

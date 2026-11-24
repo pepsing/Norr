@@ -106,7 +106,8 @@ struct WatchXchanger {
               data["error"] == nil || data["error"] is NSNull,
               !isFalse(data["success"]), !isFalse(data["isSuccess"]),
               data["code"] == nil || number(data["code"]) == 1000 else {
-            throw WatchFailure(message: "P4 请求未被接受（HTTP \(http)）")
+            let business = code.map { "，业务码 " + String(format: "%.0f", $0) } ?? ""
+            throw WatchFailure(message: "P4 请求未被接受（HTTP \(http)\(business)）")
         }
         return data["code"] == nil ? data : data["data"] as? [String: Any] ?? [:]
     }
@@ -164,9 +165,18 @@ struct WatchXchanger {
         let type = try await vehicleType()
         async let permissions = try? capabilities(vehicleType: type)
         async let target = get(host: "api", path: "/remote-control/vehicle/status/soc/\(vin)", query: ["setting": "charging"])
-        let status = try await get(host: "device-api", path: "/remote-control/vehicle/status/\(vin)",
-                                   query: ["userId": grant.userId, "latest": "false", "target": ""])
+        let status = try await vehicleStatus()
         return (try Self.snapshot(status, target: (try? await target) ?? [:], vin: vin), await permissions ?? [:])
+    }
+
+    private func vehicleStatus() async throws -> [String: Any] {
+        try await get(host: "device-api", path: "/remote-control/vehicle/status/\(vin)",
+                      query: ["userId": grant.userId, "latest": "false", "target": ""])
+    }
+
+    func commandReadback() async throws -> WatchSnapshot {
+        _ = try await vehicleType()
+        return try await Self.snapshot(vehicleStatus(), target: [:], vin: vin)
     }
 
     static func snapshot(_ data: [String: Any], target: [String: Any], vin: String, now: Date = .now) throws -> WatchSnapshot {

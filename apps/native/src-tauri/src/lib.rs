@@ -187,7 +187,12 @@ impl Backend {
     }
 }
 
-fn pending_readback(history: &History, now: u64, account: Option<&str>) -> Option<Command> {
+fn pending_readback(
+    history: &History,
+    now: u64,
+    account: Option<&str>,
+    eligible: impl Fn(&Command) -> bool,
+) -> Option<Command> {
     let mut latest = std::collections::BTreeSet::new();
     history
         .receipts
@@ -206,7 +211,8 @@ fn pending_readback(history: &History, now: u64, account: Option<&str>) -> Optio
             latest.insert((
                 receipt.command.vin.as_str(),
                 confirmation::command_group(&receipt.command.action).unwrap_or(endpoint),
-            )) && receipt.readback.as_deref() != Some(confirmation::CONFIRMED)
+            )) && eligible(&receipt.command)
+                && receipt.readback.as_deref() != Some(confirmation::CONFIRMED)
                 && now.saturating_sub(receipt.time)
                     < if history.snapshots.iter().any(|snapshot| {
                         snapshot.vehicle.vin == receipt.command.vin
@@ -373,8 +379,27 @@ async fn refresh(
     _app: tauri::AppHandle,
     state: State<'_, VehicleService>,
     vin: String,
+    receipt_id: Option<String>,
 ) -> Result<Snapshot> {
     let mut backend = state.lock().await;
+    if let Some(id) = receipt_id {
+        let account = backend.client.account_scope().ok_or("请先登录并连接车辆")?;
+        let command = backend
+            .history
+            .receipts
+            .iter()
+            .find(|receipt| {
+                receipt.id == id
+                    && receipt.command.vin == vin
+                    && receipt.account_scope.as_deref() == Some(account.as_str())
+                    && receipt.status != "rejected"
+                    && confirmation::endpoint(&receipt.command.action).is_some()
+            })
+            .ok_or("当前车辆没有这条可核对的操作")?
+            .command
+            .clone();
+        return backend.read_command_state(&command).await;
+    }
     let snapshot = backend.client.refresh(&vin).await?;
     backend.history.settings.selected_vin = Some(vin.clone());
     #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
@@ -700,6 +725,7 @@ async fn collect_in_background(app: tauri::AppHandle) {
     let mut last_attempt = now_ms();
     let mut handled_wake = desktop::wake_generation();
     let command_wake = app.state::<Notify>();
+    let mut readback_cooldowns = std::collections::BTreeMap::new();
     loop {
         tokio::select! {
             _ = command_wake.notified() => {},
@@ -720,9 +746,30 @@ async fn collect_in_background(app: tauri::AppHandle) {
         let generation = desktop::wake_generation();
         let waking = settings.refresh_on_wake && generation != handled_wake;
         let account = backend.client.account_scope();
-        let pending = pending_readback(&backend.history, now_ms(), account.as_deref());
+        let now = now_ms();
+        readback_cooldowns.retain(|_, until| *until > now);
+        let pending = pending_readback(&backend.history, now, account.as_deref(), |cmd| {
+            !readback_cooldowns
+                .contains_key(&(cmd.vin.clone(), confirmation::endpoint(&cmd.action)))
+        });
+        #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
+        let checking_command = pending.is_some();
         let result = if let Some(command) = pending {
-            backend.read_command_state(&command).await
+            let result = backend.read_command_state(&command).await;
+            let usable = result
+                .as_ref()
+                .ok()
+                .and_then(|snapshot| {
+                    snapshot
+                        .readings
+                        .get(confirmation::endpoint(&command.action)?)
+                })
+                .is_some_and(|reading| reading.status == "success");
+            readback_cooldowns.insert(
+                (command.vin, confirmation::endpoint(&command.action)),
+                now_ms() + if usable { 5_000 } else { 15_000 },
+            );
+            result
         } else {
             let interval = if waking { 2 } else { settings.refresh_seconds };
             if interval == 0 || now_ms().saturating_sub(last_attempt) < interval * 1000 {
@@ -750,7 +797,13 @@ async fn collect_in_background(app: tauri::AppHandle) {
                 #[cfg(desktop)]
                 update_tray(&app, &snapshot);
                 #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
-                if let Some(vin) = backend.history.settings.selected_vin.clone() {
+                if let Some(vin) = backend
+                    .history
+                    .settings
+                    .selected_vin
+                    .clone()
+                    .filter(|_| !checking_command)
+                {
                     let _ = watch::synchronize(&mut backend.client, &vin, false, true).await;
                 }
                 let _ = app.emit("vehicle-updated", snapshot);
@@ -1437,34 +1490,43 @@ mod tests {
             },
             ..History::default()
         };
-        let pending = pending_readback(&history, 2000, None).unwrap();
+        assert!(pending_readback(&history, 2000, None, |_| false).is_none());
+        let pending = pending_readback(&history, 2000, None, |_| true).unwrap();
         assert_eq!(pending.vin, "TEST0000000000001");
         assert_eq!(confirmation::endpoint(&pending.action), Some("exterior"));
 
         history.receipts.push(receipt("lock", "lock", 2000));
         assert_eq!(
-            pending_readback(&history, 3000, None).unwrap().action,
+            pending_readback(&history, 3000, None, |_| true)
+                .unwrap()
+                .action,
             "lock"
         );
         history.receipts[1].status = "rejected".into();
         assert_eq!(
-            pending_readback(&history, 3000, None).unwrap().action,
+            pending_readback(&history, 3000, None, |_| true)
+                .unwrap()
+                .action,
             "unlock"
         );
         history.receipts[1].status = "completed".into();
         history.receipts[1].readback = Some(confirmation::CONFIRMED.into());
-        assert!(pending_readback(&history, 3000, None).is_none());
+        assert!(pending_readback(&history, 3000, None, |_| true).is_none());
 
         history
             .receipts
             .push(receipt("climate", "climateStart", 3000));
         assert_eq!(
-            confirmation::endpoint(&pending_readback(&history, 4000, None).unwrap().action),
+            confirmation::endpoint(
+                &pending_readback(&history, 4000, None, |_| true)
+                    .unwrap()
+                    .action
+            ),
             Some("climate")
         );
-        assert!(pending_readback(&history, 123_000, None).is_none());
+        assert!(pending_readback(&history, 123_000, None, |_| true).is_none());
         history.receipts.push(receipt("flash", "flash", 123_000));
-        assert!(pending_readback(&history, 124_000, None).is_none());
+        assert!(pending_readback(&history, 124_000, None, |_| true).is_none());
 
         history.receipts = vec![
             receipt("climate", "climateStart", 1000),
@@ -1485,7 +1547,9 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            pending_readback(&history, 4000, None).unwrap().action,
+            pending_readback(&history, 4000, None, |_| true)
+                .unwrap()
+                .action,
             "unlock"
         );
         history.snapshots[0]
@@ -1494,7 +1558,9 @@ mod tests {
             .unwrap()
             .observed_at = 4000;
         assert_eq!(
-            pending_readback(&history, 5000, None).unwrap().action,
+            pending_readback(&history, 5000, None, |_| true)
+                .unwrap()
+                .action,
             "climateStart"
         );
     }

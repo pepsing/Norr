@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import polestar from "../assets/brand/polestar.svg";
 import "./sky-pull-refresh.css";
 
@@ -20,6 +20,14 @@ function wait(ms: number, signal: AbortSignal): Promise<boolean> {
   });
 }
 
+function paintPull(surface: HTMLDivElement, distance: number) {
+  const progress = Math.min(distance / threshold, 1);
+  surface.style.setProperty("--sky-pull", distance + "px");
+  surface.style.setProperty("--sky-progress", String(progress));
+  surface.style.setProperty("--sky-radius", progress * 28 + "px");
+  surface.style.setProperty("--sky-mark-y", -14 * (1 - progress) + "px");
+}
+
 export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, preview = false, successLabel = "本次车辆读取已完成" }: {
   children: ReactNode;
   enabled: boolean;
@@ -33,6 +41,7 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
   const gesture = useRef<Gesture | null>(null);
   const operation = useRef<AbortController | null>(null);
   const locked = useRef(false);
+  const dragFrame = useRef<number | null>(null);
   const suppressClick = useRef(false);
   const [distance, setDistance] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -44,6 +53,8 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
     operation.current = null;
     locked.current = false;
     gesture.current = null;
+    if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+    dragFrame.current = null;
     setDistance(0);
     setPhase("idle");
     if (!enabled) return;
@@ -149,11 +160,21 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
       }
       if (event.cancelable) event.preventDefault();
       current.distance = maxPull * (1 - Math.exp(-Math.max(0, dy) / 230));
-      setDistance(current.distance);
+      if (dragFrame.current === null) {
+        dragFrame.current = requestAnimationFrame(() => {
+          dragFrame.current = null;
+          if (gesture.current !== current) return;
+          paintPull(element!, current.distance);
+          const next = current.distance >= threshold ? threshold : 0;
+          setDistance(previous => previous === next ? previous : next);
+        });
+      }
     }
     function end(cancelled = false) {
       const current = gesture.current;
       gesture.current = null;
+      if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+      dragFrame.current = null;
       if (!current?.claimed) return;
       window.setTimeout(() => { suppressClick.current = false; }, 0);
       const controller = startOperation();
@@ -193,6 +214,7 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
     window.addEventListener("mouseup", mouseEnd);
     window.addEventListener("blur", cancel);
     return () => {
+      if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
       element.removeEventListener("touchstart", touchStart);
       element.removeEventListener("touchmove", touchMove);
       element.removeEventListener("touchend", touchEnd);
@@ -205,7 +227,9 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
     };
   }, []);
 
-  const progress = Math.min(distance / threshold, 1);
+  useLayoutEffect(() => {
+    if (surface.current && phase !== "pulling") paintPull(surface.current, enabled ? distance : 0);
+  }, [phase, enabled, distance]);
   const label = phase === "refreshing" ? "正在刷新车辆"
     : phase === "success" ? successLabel
     : phase === "partial" ? "部分车辆数据未更新，请查看读取状态"
@@ -213,13 +237,6 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
     : phase === "held" ? "松手刷新 · 定格预览"
     : distance >= threshold ? "松手刷新" : "下拉刷新";
   const active = enabled && phase !== "idle";
-  const style = {
-    "--sky-pull": `${enabled ? distance : 0}px`,
-    "--sky-progress": progress,
-    "--sky-radius": `${progress * 28}px`,
-    "--sky-mark-y": `${-14 * (1 - progress)}px`,
-  } as CSSProperties;
-
   return <>
     {preview && enabled && <aside className="sky-preview-tools" aria-label="天幕动效预览">
       <span>天幕下拉<span className="sky-preview-hint"> · 在首页空白处向下拖动</span></span>
@@ -229,7 +246,7 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
           disabled={busy || !["idle", "held"].includes(phase)}>{phase === "held" ? "收起天幕" : "定格展开"}</button>
       </div>
     </aside>}
-    <div ref={surface} className="sky-refresh" data-phase={enabled ? phase : "idle"} style={style}>
+    <div ref={surface} className="sky-refresh" data-phase={enabled ? phase : "idle"}>
       <div className="sky-refresh-scene" aria-hidden="true">
         <div className="sky-refresh-light" />
         <div className="sky-refresh-center">

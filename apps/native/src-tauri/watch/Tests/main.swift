@@ -265,6 +265,10 @@ let (missingTypeSnapshot, missingTypePermissions) = try await degradedReader.fet
 assert(missingTypeSnapshot.batteryPercent == 42 && missingTypePermissions.isEmpty)
 assert(!CapabilityFailureProtocol.paths.contains { $0.contains("capability") })
 CapabilityFailureProtocol.paths = []
+let verifiedStatus = try await degradedReader.commandReadback()
+assert(verifiedStatus.vin == vin)
+assert(CapabilityFailureProtocol.paths == ["/device-platform/user/vehicle/secure", "/remote-control/vehicle/status/" + vin])
+CapabilityFailureProtocol.paths = []
 CapabilityFailureProtocol.ownsVehicle = false
 do { _ = try await degradedReader.fetch(); fatalError("Unowned vehicle read accepted") }
 catch { assert(CapabilityFailureProtocol.paths == ["/device-platform/user/vehicle/secure"]) }
@@ -287,3 +291,10 @@ let clearGrant: [String: Any] = ["version": 3, "account": "", "vin": "", "access
 assert(WatchSyncPolicy.shouldSend(automatic: true, paused: false, current: clearGrant, previous: syncGrant))
 assert(WatchSyncPolicy.shouldSend(automatic: true, paused: false, current: syncGrant, previous: clearGrant))
 print("Watch automatic sync fixtures passed: initial, deduplication, renewal, account/vehicle change, pause, manual retry, clear")
+
+do {
+    _ = try WatchXchanger.response(http: 400, data: ["error": ["code": "6666"]])
+    fatalError("Expected a service rejection")
+} catch let failure as WatchFailure {
+    assert(failure.message.contains("HTTP 400，业务码 6666"))
+}

@@ -24,7 +24,6 @@
   background: #0b0e11;
   color: #eeefe9;
   visibility: hidden;
-  clip-path: inset(0 0 calc(100% - var(--sky-pull) - 30px));
 }
 .sky-refresh:not([data-phase="idle"]) .sky-refresh-scene { visibility: visible; }
 .sky-refresh-light {
@@ -76,7 +75,6 @@
   will-change: transform;
 }
 .sky-refresh:not([data-phase="pulling"]) .sky-refresh-sheet { transition: transform 420ms cubic-bezier(.22, .78, .24, 1), border-radius 420ms; }
-.sky-refresh:not([data-phase="pulling"]) .sky-refresh-scene { transition: clip-path 420ms cubic-bezier(.22, .78, .24, 1); }
 .sky-refresh[data-phase="preview"] .sky-refresh-sheet,
 .sky-refresh[data-phase="preview"] .sky-refresh-scene { transition-duration: 700ms; }
 .sky-refresh[data-phase="pulling"] { user-select: none; cursor: grabbing; }

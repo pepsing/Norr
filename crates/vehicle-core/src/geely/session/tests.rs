@@ -147,6 +147,7 @@ fn response_codes_keep_http_evidence_and_separate_authentication() {
         (401, json!({"error":{"code":1440}}), false, "签名校验未通过"),
         (500, json!({"code":1402}), false, "HTTP 500"),
         (403, json!({"code":1500}), false, "业务码 1500"),
+        (400, json!({"code":6666}), false, "HTTP 400，业务码 6666"),
     ] {
         let error = error::response(http, data).unwrap_err();
         assert_eq!(error.authentication(), auth);

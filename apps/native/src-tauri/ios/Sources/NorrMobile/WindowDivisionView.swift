@@ -6,6 +6,7 @@ final class WindowDivisionView: UIView {
   private weak var webView: WKWebView?
   private var loading: NSKeyValueObservation?
   private var lastDivision: WindowDivision?
+  private var hideTabs: (() -> Void)?
 
   init(webView: WKWebView) {
     self.webView = webView
@@ -15,7 +16,12 @@ final class WindowDivisionView: UIView {
     autoresizingMask = [.flexibleWidth, .flexibleHeight]
     webView.addSubview(self)
     NorrTrackWindowDivision(self)
+    if #available(iOS 26.0, *) {
+      let tabs = VehicleTabBar(webView: webView)
+      hideTabs = { [weak tabs] in tabs?.hide() }
+    }
     loading = webView.observe(\.isLoading, options: [.new]) { [weak self] _, change in
+      if change.newValue == true { self?.hideTabs?() }
       if change.newValue == false {
         self?.lastDivision = nil
         self?.setNeedsLayout()

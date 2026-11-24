@@ -985,7 +985,7 @@
     max-width: none;
   }
 }
-@container vehicle-home (min-width: 580px) and (max-width: 760px) {
+@container vehicle-home (min-width: 530px) and (max-width: 760px) {
   .native-ios .native-page-vehicle :is(.overview-grid, .p4-overview) {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -1009,7 +1009,7 @@
   padding-inline: var(--pane-gutter);
 }
 .native-ios[data-window-division="vertical"] .native-header,
-.native-ios[data-window-division="vertical"] :is(.overview-grid, .p4-overview) {
+.native-ios[data-window-division="vertical"] :is(.overview-grid, .p4-overview, .control-lead) {
   display: grid;
   grid-template-columns: minmax(0, var(--left-pane)) minmax(0, 1fr);
   column-gap: var(--division-gap);
@@ -1093,3 +1093,24 @@
   max-height: calc(var(--fold-start) - env(safe-area-inset-top) - 12px);
   margin: auto;
 }
+
+@media (orientation: portrait) and (min-height: 780px) and (max-width: 760px) {
+  @container vehicle-home (min-width: 530px) {
+    .native-ios:not([data-window-division="horizontal"]) .native-page-vehicle .overview-grid {
+      align-items: stretch;
+    }
+    .native-ios .native-page-vehicle .vehicle-art > .vehicle-artwork,
+    .native-ios .native-page-vehicle .p4-car {
+      aspect-ratio: 1.65;
+    }
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-transparency: no-preference) {
+  .native-ios:not([data-window-division="horizontal"], [data-window-division="vertical"]) .native-header .navigation {
+    background: color-mix(in srgb, var(--canvas) 86%, transparent);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+}
+
+.native-ios .native-header .navigation.ios-system-tabs { visibility: hidden; }
