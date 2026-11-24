@@ -1,5 +1,9 @@
 # Norr 开发进展
 
+## 2026-11-24 后续 GitHub 默认构建范围
+
+按用户要求，后续默认检查与发布矩阵移除 macOS Intel 和 iOS 模拟器，保留 macOS Apple Silicon、Windows x64、Android ARM64、含 Watch 与无 Watch 两份 iOS 真机 IPA。发布清单、校验文件和说明同步收窄，本地开发构建入口保留。25 项发布测试与 actionlint 通过；当前 `0.2.1-alpha.8` 构建继续按已启动的旧矩阵完成，新规则从下一轮生效。
+
 ## 2026-11-24 跨入口修复发布
 
 按用户要求，将前述本地 P4 适配与剩余问题修复纳入 GitHub 全平台构建及 TestFlight 更新，预计 GitHub `0.2.1-alpha.8`、TestFlight `0.2.1 (1024)`。本地归档读取 `.env.secrets`，对应构建配置同步至 GitHub Actions Secrets，密钥值不展示或提交。下文“尚未发布”保留修复完成时的状态；最终构建与分发状态以 GitHub Release 和 TestFlight 为准。[本版说明](releases/0.2.1-alpha.8.md)

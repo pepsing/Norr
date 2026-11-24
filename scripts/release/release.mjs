@@ -8,10 +8,8 @@ import { validateVersion } from './version.mjs';
 const marker = /<!-- norr-release (\{[^\n]+\}) -->/;
 const packages = [
   ['Norr-macos-arm64', '.zip', 'macos-arm64.zip', 'Apple Silicon Mac，解压后安装 Norr.app'],
-  ['Norr-macos-x64', '.zip', 'macos-x64.zip', 'Intel Mac，解压后安装 Norr.app'],
   ['Norr-windows-x64', '-setup.exe', 'windows-x64-setup.exe', 'Windows 10/11 x64 安装程序'],
   ['Norr-android-arm64', '.apk', 'android-arm64.apk', 'Android ARM64，沿用当前测试证书'],
-  ['Norr-ios-arm64-simulator', '-simulator.zip', 'ios-arm64-simulator.zip', 'Apple Silicon Mac 上的 iOS 模拟器'],
   ['Norr-ios-arm64-unsigned', '-arm64-unsigned.ipa', 'ios-arm64-unsigned.ipa', '含 Apple Watch App 和手表小组件，安装前需使用支持 Watch 嵌套包的工具重新签名'],
   ['Norr-ios-arm64-no-watch-unsigned', '-arm64-no-watch-unsigned.ipa', 'ios-arm64-no-watch-unsigned.ipa', '适用于只在 iPhone 或 iPad 上测试，保留 iOS 小组件、Siri 和快捷指令，安装前需重新签名'],
 ];
@@ -104,7 +102,7 @@ export function renderNotes(plan, changes, issues, repository, runUrl, summary =
     lines.push(
       '- 首个 alpha 版本，提供中国区 Polestar 2 短信登录、车辆状态、远程控制、充电日程与本地历史。',
       '- 包含共享账号能力判断、控制状态高亮、指令局部回读、高德地图默认展示，以及手机控制页布局修复。',
-      '- 提供 macOS、Windows、Android 与 iOS 模拟器测试包，Polestar 4 的车辆服务接入仍待完成。',
+      '- 提供 macOS Apple Silicon、Windows x64、Android ARM64 与 iOS 真机测试包。',
       '',
     );
   }

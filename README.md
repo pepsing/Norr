@@ -4,6 +4,8 @@
 
 当前各平台状态、实施记录、测试包与待办汇总在[开发进展](docs/PROGRESS.md)。
 
+GitHub 后续默认构建 macOS Apple Silicon、Windows x64、Android ARM64 和 iOS 真机 IPA（含 Watch 与无 Watch 两份）。从 `0.2.1-alpha.8` 之后不再默认构建 iOS 模拟器和 macOS Intel；本地开发构建入口保留。
+
 macOS 版本使用 React + TypeScript、Tauri 2 和 Rust 本地车辆核心，已接通中国区 Polestar 2 的本机会话恢复、续期及 14 类车辆读取，并加入日程、后台采集、菜单栏、历史分析、备份恢复、登录启动、系统通知及免 Key 高德地图。Hisingen 会话与历史导入仅用于开发测试。浏览器入口提供完整交互预览，原生入口展示厂商读数。车辆写入的实车验证与其他平台迁移范围见原生宿主说明。
 
 release 已接入中国大陆手机号登录、官方滑块验证、短信验证码、本机凭据保存及已有 Norr 会话恢复与续期。Android 真实短信登录和重启恢复已通过，macOS、Windows 与 iOS 的新账号短信端到端仍待测试。Hisingen 导入入口限定在 macOS 开发环境。详情见[开发进展](docs/PROGRESS.md)。

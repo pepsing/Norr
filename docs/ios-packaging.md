@@ -26,6 +26,8 @@ P4 控制包使用独立的应用标识和钥匙串服务。Build 6 的包信息
 
 发布成功后，在 Releases 下载标准版 IPA 和 `SHA256SUMS.txt`。Actions 同时将两个真机产物保存 14 天，名称分别为 `Norr-ios-arm64-unsigned` 和 `Norr-ios-arm64-no-watch-unsigned`。GitHub 矩阵构建默认启用 P4 的标准版，发布终点是 GitHub Releases。TestFlight 另外从同一源提交进行本机签名归档和上传。[构建矩阵](../.github/workflows/build.yml) · [下载 Release](https://github.com/pepsing/Norr/releases)
 
+从 `0.2.1-alpha.8` 之后的构建开始，GitHub 默认矩阵移除 iOS 模拟器与 macOS Intel；`all` 包含 macOS Apple Silicon、Windows x64、Android ARM64 和两份 iOS 真机 IPA。`npm run build:ios` 仍可在本地构建模拟器包。
+
 ## TestFlight
 
 2026-11-19，本机 Xcode Organizer 记录了标准版 `app.norr.ios` 的一次成功上传（`Uploaded to Apple`）。归档中的主 App、iOS 小组件、Watch App 和手表小组件均为 `0.2.1 (1018)`。该构建在 2026-11-23 的 App Store Connect 中显示正在测试。本次更新沿用该 App 的测试组，上传及审核状态以 TestFlight 页面为准。

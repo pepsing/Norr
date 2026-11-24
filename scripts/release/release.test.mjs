@@ -160,8 +160,9 @@ test('workflow limits desktop and iOS matrices to the selected platform', () => 
         const split = line.indexOf('=');
         return [line.slice(0, split), JSON.parse(line.slice(split + 1)).include];
       }));
-      assert.equal(matrices.desktop_matrix.length, platform === 'all' ? 3 : platform === 'windows' ? 1 : 0);
-      assert.deepEqual(matrices.ios_matrix.map(target => target.variant), platform === 'all' ? ['simulator', 'unsigned'] : platform === 'ios-ipa' ? ['unsigned'] : []);
+      assert.deepEqual(matrices.desktop_matrix.map(target => `${target.platform}-${target.arch}`),
+        platform === 'all' ? ['macos-arm64', 'windows-x86_64'] : platform === 'windows' ? ['windows-x86_64'] : []);
+      assert.deepEqual(matrices.ios_matrix.map(target => target.variant), ['all', 'ios-ipa'].includes(platform) ? ['unsigned'] : []);
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -220,7 +221,7 @@ test('notes include actual changes and issue links without claiming open issues 
   assert.doesNotMatch(notes, /首个 alpha/);
   assert.doesNotMatch(notes, /skip ci/);
   assert.match(notes, /macos-arm64.zip/);
-  assert.match(notes, /macos-x64.zip.*Intel Mac/);
+  assert.doesNotMatch(notes, /macos-x64.zip|Intel Mac|simulator.zip/);
   assert.match(notes, /ios-arm64-unsigned.ipa.*重新签名/);
 });
 
@@ -235,15 +236,13 @@ test('every release links the current repository self-signing guide once', () =>
   }
 });
 
-test('release requires both Mac architectures, the iOS simulator, and both device IPAs', () => {
+test('default release requires five device packages and ignores retired platform artifacts', () => {
   const directory = mkdtempSync(join(tmpdir(), 'norr-assets-'));
   try {
     const packages = [
       ['Norr-macos-arm64', 'macos-arm64.zip'],
-      ['Norr-macos-x64', 'macos-x64.zip'],
       ['Norr-windows-x64', 'windows-x64-setup.exe'],
       ['Norr-android-arm64', 'android-arm64.apk'],
-      ['Norr-ios-arm64-simulator', 'ios-arm64-simulator.zip'],
       ['Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'],
       ['Norr-ios-arm64-no-watch-unsigned', 'ios-arm64-no-watch-unsigned.ipa'],
     ];
@@ -255,6 +254,11 @@ test('release requires both Mac architectures, the iOS simulator, and both devic
     assert.deepEqual(files.map((file) => file.name), [
       ...packages.map(([, suffix]) => `Norr_0.1.0-alpha.2_${suffix}`), 'SHA256SUMS.txt',
     ]);
+    for (const artifact of ['Norr-macos-x64', 'Norr-ios-arm64-simulator']) {
+      mkdirSync(join(directory, artifact));
+      writeFileSync(join(directory, artifact, 'legacy.zip'), artifact);
+    }
+    assert.deepEqual(prepareAssets('0.1.0-alpha.2', directory).map(file => file.name), files.map(file => file.name));
     const checksums = readFileSync(files.at(-1).path, 'utf8');
     for (const [index, [artifact]] of packages.entries()) {
       const digest = createHash('sha256').update(artifact).digest('hex');
@@ -264,11 +268,11 @@ test('release requires both Mac architectures, the iOS simulator, and both devic
     rmSync(join(directory, 'Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'));
     assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package in Norr-ios-arm64-unsigned/);
     writeFileSync(join(directory, 'Norr-ios-arm64-unsigned', 'ios-arm64-unsigned.ipa'), 'Norr-ios-arm64-unsigned');
-    rmSync(join(directory, 'Norr-macos-x64'), { recursive: true });
-    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /Norr-macos-x64/);
-    mkdirSync(join(directory, 'Norr-macos-x64'));
+    rmSync(join(directory, 'Norr-macos-arm64'), { recursive: true });
+    assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /Norr-macos-arm64/);
+    mkdirSync(join(directory, 'Norr-macos-arm64'));
     assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package/);
-    for (const name of ['first.zip', 'second.zip']) writeFileSync(join(directory, 'Norr-macos-x64', name), name);
+    for (const name of ['first.zip', 'second.zip']) writeFileSync(join(directory, 'Norr-macos-arm64', name), name);
     assert.throws(() => prepareAssets('0.1.0-alpha.2', directory), /exactly one package/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
