@@ -27,6 +27,7 @@ import {
   Sun,
 } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { SkyPullRefresh, type RefreshOutcome } from "../components/SkyPullRefresh";
 import { P4OverviewView } from "../components/P4Overview";
 import { VehicleArtwork } from "../components/VehicleArtwork";
 import { VehicleAppearancePicker } from "../components/VehicleAppearancePicker";
@@ -52,9 +53,11 @@ import {
   commandLimits,
   chargingOptions,
   chargingStatusText,
+  chargingTimeText,
   native,
   numeric,
   readingText,
+  refreshOutcome,
   scheduleText,
   unavailableReason,
 } from "./client";
@@ -166,6 +169,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   });
   const started = useRef(false);
   const selectedVehicle = useRef("");
+  const refreshing = useRef(false);
   const detailsRef = useRef<HTMLDivElement>(null);
   const vehicle =
     snapshot?.vehicle.vin === vin
@@ -417,11 +421,12 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     setFleet(cars);
     setConnected(true);
     const selected = cars.find((car) => car.vin === preferred) ?? cars[0];
+    let next: Snapshot | undefined;
     if (selected) {
       selectedVehicle.current = selected.vin;
       setVin(selected.vin);
       if (selected.vin !== preferred) setSnapshot(undefined);
-      const next = await native.refresh(selected.vin);
+      next = await native.refresh(selected.vin);
       if (next.vehicle.vin !== selectedVehicle.current) return;
       setSnapshot(next);
       await reloadHistory();
@@ -430,25 +435,32 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
       setSnapshot(undefined);
     }
     setSession(await native.status());
+    return next;
   }
 
-  async function refresh() {
+  async function refresh(): Promise<RefreshOutcome> {
+    if (busy || refreshing.current) return "cancelled";
+    refreshing.current = true;
     setBusy(true);
     setError("");
     try {
-      if (!connected || !vin) await connect(vin);
+      let next: Snapshot | undefined;
+      if (!connected || !vin) next = await connect(vin);
       else {
-        const next = await native.refresh(vin);
-        if (next.vehicle.vin !== selectedVehicle.current) return;
+        next = await native.refresh(vin);
+        if (next.vehicle.vin !== selectedVehicle.current) return "cancelled";
         setSnapshot(next);
         await reloadHistory();
       }
       setSession(await native.status());
       setBackgroundError("");
+      return refreshOutcome(next);
     } catch (problem) {
       setError(String(problem));
       setConnected(false);
+      return "error";
     } finally {
+      refreshing.current = false;
       setBusy(false);
     }
   }
@@ -628,6 +640,10 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     snapshot?.readings.climate?.status === "success" ? snapshot.readings.climate.value?.activity ?? "unknown" : "unknown",
   );
   const chargeLabel = chargingStatusText(snapshot);
+  const chargeTime = chargingTimeText(snapshot);
+  const chargingSummary = snapshot?.readings.battery?.status === "success" && numeric(snapshot, "battery", "chargeState") === 1
+    ? `正在充电 · ${chargeTime === null ? "充满时间未返回" : `预计充满还需 ${chargeTime}`}`
+    : null;
   const target = numeric(snapshot, "target", "percent");
   const tailgate = (body?.openings as Record<string, unknown> | undefined)?.tailgate;
   const p4Air = numeric(snapshot, "airQuality", "pm25");
@@ -711,6 +727,8 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
           </button>
         </div>
       </header>
+      <SkyPullRefresh enabled={page === "vehicle" && !!vehicle && !!session?.hasSession && !dialog && !vehicleSheet}
+        busy={busy} onRefresh={refresh} resetKey={`${page}:${vin}`}>
       <main id="main" className={`app-main native-main native-page-${page}${p4 ? " p4-workspace" : ""}`}>
         <div className="page-heading">
           <h1>{p4 && page === "vehicle" ? vehicle?.model : pages.find((item) => item.id === page)?.title}</h1>
@@ -1004,6 +1022,8 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
               outside={valueText(numeric(snapshot, "climate", "exteriorTemperature"), " °C", 1)}
               climate={climateStates[climate] ?? "状态未知"} air={p4Air} cleaning={cleaningLabel}
               limit={target === null ? "尚无车辆读数" : `当前设定 ${target}%`}
+              chargingSummary={chargingSummary}
+              chargingUpdated={readingText(snapshot, "battery", compact)}
               onControl={action => setVehicleSheet(({ lock: "车锁", climate: "空调", tailgate: "尾门",
                 locate: "寻车", cleaning: "座舱净化", limit: "充电上限" } as const)[action])}
               onNavigate={destination => {
@@ -1043,7 +1063,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       " km",
                     )}
                     status={
-                      chargeLabel
+                      chargingSummary ?? chargeLabel
                     }
                     detail={
                       <small title={readingText(snapshot, "battery")}>
@@ -1253,7 +1273,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       <h2>当前充电读数</h2>
                       <DataRows
                         rows={p4 ? [
-                          ["预计充满剩余", valueText(numeric(snapshot, "battery", "minutesToFull"), " 分钟")],
+                          ["预计充满剩余", chargeTime ?? "未知"],
                           ["充电枪", snapshot?.readings.battery?.value?.plugged === true ? "已连接" : snapshot?.readings.battery?.value?.plugged === false ? "未连接" : "未知"],
                         ] : [
                           [
@@ -1269,11 +1289,8 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                             `${valueText(numeric(snapshot, "battery", "voltage"), " V")} / ${valueText(numeric(snapshot, "battery", "currentA"), " A", 1)}`,
                           ],
                           [
-                            "充至目标剩余",
-                            valueText(
-                              numeric(snapshot, "battery", "minutesToTarget"),
-                              " 分钟",
-                            ),
+                            "预计充满剩余",
+                            chargeTime ?? "未知",
                           ],
                           ["目标电量", valueText(target, "%")],
                         ]}
@@ -1329,6 +1346,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
           <span>{connected ? "中国区车辆服务已连接" : "车辆服务未连接"}</span>
         </footer>
       </main>
+      </SkyPullRefresh>
       {vehicleSheet && (
         <Modal
           title={vehicleSheet === "details" ? "车辆详情" : vehicleSheet === "location" ? "车辆位置" : p4 && vehicleSheet === "空调" ? "座舱设置" : vehicleSheet}

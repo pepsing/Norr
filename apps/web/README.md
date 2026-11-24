@@ -15,6 +15,8 @@ Open the local URL printed by Vite. `npm run build` checks TypeScript and builds
 
 Append `?demo=p4` to the local URL to open the Chinese-market Polestar 4 demo. The iOS field-test app uses the same interface under “查看功能演示”. [P4 design and screenshots](../../docs/design/polestar-4/README.md)
 
+Append `?demo=p4&motion=sky` to review the homepage pull-to-refresh animation, with playback and a held-open frame. Dragging the homepage reveals a dark canopy and illuminated Polestar mark, then calls the same simulated refresh as the existing button. [Motion design and verification](../../docs/design/pull-to-refresh/README.md)
+
 ## Design coverage
 
 | Area | Implemented preview |

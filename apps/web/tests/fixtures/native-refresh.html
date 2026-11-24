@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>原生首页刷新 · 固定样本</title>
+  <style>
+    #fixture-controls { padding: 8px 20px; border-bottom: 1px solid #888; font: 12px sans-serif; }
+    #fixture-controls button, #fixture-controls select { min-height: 44px; margin-right: 12px; }
+    #fixture-controls p { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <aside id="fixture-controls" aria-label="固定样本测试">
+    <p>Android 首页 · 固定样本模拟 IPC，不连接车辆服务</p>
+    <label>读取结果 <select id="outcome"><option value="success">成功</option><option value="partial">部分失败</option><option value="error">连接失败</option><option value="hold">等待返回</option></select></label>
+    <button id="resolve">返回成功结果</button>
+    <div><button data-gesture="short">短下拉</button><button data-gesture="refresh">触摸下拉</button><button data-gesture="cancel">取消下拉</button><button data-gesture="multi">双指取消</button></div>
+    <output id="calls" aria-live="polite">读取次数 0</output>
+  </aside>
+  <div id="root"></div>
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import { mockIPC } from "@tauri-apps/api/mocks";
+    import "@fontsource/archivo/400.css";
+    import "/src/styles.css";
+    import "/src/p4-design.css";
+
+    window.__NORR_PLATFORM__ = "android";
+    const vehicle = { vin: "FIXTURE-POLESTAR4", model: "Polestar 4", modelYear: "2024", owner: false,
+      platform: "GEELY", capabilities: { norrGeelyReadOnly: true }, limits: {} };
+    const reading = value => ({ status: "success", value, observedAt: 1700000000000, reportedAt: 1699999900000, error: null });
+    let snapshot = { vehicle, fetchedAt: 1700000000000, readings: {
+      battery: reading({ percent: 68, rangeKm: 280 }), exterior: reading({ locked: true }),
+      climate: reading({ activity: "idle", interiorTemperature: 22, exteriorTemperature: 14 }),
+      target: reading({ percent: 80 }), airQuality: reading({ pm25: 5, state: 2 }),
+    } };
+    let calls = 0;
+    let release;
+    mockIPC(async command => {
+      if (command === "session_status") return { hasSession: true, hasSigningKey: true, expiresAt: null };
+      if (command === "connect") return [vehicle];
+      if (command === "history") return { snapshots: [snapshot], receipts: [], settings: { selectedVin: vehicle.vin } };
+      if (command === "refresh") {
+        document.getElementById("calls").textContent = `读取次数 ${++calls}`;
+        const outcome = document.getElementById("outcome").value;
+        if (outcome === "hold") await new Promise(resolve => { release = resolve; });
+        else await new Promise(resolve => setTimeout(resolve, 600));
+        if (outcome === "error") throw "固定样本：连接失败";
+        snapshot = { ...snapshot, fetchedAt: snapshot.fetchedAt + 1,
+          readings: { ...snapshot.readings, climate: outcome === "partial"
+            ? { ...reading(null), status: "failed", error: "固定样本：空调读取失败" }
+            : reading({ activity: "idle", interiorTemperature: 22, exteriorTemperature: 14 }) } };
+        return snapshot;
+      }
+      if (command === "plugin:event|listen") return 1;
+      if (["plugin:event|unlisten", "take_notification_target", "take_widget_target", "set_android_theme", "update_widgets"].includes(command)) return null;
+      throw new Error(`固定样本未实现：${command}`);
+    });
+    document.getElementById("resolve").onclick = () => { release?.(); release = undefined; };
+    document.querySelectorAll("[data-gesture]").forEach(button => {
+      button.onclick = () => {
+        const target = document.querySelector("main h1");
+        const send = (type, y, count = 1) => {
+          const event = new Event(type, { bubbles: true, cancelable: true });
+          Object.defineProperty(event, "touches", { value: Array.from({length: count}, (_, index) => ({clientX: 150 + index * 30, clientY: y})) });
+          target.dispatchEvent(event);
+        };
+        send("touchstart", 150);
+        send("touchmove", 153);
+        send("touchmove", button.dataset.gesture === "short" ? 190 : 510);
+        if (button.dataset.gesture === "multi") send("touchstart", 510, 2);
+        send(button.dataset.gesture === "cancel" ? "touchcancel" : "touchend", 510, 0);
+      };
+    });
+    const { default: NativeApp } = await import("/src/native/NativeApp.tsx");
+    createRoot(document.getElementById("root")).render(React.createElement(NativeApp));
+  </script>
+</body>
+</html>

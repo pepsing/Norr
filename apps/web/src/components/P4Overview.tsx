@@ -23,9 +23,10 @@ export function P4Overview(events: Events) {
     air={p4DemoAir} cleaning={vehicle.cleaning ? "净化中" : "净化已停止"} limit={`当前设定 ${vehicle.chargeLimit}%`} />;
 }
 
-export function P4OverviewView({ appearance, range, unit, battery, locked, outside, inside, climate, air, cleaning, limit, onControl, onNavigate }: Events & {
+export function P4OverviewView({ appearance, range, unit, battery, locked, outside, inside, climate, air, cleaning, limit, chargingSummary, chargingUpdated, onControl, onNavigate }: Events & {
   appearance: VehicleAppearance; range: string; unit: string; battery: number | null; locked: boolean | null;
   outside: string; inside: string; climate: string; air: number | null; cleaning: string; limit: string;
+  chargingSummary?: string | null; chargingUpdated?: string;
 }) {
   const LockState = locked === false ? LockKeyholeOpen : LockKeyhole;
   const charge = battery === null ? "未返回" : `${battery}%`;
@@ -37,6 +38,7 @@ export function P4OverviewView({ appearance, range, unit, battery, locked, outsi
           <button className="p4-battery" onClick={() => onNavigate("charging")} aria-label={`查看充电，剩余电量 ${charge}`}>
             <Battery size={17} aria-hidden="true" /> {charge}</button>
         </div>
+        {chargingSummary && <p className="p4-charging-summary">{chargingSummary}<small>{chargingUpdated}</small></p>}
         <div className="p4-car"><VehicleArtwork appearance={appearance} priority darkStage /></div>
         <div className="p4-stage-foot"><span>{locked !== null && <LockState size={15} aria-hidden="true" />}{locked === null ? "门锁状态未知" : locked ? "已锁车" : "已解锁"}</span>
           <button onClick={() => onNavigate("location")}><MapPin size={15} />车辆位置</button></div>

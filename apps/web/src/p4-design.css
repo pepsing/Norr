@@ -13,6 +13,8 @@
 .p4-range small, .p4-clean small { font-size: .32em; margin-left: 6px; letter-spacing: 0; }
 .p4-battery, .p4-stage-foot button, .p4-stage-foot > span { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0; font-size: 13px; }
 .p4-battery svg { color: var(--accent); }
+.p4-charging-summary { margin-top: 12px; font-size: 13px; line-height: 1.5; }
+.p4-charging-summary small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .p4-car { aspect-ratio: 2.85; position: relative; overflow: hidden; }
 .p4-car .vehicle-artwork { position: absolute; inset: 0; height: 100%; width: 100%; min-height: 0; background: transparent; }
 .p4-car .vehicle-artwork img { display: block; width: 100%; height: 100%; object-fit: cover; }

@@ -1,0 +1,10 @@
+{
+  "polestar.svg": {
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/polestar.svg",
+    "sourcePage": "https://github.com/simple-icons/simple-icons/blob/develop/icons/polestar.svg",
+    "retrievedAt": "2026-11-24",
+    "usage": "Web 首页天幕下拉刷新预览，原始图形通过 CSS 反色和光晕显示",
+    "viewBox": "0 0 24 24",
+    "sha256": "543ac583c8f6113152e310d7c7f6fbdf1516b28c3aed0d2cf3121030f406aebf"
+  }
+}

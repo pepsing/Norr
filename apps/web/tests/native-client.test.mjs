@@ -14,7 +14,9 @@ let openingState;
 let chargingOptions;
 let commandLimits;
 let chargingStatusText;
+let chargingTimeText;
 let readingText;
+let refreshOutcome;
 try {
   ({
     unavailableReason,
@@ -24,7 +26,9 @@ try {
     chargingOptions,
     commandLimits,
     chargingStatusText,
+    chargingTimeText,
     readingText,
+    refreshOutcome,
   } = await server.ssrLoadModule("/src/native/client.ts"));
 } finally {
   await server.close();
@@ -39,6 +43,34 @@ const sharedVehicle = {
   capabilities: { supportsParkingClimatization: true },
   limits: {},
 };
+
+test("charging duration uses reported time to full even when target time is absent", () => {
+  const sample = (minutesToFull, status = "success") => ({
+    readings: { battery: { status, value: { minutesToFull, minutesToTarget: null } } },
+  });
+  assert.equal(chargingTimeText(sample(360)), "6 小时");
+  assert.equal(chargingTimeText(sample(78)), "1 小时 18 分钟");
+  assert.equal(chargingTimeText(sample(45)), "45 分钟");
+  assert.equal(chargingTimeText(sample(0)), "0 分钟");
+  for (const value of [null, undefined, -1, 4294967295, Infinity, "360"]) {
+    assert.equal(chargingTimeText(sample(value)), null);
+  }
+  assert.equal(chargingTimeText(sample(360, "failed")), null);
+  assert.equal(chargingTimeText(undefined), null);
+});
+
+test("refresh completion distinguishes complete, partial, failed and absent readings", () => {
+  const success = { status: "success", value: { percent: 0 }, reportedAt: 100, observedAt: 200 };
+  const failed = { status: "failed", value: { percent: 80 }, error: "offline", reportedAt: 90, observedAt: 200 };
+  const snapshot = readings => ({ vehicle: sharedVehicle, fetchedAt: 200, readings });
+  assert.equal(refreshOutcome(snapshot({ battery: success })), "success");
+  assert.equal(refreshOutcome(snapshot({ battery: success, climate: failed })), "partial");
+  assert.equal(refreshOutcome(snapshot({ battery: failed })), "error");
+  assert.equal(refreshOutcome(snapshot({ battery: { ...success, value: null } })), "error");
+  assert.equal(refreshOutcome(snapshot({})), "error");
+  assert.equal(refreshOutcome(undefined), "error");
+  assert.equal(success.reportedAt, 100);
+});
 
 test("cabin air uses the current vehicle's reported measurement, including zero", () => {
   const sample = (vin, measuredAt, fields, status = "success") => ({

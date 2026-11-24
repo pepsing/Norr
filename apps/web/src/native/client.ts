@@ -24,6 +24,13 @@ export interface Snapshot {
   fetchedAt: number;
   readings: Record<string, Reading>;
 }
+
+export function refreshOutcome(snapshot: Snapshot | undefined): "success" | "partial" | "error" {
+  const readings = Object.values(snapshot?.readings ?? {});
+  const successful = readings.filter(reading => reading.status === "success" && reading.value !== null).length;
+  if (successful === 0) return "error";
+  return successful === readings.length ? "success" : "partial";
+}
 export interface Command {
   vin: string;
   action: string;
@@ -225,6 +232,17 @@ export function chargingStatusText(snapshot?: Snapshot): string {
     if (battery.value?.plugged === true) return "已插枪";
   }
   return "充电状态未知";
+}
+
+export function chargingTimeText(snapshot?: Snapshot): string | null {
+  if (snapshot?.readings.battery?.status !== "success") return null;
+  const value = numeric(snapshot, "battery", "minutesToFull");
+  if (value === null || value < 0 || value > 10080) return null;
+  const minutes = Math.ceil(value);
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!hours) return `${minutes} 分钟`;
+  return remainder ? `${hours} 小时 ${remainder} 分钟` : `${hours} 小时`;
 }
 
 export function cabinAirSnapshot(vin: string, current: Snapshot | undefined, history: Snapshot[]) {

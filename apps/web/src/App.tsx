@@ -17,6 +17,7 @@ import {
   BatteryCharging,
 } from "lucide-react";
 import { Modal } from "./components/Modal";
+import { SkyPullRefresh } from "./components/SkyPullRefresh";
 import { P4CabinDialog } from "./components/P4CabinDialog";
 import { isP4BodyAction, P4BodyDialog, type P4BodyAction } from "./components/P4BodyDialog";
 import "./p4-design.css";
@@ -184,6 +185,9 @@ function WorkspaceApp({ onExit }: { onExit?: () => void }) {
           </button>
         </div>
       </header>
+      <SkyPullRefresh enabled={page === "vehicle" && !!vehicle && scenario !== "empty" && !loading && !dialog}
+        busy={busy} onRefresh={refresh} resetKey={`${page}:${vehicle?.id ?? ""}`} successLabel="车辆已更新 · 演示"
+        preview={new URLSearchParams(window.location.search).get("motion") === "sky"}>
       <main id="main" className={`app-main${chinaP4 ? " p4-workspace" : ""}${chinaP4 && page === "vehicle" ? " p4-home" : ""}`}>
         <div className="page-heading">
           <div className="heading-with-back">
@@ -292,6 +296,7 @@ function WorkspaceApp({ onExit }: { onExit?: () => void }) {
           <span>所有车辆读数与操作均为模拟</span>
         </footer>
       </main>
+      </SkyPullRefresh>
       <div className="toast-region" role="status" aria-live="polite">
         {notice && (
           <div className="toast">
