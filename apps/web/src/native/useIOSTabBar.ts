@@ -20,12 +20,13 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
       const bridge = tabBridge();
       if (!bridge) return;
       const active = document.activeElement;
-      const show = !root.dataset.windowDivision && matchMedia("(max-width: 760px)").matches &&
+      const side = root.hasAttribute("data-duo-side-tabs");
+      const show = !root.dataset.windowDivision && (side || matchMedia("(max-width: 760px)").matches) &&
         !document.querySelector("dialog[open]") && !active?.matches("input, textarea, [contenteditable=true]") &&
         nav.getClientRects().length > 0;
       const { x, y, width, height } = nav.getBoundingClientRect();
       const selected = Array.from(nav.children).findIndex(item => item.getAttribute("aria-current") === "page");
-      const body = show ? { x, y, width, height, selected,
+      const body = show ? { x, y, width, height, selected, side,
         labels: pages.map(item => item.label), dark: root.dataset.theme === "dark" } : null;
       const signature = JSON.stringify(body);
       if (signature === previous) return;
@@ -40,7 +41,7 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
       if (target && nav.classList.contains("ios-system-tabs")) select(target.id);
     };
     const mutations = new MutationObserver(sync);
-    mutations.observe(root, { attributes: true, attributeFilter: ["data-window-division", "data-theme"] });
+    mutations.observe(root, { attributes: true, attributeFilter: ["data-window-division", "data-duo-side-tabs", "data-theme"] });
     mutations.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["open", "hidden", "aria-current"] });
     const size = new ResizeObserver(sync);
     size.observe(nav);

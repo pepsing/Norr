@@ -6,6 +6,8 @@ final class WindowDivisionView: UIView {
   private weak var webView: WKWebView?
   private var loading: NSKeyValueObservation?
   private var lastDivision: WindowDivision?
+  private var hingeClosed = false
+  private var lastSideTabs: Bool?
   private var hideTabs: (() -> Void)?
 
   init(webView: WKWebView) {
@@ -15,7 +17,7 @@ final class WindowDivisionView: UIView {
     accessibilityElementsHidden = true
     autoresizingMask = [.flexibleWidth, .flexibleHeight]
     webView.addSubview(self)
-    NorrTrackWindowDivision(self)
+    NorrTrackWindowDivision(self) { [weak self] closed in self?.hingeClosed = closed }
     if #available(iOS 26.0, *) {
       let tabs = VehicleTabBar(webView: webView)
       hideTabs = { [weak tabs] in tabs?.hide() }
@@ -23,7 +25,7 @@ final class WindowDivisionView: UIView {
     loading = webView.observe(\.isLoading, options: [.new]) { [weak self] _, change in
       if change.newValue == true { self?.hideTabs?() }
       if change.newValue == false {
-        self?.lastDivision = nil
+        self?.lastSideTabs = nil
         self?.setNeedsLayout()
       }
     }
@@ -35,12 +37,15 @@ final class WindowDivisionView: UIView {
     super.layoutSubviews()
     guard let webView, window != nil, !webView.isLoading else { return }
     let division = WindowDivision(region: NorrWindowDivision(self), in: bounds)
-    guard division != lastDivision else { return }
+    let sideTabs = hingeClosed && NorrHasVerticalBarEdge(self)
+    guard division != lastDivision || sideTabs != lastSideTabs else { return }
+    lastSideTabs = sideTabs
     lastDivision = division
     let unit = division?.axis == .vertical ? "vw" : "dvh"
     webView.evaluateJavaScript("""
       (() => {
         const root = document.documentElement;
+        root.toggleAttribute('data-duo-side-tabs', \(sideTabs));
         root.dataset.windowDivision = '\(division?.axis.rawValue ?? "")';
         root.style.setProperty('--fold-start', '\(division?.start ?? 0)\(unit)');
         root.style.setProperty('--fold-end', '\(division?.end ?? 0)\(unit)');

@@ -1114,3 +1114,7 @@
 }
 
 .native-ios .native-header .navigation.ios-system-tabs { visibility: hidden; }
+
+.native-ios[data-duo-side-tabs]:has(.navigation.ios-system-tabs) .native-main {
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
