@@ -503,6 +503,7 @@ iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d
 | Duo 截图审查与 TestFlight 反馈 | 已审查 P2 六种姿态、控制页与空调弹窗，对照 1021、1024、1025 的三条 Duo 真机反馈。1027 已修复外屏横向、书本式控制页分栏与内屏竖向车图比例，加入系统底栏、下拉刷新优化、仅重查车况的入口及快捷指令车辆列表。P2 六种姿态已复查。**ToDo**：真机下拉性能、实车和 Watch 回读、多车快捷指令。[审查记录与截图](design/iphone-duo/review-2026-11-24.md) |
 | TestFlight 0.2.1 (1027) | 已加入「Norr 公测」，状态为「正在测试」。测试说明涵盖 Duo 各姿态、刷新、待核对指令与多车快捷指令。[TestFlight 构建记录](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/013df4a8-4ec6-4956-beb5-7361628eb93e) |
 | TestFlight 0.2.1 (1028) | 已加入「Norr 公测」，状态为「正在测试」。源码 `b7ac5b6`。Duo 外屏和完全展开的横向内屏使用系统侧栏，展开后转为竖屏时恢复底栏。模拟器中旋转保留控制页；真机体验待测试员反馈。[TestFlight 构建记录](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/6c10bfaf-cf42-4c27-b10f-46b32a77a5bc) |
+| TestFlight 0.2.1 (1029) | 已加入「Norr 公测」，状态为「正在测试」。源码 `ddc01e5`。修复 Duo 展开横屏侧栏的显示及点击范围，外屏左右横放在安全区内展示底栏。五种模拟器布局各点按五个入口通过，iOS 27.2.1 真机待回访。[构建记录](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/96a61c6e-8466-49fc-83a6-9a39eb7fd934) |
 | Duo 后续页面 | **ToDo**：逐页检查控制、充电、历史和设置的跨折线排布，以及换车后的状态。独立多窗口与内外屏同时显示另行评估。 |
 | Android P4 会话凭据（优先） | hotfix 代码和隔离模拟器检查已完成，按 Android 单平台工作流发布。覆盖首次空存储、P2/P4 加密写入和恢复、续期覆盖、旧格式兼容、未知类型拒绝与密文认证失败；反馈手机真实登录仍待验收。 |
 | 小组件切换账号/车辆后的旧数据 | Android 已纳入 alpha.7 hotfix；iOS/macOS 修复已纳入 alpha.8 / TestFlight 1024。无对应快照时清空，保留外观设置；旧更新按队列和读取时间校验。系统桌面换号、换车、首读失败仍待真机验收。 |
