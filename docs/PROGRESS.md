@@ -2,6 +2,10 @@
 
 ## 2026-11-24 充电时间与首页下拉刷新
 
+GitHub [`0.2.1-alpha.9`](https://github.com/pepsing/Norr/releases/tag/v0.2.1-alpha.9) 与 TestFlight `0.2.1 (1025)` 已发布，均来自 `db6c9dd`。TestFlight 已加入现有 Norr 公测组并显示“正在测试”；按用户确认，不在法国分发。GitHub 常规 CI、四平台构建及发布步骤全部成功，提供五个安装包与 `SHA256SUMS.txt`，已逐一核对发布资产摘要。[发布构建](https://github.com/pepsing/Norr/actions/runs/45359695531)
+
+签名归档的主应用、iOS 小组件、Watch App 和 Watch 小组件均为 `0.2.1 (1025)`，嵌套签名通过。GitHub Android 包沿用升级证书并通过 16 KB 对齐检查；两份 IPA 的嵌套版本、隐私声明、Siri 元数据及 Android / iOS 内置登录配置均已核对。本轮未替换当前运行的 macOS 应用。
+
 P2 / P4 充电页统一使用 `minutesToFull`；原生首页在充电时显示剩余时间及车辆上报时间，字段缺失时明确提示。首页接入天幕下拉刷新，复用原有读取入口与请求锁，区分成功、部分失败和失败。
 
 32 项前端、108 项原生、42 项脚本测试、前端构建、格式与严格 Clippy 检查通过。P2 充电及未充电实车返回已核对；P4 映射与固定样本通过，移动端物理手势及 P4 实车充电待验收。[兼容性审查](charging-refresh-review.md) · [本版说明](releases/0.2.1-alpha.9.md)
