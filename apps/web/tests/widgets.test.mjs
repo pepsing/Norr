@@ -53,3 +53,34 @@ test("non-finite numeric data cannot become a widget readout", () => {
   assert.equal(data.rangeKm, null);
   assert.match(data.artwork, /polestar-4/);
 });
+
+test("P4 widgets preserve vehicle time, identity, artwork and pending state", () => {
+  const p4 = { vin: "TESTP400000000001", model: "Polestar 4", platform: "HUANFU" };
+  const snapshot = { vehicle: p4, readings: {
+    battery: { status: "success", observedAt: 9000, reportedAt: 3000, value: { percent: 41, rangeKm: 210, freshnessPending: true } },
+    exterior: { status: "success", observedAt: 9000, reportedAt: 3000, value: { locked: false } },
+    climate: { status: "success", observedAt: 9000, reportedAt: 3000, value: { activity: "active" } },
+  } };
+  const data = widgetData(snapshot, defaultAppearance("polestar-4"));
+  assert.equal(data.vin, p4.vin);
+  assert.equal(data.model, p4.model);
+  assert.equal(data.batteryPercent, 41);
+  assert.equal(data.locked, false);
+  assert.equal(data.climate, "active");
+  assert.equal(data.updatedAt, 3000);
+  assert.equal(data.freshnessPending, true);
+  assert.match(data.artwork, /polestar-4\/dual\/snow-black-side.jpg$/);
+  snapshot.readings.battery.reportedAt = null;
+  assert.equal(widgetData(snapshot, defaultAppearance("polestar-4")).updatedAt, null);
+});
+
+test("P4 widgets never replace missing vehicle report time with local read time", () => {
+  const readings = { battery: { status: "success", observedAt: 9000, value: { percent: 0 } } };
+  const p4 = widgetData({ vehicle: { ...vehicle, platform: "HUANFU" }, readings }, defaultAppearance("polestar-4"));
+  assert.equal(p4.updatedAt, null);
+  assert.equal(p4.batteryPercent, 0);
+  assert.equal(p4.freshnessPending, true);
+  const p2 = widgetData({ vehicle, readings }, defaultAppearance());
+  assert.equal(p2.updatedAt, 9000);
+  assert.equal(p2.freshnessPending, false);
+});

@@ -2,6 +2,45 @@ use crate::{confirmation, Command, Receipt};
 
 const READBACK_WINDOW_MS: u64 = 600_000;
 
+#[cfg(target_os = "ios")]
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "ios")]
+pub(crate) fn initialize(app: tauri::AppHandle) {
+    let _ = APP.set(app);
+}
+
+#[cfg(target_os = "ios")]
+fn publish(snapshot: &crate::Snapshot, account: &str) {
+    use tauri::Emitter;
+    crate::widgets::publish_siri_snapshot(snapshot, account);
+    if let Some(app) = APP.get() {
+        let _ = app.emit("vehicle-updated", snapshot);
+    }
+}
+
+fn control_action(action: &str, xchanger: bool) -> crate::Result<&str> {
+    match (action, xchanger) {
+        ("tailgateOpen", true) => Ok("unlockTrunk"),
+        ("tailgateClose", true) => Err("此车辆仅支持解锁尾门，请手动关闭尾门".into()),
+        _ => Ok(action),
+    }
+}
+
+fn pending_command<'a>(
+    receipts: &'a [Receipt],
+    command: &Command,
+    account: &str,
+    now: u64,
+    xchanger: bool,
+) -> Option<&'a Receipt> {
+    if xchanger {
+        confirmation::unresolved_xchanger(receipts, command, account, now)
+    } else {
+        unresolved_command(receipts, command, account, now)
+    }
+}
+
 pub(crate) fn unresolved_command<'a>(
     receipts: &'a [Receipt],
     command: &Command,
@@ -33,7 +72,7 @@ pub(crate) fn unresolved_command<'a>(
 #[cfg(target_os = "ios")]
 mod ios {
     use super::*;
-    use crate::{now_ms, vehicle_service, Backend, Reading, Result, Snapshot, Vehicle};
+    use crate::{now_ms, vehicle_service, Backend, Reading, Result, Vehicle};
     use serde::{Deserialize, Serialize};
     use std::{
         ffi::{c_char, c_void, CStr, CString},
@@ -68,9 +107,11 @@ mod ios {
     }
 
     #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
     struct Entity {
         id: String,
         name: String,
+        trunk_unlock_only: bool,
     }
 
     #[derive(Serialize)]
@@ -114,6 +155,7 @@ mod ios {
         Entity {
             id: entity_id(account, &car.vin),
             name: format!("{}（尾号 {}）", car.model, suffix),
+            trunk_unlock_only: car.uses_xchanger(),
         }
     }
 
@@ -180,6 +222,8 @@ mod ios {
                     backend.client.refresh_reading(&car.vin, kind),
                 )
                 .await?;
+                let snapshot = backend.record_reading(&car, kind, reading.clone(), now_ms())?;
+                publish(&snapshot, &account);
                 return if reading.status == "success" {
                     Ok(Response::Reading { reading })
                 } else {
@@ -196,14 +240,22 @@ mod ios {
             Action::ClimateStop => "climateStop",
             Action::Vehicles => unreachable!(),
         };
+        let xchanger = car.uses_xchanger();
+        let action = control_action(action, xchanger)?;
         let command = Command {
             vin: car.vin.clone(),
             action: action.into(),
             ..Default::default()
         };
         let endpoint = confirmation::endpoint(action).ok_or("此操作不支持回读")?;
-        if let Some(mut receipt) =
-            unresolved_command(&backend.history.receipts, &command, &account, now_ms()).cloned()
+        if let Some(mut receipt) = pending_command(
+            &backend.history.receipts,
+            &command,
+            &account,
+            now_ms(),
+            xchanger,
+        )
+        .cloned()
         {
             readback(
                 &mut backend,
@@ -217,7 +269,15 @@ mod ios {
             if receipt.command.action == action && receipt.command.value == command.value {
                 return Ok(command_result(&receipt));
             }
-            if receipt.readback.as_deref() != Some(confirmation::CONFIRMED) {
+            if pending_command(
+                &backend.history.receipts,
+                &command,
+                &account,
+                now_ms(),
+                xchanger,
+            )
+            .is_some()
+            {
                 return Ok(Response::PendingConflict);
             }
         }
@@ -262,15 +322,13 @@ mod ios {
         else {
             return;
         };
-        let snapshot = Snapshot {
-            vehicle: car.clone(),
-            fetched_at: now_ms(),
-            readings: [(endpoint.into(), reading)].into(),
-        };
-        let mut updated = receipt.clone();
-        confirmation::update(&mut updated, &snapshot);
-        if backend.replace_receipt(&updated).is_ok() {
-            *receipt = updated;
+        if let Ok(snapshot) = backend.record_reading(car, endpoint, reading, now_ms()) {
+            if let Some(account) = backend.client.account_scope() {
+                publish(&snapshot, &account);
+            }
+            if let Some(updated) = backend.history.receipts.iter().find(|r| r.id == receipt.id) {
+                *receipt = updated.clone();
+            }
         }
     }
 
@@ -345,6 +403,48 @@ mod ios {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tailgate_actions_match_each_vehicle_service() {
+        assert_eq!(control_action("tailgateOpen", true).unwrap(), "unlockTrunk");
+        assert!(control_action("tailgateClose", true).is_err());
+        for action in ["tailgateOpen", "tailgateClose", "lock", "climateStart"] {
+            assert_eq!(control_action(action, false).unwrap(), action);
+        }
+    }
+
+    #[test]
+    fn p4_pending_rules_match_the_app_without_relaxing_unknown_commands() {
+        for (action, opposite, observed) in [
+            ("climateStart", "climateStop", confirmation::CLIMATE_ACTIVE),
+            ("windowsVent", "windowsClose", confirmation::WINDOWS_AJAR),
+        ] {
+            let mut previous = receipt("account", "car", action);
+            let command = receipt("account", "car", opposite).command;
+            assert!(
+                pending_command(&[previous.clone()], &command, "account", 2000, true).is_some()
+            );
+            previous.readback = Some(observed.into());
+            assert!(
+                pending_command(&[previous.clone()], &command, "account", 2000, true).is_none()
+            );
+            assert!(pending_command(
+                &[previous.clone()],
+                &previous.command,
+                "account",
+                2000,
+                true
+            )
+            .is_some());
+        }
+        let mut previous = receipt("account", "car", "climateStart");
+        previous.readback = Some(confirmation::CLIMATE_ACTIVE.into());
+        let stop = receipt("account", "car", "climateStop").command;
+        assert!(pending_command(&[previous], &stop, "account", 2000, false).is_some());
+        let previous = receipt("account", "car", "unlock");
+        let lock = receipt("account", "car", "lock").command;
+        assert!(pending_command(&[previous], &lock, "account", 2000, true).is_some());
+    }
 
     fn receipt(account: &str, vin: &str, action: &str) -> Receipt {
         Receipt {

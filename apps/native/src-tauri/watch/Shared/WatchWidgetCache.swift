@@ -6,6 +6,7 @@ struct WatchWidgetSnapshot: Codable {
   var rangeKm: Double?
   var updatedAt: Date?
   var isDemo: Bool = false
+    var freshnessPending: Bool? = nil
 }
 
 enum WatchWidgetCache {

@@ -17,6 +17,12 @@ pub struct WidgetData {
     charging: Option<i32>,
     updated_at: Option<i64>,
     artwork: String,
+    #[serde(default)]
+    freshness_pending: bool,
+    #[serde(default, skip_deserializing)]
+    account_scope: Option<String>,
+    #[serde(default)]
+    observed_at: Option<u64>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -87,18 +93,34 @@ pub async fn take_widget_target() -> Result<Option<Target>> {
 }
 
 #[tauri::command]
-pub async fn update_widgets(app: tauri::AppHandle, data: Option<WidgetData>) -> Result<()> {
-    let Some(data) = data else {
+pub async fn update_widgets(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, crate::vehicle_service::VehicleService>,
+    data: Option<WidgetData>,
+) -> Result<()> {
+    let Some(mut data) = data else {
         #[cfg(target_os = "android")]
         return crate::mobile::call_async("clearWidgets", serde_json::json!({})).await;
-        #[cfg(not(target_os = "android"))]
-        return Err("此平台尚不支持清除小组件数据".into());
+        #[cfg(target_os = "ios")]
+        return crate::mobile::call_async("updateWidgets", serde_json::json!({"clear": true}))
+            .await;
+        #[cfg(target_os = "macos")]
+        {
+            let _update = UPDATE.lock().map_err(|_| "小组件同步锁不可用")?;
+            if cfg!(feature = "polestar4-test") {
+                return Ok(());
+            }
+            clear_record(&crate::platform::data_directory()?.join("widgets"))?;
+            unsafe { norr_widgets_reload() };
+            return Ok(());
+        }
     };
+    data.account_scope = service.lock().await.client.account_scope();
+    #[cfg(target_os = "macos")]
+    let _update = UPDATE.lock().map_err(|_| "小组件同步锁不可用")?;
     if cfg!(all(target_os = "macos", feature = "polestar4-test")) {
         return Ok(());
     }
-    #[cfg(target_os = "macos")]
-    let _update = UPDATE.lock().map_err(|_| "小组件同步锁不可用")?;
     let path = &data.artwork;
     if !path.starts_with("images/vehicles/") || path.contains("..") || !path.ends_with("-side.jpg")
     {
@@ -154,6 +176,83 @@ pub async fn update_widgets(app: tauri::AppHandle, data: Option<WidgetData>) -> 
     }
 }
 
+#[cfg(any(target_os = "macos", test))]
+fn clear_record(directory: &std::path::Path) -> Result<()> {
+    match std::fs::remove_file(directory.join("vehicle.json")) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err("小组件数据清除失败，请重试".into()),
+    }
+}
+
+#[cfg(any(target_os = "ios", test))]
+fn snapshot_values(snapshot: &crate::Snapshot, account: &str) -> serde_json::Value {
+    use serde_json::{json, Value};
+    let reading = |kind: &str| {
+        snapshot
+            .readings
+            .get(kind)
+            .filter(|r| r.status == "success")
+    };
+    let value = |kind: &str, field: &str| {
+        reading(kind)
+            .and_then(|r| r.value.as_ref())
+            .and_then(|v| v.get(field))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let number = |kind: &str, field: &str| {
+        let value = value(kind, field);
+        if value.as_f64().is_some_and(f64::is_finite) {
+            value
+        } else {
+            Value::Null
+        }
+    };
+    let p4 = snapshot
+        .vehicle
+        .platform
+        .as_deref()
+        .is_some_and(|p| p.eq_ignore_ascii_case("HUANFU"));
+    let entries: Vec<_> = ["battery", "exterior", "climate"]
+        .into_iter()
+        .filter_map(reading)
+        .collect();
+    let times: Vec<_> = entries
+        .iter()
+        .filter_map(|r| {
+            if p4 {
+                r.reported_at
+            } else {
+                r.reported_at.or(Some(r.observed_at))
+            }
+        })
+        .filter(|t| *t > 0)
+        .collect();
+    let updated = if p4 && times.len() != entries.len() {
+        None
+    } else {
+        times.iter().min().copied()
+    };
+    json!({"vin": snapshot.vehicle.vin, "model": snapshot.vehicle.model, "accountScope": account,
+        "batteryPercent": number("battery", "percent"), "rangeKm": number("battery", "rangeKm"),
+        "locked": value("exterior", "locked").as_bool(), "climate": value("climate", "activity").as_str().unwrap_or("unknown"),
+        "charging": number("battery", "chargeState"), "updatedAt": updated,
+        "freshnessPending": p4 && entries.iter().any(|r| r.reported_at.is_none_or(|t| t == 0)
+            || r.value.as_ref().is_some_and(|v| v["freshnessPending"] == true)),
+        "observedAt": snapshot.fetched_at})
+}
+
+#[cfg(target_os = "ios")]
+pub(crate) fn publish_siri_snapshot(snapshot: &crate::Snapshot, account: &str) {
+    extern "C" {
+        fn norr_widget_readback(json: *const std::ffi::c_char);
+    }
+    if let Ok(json) = std::ffi::CString::new(snapshot_values(snapshot, account).to_string()) {
+        unsafe { norr_widget_readback(json.as_ptr()) };
+    }
+}
+
 #[cfg(target_os = "macos")]
 static UPDATE: Mutex<()> = Mutex::new(());
 
@@ -165,6 +264,46 @@ extern "C" {
 #[cfg(all(test, any(target_os = "ios", target_os = "macos")))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clearing_widget_record_preserves_artwork_and_accepts_an_empty_cache() {
+        let root = std::env::temp_dir().join(format!("norr-widget-clear-{}", uuid::Uuid::new_v4()));
+        clear_record(&root).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("vehicle.json"), b"fixture").unwrap();
+        std::fs::write(root.join("image.jpg"), b"fixture").unwrap();
+        clear_record(&root).unwrap();
+        clear_record(&root).unwrap();
+        assert!(!root.join("vehicle.json").exists());
+        assert!(root.join("image.jpg").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn siri_widget_projection_preserves_zero_unknown_and_source_time() {
+        use serde_json::json;
+        let mut snapshot: crate::Snapshot = serde_json::from_value(json!({
+            "vehicle":{"vin":"fixture", "model":"Polestar 4", "platform":"HUANFU", "capabilities":{}, "limits":{}},
+            "fetchedAt":9000, "readings":{
+                "battery":{"status":"success", "value":{"percent":0, "rangeKm":0, "chargeState":9}, "observedAt":9000, "reportedAt":3000},
+                "exterior":{"status":"success", "value":{"locked":false}, "observedAt":8000, "reportedAt":2000}
+            }})).unwrap();
+        let data = snapshot_values(&snapshot, "fixture-account");
+        assert_eq!(data["batteryPercent"], 0);
+        assert_eq!(data["locked"], false);
+        assert_eq!(data["climate"], "unknown");
+        assert_eq!(data["updatedAt"], 2000);
+        assert_eq!(data["accountScope"], "fixture-account");
+        snapshot.readings.get_mut("battery").unwrap().reported_at = None;
+        let data = snapshot_values(&snapshot, "fixture-account");
+        assert!(data["updatedAt"].is_null());
+        assert_eq!(data["freshnessPending"], true);
+        snapshot.vehicle.platform = Some("ICUP".into());
+        assert_eq!(
+            snapshot_values(&snapshot, "fixture-account")["updatedAt"],
+            2000
+        );
+    }
 
     #[test]
     fn widget_links_accept_only_supported_actions() {

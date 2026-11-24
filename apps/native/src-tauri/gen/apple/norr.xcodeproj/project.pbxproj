@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		35E4898F13B14AAFB5F41102 /* WatchXchanger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35E4898F13B14AAFB5F41101 /* WatchXchanger.swift */; };
 		B42E51F61BBCF025ECBD517D /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 33940814D5AD60F07AE0F8D1 /* libsqlite3.tbd */; };
 		CD353A4AAF0A02E1D722D7E1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4022942B2BB273C4904877F7 /* PrivacyInfo.xcprivacy */; };
 		16DEF7EB206A00A6C3ADD96A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D814AB4760704C45C1DA97A8 /* PrivacyInfo.xcprivacy */; };
@@ -111,6 +112,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		35E4898F13B14AAFB5F41101 /* WatchXchanger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchXchanger.swift; sourceTree = "<group>"; };
 		33940814D5AD60F07AE0F8D1 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		4022942B2BB273C4904877F7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		D814AB4760704C45C1DA97A8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -397,6 +399,7 @@
 			isa = PBXGroup;
 			children = (
 				C82BA3219F8342A4C927AF4B /* WatchRemoteClient.swift */,
+				35E4898F13B14AAFB5F41101 /* WatchXchanger.swift */,
 				17028CEC08079B91724CB032 /* WatchSnapshot.swift */,
 				B95B14945F81CC9E1ABB9B0E /* WatchWire.swift */,
 			);
@@ -623,6 +626,7 @@
 			files = (
 				69446208743AE132F3518101 /* NorrWatchApp.swift in Sources */,
 				30547378A45168904953DD60 /* WatchRemoteClient.swift in Sources */,
+				35E4898F13B14AAFB5F41102 /* WatchXchanger.swift in Sources */,
 				EB0B1741B67C9E9BE6D7A3C1 /* WatchSnapshot.swift in Sources */,
 				D37F0AC2D1E53F8538F5D4DF /* WatchWidgetCache.swift in Sources */,
 				BCA13FB5214375EC4D88A057 /* WatchWire.swift in Sources */,

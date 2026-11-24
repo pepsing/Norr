@@ -378,7 +378,7 @@ async fn refresh(
     let snapshot = backend.client.refresh(&vin).await?;
     backend.history.settings.selected_vin = Some(vin.clone());
     #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
-    let _ = watch::synchronize(&vin, false, true).await;
+    let _ = watch::synchronize(&mut backend.client, &vin, false, true).await;
     let snapshot = backend.record(snapshot)?;
     #[cfg(desktop)]
     update_tray(&_app, &snapshot);
@@ -750,8 +750,8 @@ async fn collect_in_background(app: tauri::AppHandle) {
                 #[cfg(desktop)]
                 update_tray(&app, &snapshot);
                 #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
-                if let Some(vin) = backend.history.settings.selected_vin.as_deref() {
-                    let _ = watch::synchronize(vin, false, true).await;
+                if let Some(vin) = backend.history.settings.selected_vin.clone() {
+                    let _ = watch::synchronize(&mut backend.client, &vin, false, true).await;
                 }
                 let _ = app.emit("vehicle-updated", snapshot);
             }
@@ -1006,12 +1006,7 @@ pub fn run() {
                 .join("vehicle-history.json");
             #[cfg(all(
                 feature = "polestar4",
-                any(
-                    target_os = "macos",
-                    target_os = "ios",
-                    target_os = "windows",
-                    target_os = "android"
-                )
+                any(target_os = "macos", target_os = "windows", target_os = "android")
             ))]
             let path = account_history_path(
                 path,
@@ -1030,6 +1025,8 @@ pub fn run() {
             #[cfg(not(target_os = "ios"))]
             let service = std::sync::Arc::new(Mutex::new(backend));
             app.manage(service);
+            #[cfg(target_os = "ios")]
+            siri::initialize(app.handle().clone());
             #[cfg(all(target_os = "ios", feature = "p4-field-test"))]
             app.manage(p4_partner::Service::new(
                 option_env!("NORR_P4_PARTNER_CLIENT_ID"),

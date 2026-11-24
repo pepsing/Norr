@@ -15,14 +15,27 @@ struct WatchSnapshot: Codable {
     var updatedAt: Date?
     var lockUpdatedAt: Date?
     var climateUpdatedAt: Date?
+    var freshnessPending: Bool? = nil
+    var vehicleService: String? = nil
+    var observedAt: Date? = nil
 
     func confirms(_ record: WatchPendingCommand) -> Bool {
-        guard vin == record.vin else { return false }
+        guard vin == record.vin, freshnessPending != true else { return false }
+        if let observedAt, !record.blocks(record.action, now: observedAt) { return false }
+        func fresh(_ date: Date?) -> Bool {
+            guard let date else { return false }
+            guard date.timeIntervalSince(record.sentAt) < 600 else { return false }
+            if vehicleService == "xchanger" {
+                guard let observedAt, date <= observedAt else { return false }
+                return date > record.sentAt
+            }
+            return date >= record.sentAt && (observedAt == nil || date <= observedAt!)
+        }
         switch record.action {
         case "lock", "unlock":
-            return (lockUpdatedAt ?? .distantPast) >= record.sentAt && locked == (record.action == "lock")
+            return fresh(lockUpdatedAt) && locked == (record.action == "lock")
         case "climateStart", "climateStop":
-            return (climateUpdatedAt ?? .distantPast) >= record.sentAt && climateActive == (record.action == "climateStart")
+            return fresh(climateUpdatedAt) && climateActive == (record.action == "climateStart")
         default:
             return false
         }
@@ -40,11 +53,17 @@ struct WatchAuthorization: Codable {
     let vin: String
     let accessToken: String
     let expiresAt: Double
+    var service: String? = nil
+    var xchanger: WatchXchangerAuthorization? = nil
+
+    var validUntil: Double { min(expiresAt, xchanger?.expiresAt ?? expiresAt) }
 
     var isValid: Bool {
         guard version.isFinite, version > 0, expiresAt.isFinite else { return false }
         if accessToken.isEmpty { return account.isEmpty && vin.isEmpty && expiresAt == 0 }
-        return !account.isEmpty && expiresAt > 0 && vin.utf8.count == 17
+        let validService = (service == nil || service == "c3") ? xchanger == nil
+            : service == "xchanger" && xchanger?.isValid == true
+        return validService && !account.isEmpty && expiresAt > 0 && vin.utf8.count == 17
             && vin.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
     }
 
@@ -62,20 +81,50 @@ struct WatchPendingCommand: Codable {
     let vin: String
     let action: String
     let sentAt: Date
+
+    var group: String { Self.group(action) }
+
+    static func group(_ action: String) -> String {
+        switch action {
+        case "lock", "unlock": return "lock"
+        case "climateStart", "climateStop": return "climate"
+        default: return action
+        }
+    }
+
+    func blocks(_ action: String, now: Date = .now) -> Bool {
+        group == Self.group(action) && now.timeIntervalSince(sentAt) < 600
+    }
 }
 
 struct WatchPendingCommands: Codable {
     private(set) var records: [WatchPendingCommand] = []
 
-    func pending(for authorization: WatchAuthorization?) -> WatchPendingCommand? {
+    func pending(for authorization: WatchAuthorization?, now: Date = .now) -> WatchPendingCommand? {
         guard let authorization, !authorization.accessToken.isEmpty else { return nil }
-        return records.first { $0.account == authorization.account && $0.vin == authorization.vin }
+        let current = records.filter { $0.account == authorization.account && $0.vin == authorization.vin }
+        return current.first { $0.blocks($0.action, now: now) } ?? current.first
+    }
+
+    func blocking(_ action: String, for authorization: WatchAuthorization?, now: Date = .now) -> WatchPendingCommand? {
+        guard let authorization, !authorization.accessToken.isEmpty else { return nil }
+        return records.last {
+            $0.account == authorization.account && $0.vin == authorization.vin && $0.blocks(action, now: now)
+        }
+    }
+
+    mutating func reconcile(_ snapshot: WatchSnapshot, for authorization: WatchAuthorization) {
+        records.removeAll {
+            $0.account == authorization.account && $0.vin == authorization.vin && snapshot.confirms($0)
+        }
     }
 
     mutating func store(_ command: WatchPendingCommand) {
-        remove(account: command.account, vin: command.vin)
+        records.removeAll { $0.account == command.account && $0.vin == command.vin && $0.group == command.group }
         records.append(command)
     }
+
+    mutating func remove(id: UUID) { records.removeAll { $0.id == id } }
 
     mutating func remove(account: String, vin: String) {
         records.removeAll { $0.account == account && $0.vin == vin }

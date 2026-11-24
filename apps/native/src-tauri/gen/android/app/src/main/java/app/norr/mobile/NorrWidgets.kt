@@ -196,7 +196,8 @@ object NorrWidgets {
         val time = data.optLong("updatedAt", 0)
         val today = android.text.format.DateUtils.isToday(time)
         val timestamp = if (time > 0) SimpleDateFormat(if (today) "HH:mm" else "M/d HH:mm", Locale.getDefault()).format(Date(time)) else "尚未读取"
-        views.setTextViewText(R.id.widget_time, if (small || time == 0L) timestamp else "数据于 $timestamp")
+        views.setTextViewText(R.id.widget_time, if (data.optBoolean("freshnessPending", false)) "等待车辆更新"
+            else if (small || time == 0L) timestamp else "数据于 $timestamp")
         if (!small) {
             views.setTextViewText(R.id.widget_model, data.optString("model"))
             textColor(R.id.widget_model, muted)
@@ -246,6 +247,7 @@ object NorrWidgets {
                     6 -> "智能充电"
                     7 -> "已暂停"
                     8 -> "充电完成"
+                    9 -> "等待充电"
                     else -> "未知"
                 }
                 views.setTextViewText(R.id.widget_charging, "充电状态 · $charging")

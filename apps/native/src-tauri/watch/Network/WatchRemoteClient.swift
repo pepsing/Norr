@@ -50,10 +50,11 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
 
     func unavailableReason(for action: String) -> String? {
         guard configured else { return "请在 iPhone 登录并连接车辆" }
-        guard let authorization, authorization.expiresAt / 1000 > Date().timeIntervalSince1970 + 30 else {
+        guard let authorization, authorization.validUntil / 1000 > Date().timeIntervalSince1970 + 30 else {
             return "登录已到期，请在 iPhone 恢复车辆连接"
         }
         guard let capability = actionCapabilities[action] else { return "手表暂不支持此操作" }
+        if pendingCommands.blocking(action, for: authorization) != nil { return "请先核对上一条同类操作" }
         guard let supported = capabilities[capability] else { return "请刷新车辆以确认操作权限" }
         return supported ? nil : "车辆未开放此操作"
     }
@@ -66,15 +67,31 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func send(_ action: String) async throws -> WatchSnapshot {
-        guard !busy, pending == nil else { throw WatchFailure(message: "请先核对上一条车辆操作") }
+        guard !busy else { throw WatchFailure(message: "车辆请求正在进行") }
+        guard pendingCommands.blocking(action, for: authorization) == nil else {
+            throw WatchFailure(message: "请先核对上一条同类操作")
+        }
         busy = true
         defer { busy = false }
         let grant = try validAuthorization()
         let epoch = generation
-        let (endpoint, _, car) = try await discovery(grant)
+        let xchanger = grant.xchanger.map { WatchXchanger(grant: $0, vin: grant.vin) }
+        let endpoint: URL?
+        let permissions: [String: Bool]
+        let p4Request: URLRequest?
+        if let xchanger {
+            permissions = try await xchanger.capabilities()
+            p4Request = try xchanger.controlRequest(action)
+            endpoint = nil
+        } else {
+            let (address, _, car) = try await discovery(grant)
+            endpoint = address
+            permissions = car.compactMapValues { $0 as? Bool }
+            p4Request = nil
+        }
         try ensureCurrent(epoch)
         let methods = ["lock": "Lock", "unlock": "Unlock", "climateStart": "ClimatizationStart", "climateStop": "ClimatizationStop"]
-        guard let capability = actionCapabilities[action], let method = methods[action], car[capability] as? Bool == true else {
+        guard let capability = actionCapabilities[action], let method = methods[action], permissions[capability] == true else {
             throw WatchFailure(message: "车辆未确认支持此操作")
         }
         var body = WatchWire.bytes(1, WatchWire.string(1, grant.vin))
@@ -88,12 +105,19 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
         pendingAction = action
         phase = "sending"
         do {
-            let data = try await grpc(endpoint, path: "/invocation.InvocationService/\(method)", body: body, grant: grant)
+            let rejected: Bool
+            if let xchanger, let p4Request {
+                let (http, data) = try await xchanger.raw(p4Request)
+                rejected = WatchXchanger.rejected(http: http, data: data)
+            } else if let endpoint {
+                let data = try await grpc(endpoint, path: "/invocation.InvocationService/\(method)", body: body, grant: grant)
+                let outer = try WatchWire(data)
+                let response = outer.int(3) == nil ? try (outer.nested(1) ?? outer) : outer
+                rejected = [9, 10, 12].contains(response.int(3) ?? 0) || (action == "lock" && outer.bytes(1) != nil && (outer.int(2) ?? 0) != 0)
+            } else { throw WatchFailure(message: "车辆服务尚未配置") }
             try ensureCurrent(epoch)
-            let outer = try WatchWire(data)
-            let response = outer.int(3) == nil ? try (outer.nested(1) ?? outer) : outer
-            if [9, 10, 12].contains(response.int(3) ?? 0) || (action == "lock" && outer.bytes(1) != nil && (outer.int(2) ?? 0) != 0) {
-                try clearPending()
+            if rejected {
+                try clearPending(record)
                 throw WatchFailure(message: "车辆拒绝执行，请检查车门与当前权限")
             }
             phase = "pending"
@@ -103,13 +127,13 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
                 try ensureCurrent(epoch)
                 let snapshot = try await fetch()
                 if snapshot.confirms(record) {
-                    try clearPending()
+                    try clearPending(record)
                     phase = "confirmed"
                     return snapshot
                 }
             }
         } catch {
-            if pending == nil || generation != epoch { throw error }
+            if !pendingCommands.records.contains(where: { $0.id == record.id }) || generation != epoch { throw error }
         }
         phase = "pending"
         throw WatchFailure(message: "结果待核对，请读取车辆状态。指令不会自动重发")
@@ -125,23 +149,23 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
         defer { busy = false }
         let snapshot = try await fetch()
         guard snapshot.confirms(record) else {
+            if !record.blocks(record.action) {
+                phase = "unconfirmed"
+                return snapshot
+            }
             phase = "pending"
             throw WatchFailure(message: "尚无足够新的匹配回读，操作仍待核对")
         }
-        try clearPending()
+        try clearPending(record)
         phase = "confirmed"
         return snapshot
     }
 
-    private func clearPending() throws {
-        if let pending {
-            var commands = pendingCommands
-            commands.remove(account: pending.account, vin: pending.vin)
-            try savePendingCommands(commands)
-        }
-        phase = "idle"
-        pending = nil
-        pendingAction = nil
+    private func clearPending(_ record: WatchPendingCommand) throws {
+        var commands = pendingCommands
+        commands.remove(id: record.id)
+        try savePendingCommands(commands)
+        loadCurrentPending()
     }
 
     private func savePendingCommands(_ commands: WatchPendingCommands) throws {
@@ -158,7 +182,7 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
 
     private func validAuthorization() throws -> WatchAuthorization {
         guard let grant = authorization, !grant.accessToken.isEmpty else { throw WatchFailure(message: "请在 iPhone 登录并连接车辆") }
-        guard grant.expiresAt / 1000 > Date().timeIntervalSince1970 + 30 else {
+        guard grant.validUntil / 1000 > Date().timeIntervalSince1970 + 30 else {
             requestSync()
             throw WatchFailure(message: "登录已到期，请在 iPhone 恢复车辆连接")
         }
@@ -172,6 +196,16 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
     private func fetch() async throws -> WatchSnapshot {
         let grant = try validAuthorization()
         let epoch = generation
+        capabilities = [:]
+        if let authorization = grant.xchanger {
+            let (snapshot, permissions) = try await WatchXchanger(grant: authorization, vin: grant.vin).fetch()
+            try ensureCurrent(epoch)
+            capabilities = permissions
+            notice = permissions.isEmpty ? "车况已更新，操作权限暂不可用"
+                : snapshot.freshnessPending == true ? "车辆数据等待更新" : ""
+            try save(snapshot, account: grant.account)
+            return snapshot
+        }
         let (endpoint, targetEndpoint, car) = try await discovery(grant)
         let request = WatchWire.string(1, UUID().uuidString) + WatchWire.string(2, grant.vin)
         async let batteryData = grpc(endpoint, path: "/services.vehiclestates.battery.BatteryService/GetLatestBattery", body: request, grant: grant)
@@ -205,14 +239,25 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
             targetTemperature: digitalClimate ? climate?.number(8) : nil, interiorTemperature: digitalClimate ? climate?.number(7) : nil,
             chargePower: battery?.number(10).map { $0 / 1000 }, chargeTarget: target,
             chargingState: battery?.int(7).flatMap { chargingStates[$0] },
-            updatedAt: try battery?.timestamp(1), lockUpdatedAt: digitalExterior ? try exterior?.timestamp(1) : nil, climateUpdatedAt: digitalClimate ? try climate?.timestamp(1) : nil)
+            updatedAt: try battery?.timestamp(1), lockUpdatedAt: digitalExterior ? try exterior?.timestamp(1) : nil, climateUpdatedAt: digitalClimate ? try climate?.timestamp(1) : nil,
+            observedAt: Date())
         notice = battery == nil || exterior == nil || climate == nil ? "部分数据读取失败" : ""
+        try save(snapshot, account: grant.account)
+        return snapshot
+    }
+
+    private func save(_ snapshot: WatchSnapshot, account: String) throws {
+        if let authorization, authorization.account == account {
+            var commands = pendingCommands
+            commands.reconcile(snapshot, for: authorization)
+            try savePendingCommands(commands)
+            loadCurrentPending()
+        }
         cachedSnapshot = snapshot
         UserDefaults.standard.set(try JSONEncoder().encode(snapshot), forKey: "watch.snapshot")
-        UserDefaults.standard.set(grant.account, forKey: "watch.snapshotAccount")
-        try? WatchWidgetCache.save(WatchWidgetSnapshot(model: snapshot.model, batteryPercent: snapshot.batteryPercent, rangeKm: snapshot.rangeKm, updatedAt: snapshot.updatedAt))
+        UserDefaults.standard.set(account, forKey: "watch.snapshotAccount")
+        try? WatchWidgetCache.save(WatchWidgetSnapshot(model: snapshot.model, batteryPercent: snapshot.batteryPercent, rangeKm: snapshot.rangeKm, updatedAt: snapshot.updatedAt, freshnessPending: snapshot.freshnessPending))
         WidgetCenter.shared.reloadAllTimelines()
-        return snapshot
     }
 
     private func payload(_ data: Data, vin: String) throws -> WatchWire {

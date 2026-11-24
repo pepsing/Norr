@@ -15,6 +15,12 @@
       "file": "Assets.xcassets/AppIcon.appiconset/AppIcon.png",
       "source": "apps/native/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
       "sha256": "05d72652ebdf76d5b9346fc2d5ad52c62e5ea2733499c7983955dbd92ad6f17c"
+    },
+    {
+      "file": "Assets.xcassets/vehicle-p4.imageset/vehicle.png",
+      "source": "apps/web/public/images/vehicles/polestar-4/dual/snow-black-side-cutout.webp",
+      "conversion": "sips lossless PNG decode",
+      "sha256": "d36bb447632332f7f431ec17afb0e8b832b3643cd440dd9a34522f0fdf8c1c91"
     }
   ]
 }

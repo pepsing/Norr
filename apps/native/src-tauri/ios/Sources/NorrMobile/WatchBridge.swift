@@ -84,6 +84,21 @@ final class WatchBridge: NSObject, WCSessionDelegate {
 }
 
 extension NorrPlugin {
+    @objc func watchSyncStatus(_ invoke: Invoke) {
+        DispatchQueue.main.async {
+            guard WCSession.isSupported() else {
+                invoke.resolve(["enabled": false])
+                return
+            }
+            _ = WatchBridge.shared
+            let session = WCSession.default
+            let enabled = session.activationState == .activated
+                && session.isPaired && session.isWatchAppInstalled
+                && !UserDefaults.standard.bool(forKey: "watch.autoSyncDisabled")
+            invoke.resolve(["enabled": enabled])
+        }
+    }
+
     func synchronizeWatch(_ invoke: Invoke) throws {
         let arguments = try invoke.parseArgs(WatchSyncArguments.self)
         guard let data = arguments.authorization.data(using: .utf8) else {

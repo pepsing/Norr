@@ -8,10 +8,12 @@ struct SiriVehicle: AppEntity {
 
     let id: String
     let name: String
+    let trunkUnlockOnly: Bool
 
     init(_ option: SiriVehicleOption) {
         id = option.id
         name = option.name
+        trunkUnlockOnly = option.trunkUnlockOnly ?? false
     }
 
     var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
@@ -75,10 +77,13 @@ extension VehicleIntent {
 
     fileprivate func performControl(
         _ action: SiriVehicleAction,
+        resolvedVehicle: SiriVehicle? = nil,
         confirmation: (String) -> IntentDialog,
         completed: String
     ) async throws -> String {
-        let target = try await resolveVehicle()
+        let target: SiriVehicle
+        if let resolvedVehicle { target = resolvedVehicle }
+        else { target = try await resolveVehicle() }
         let dialog = confirmation(target.name)
         if #available(iOS 18.0, *) {
             try await requestConfirmation(conditions: [], dialog: dialog)
@@ -316,21 +321,12 @@ struct ControlVehicleTailgateIntent: VehicleIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let text: String
-        switch operation {
-        case .open:
-            text = try await performControl(
-                .tailgateOpen,
-                confirmation: { "要打开 \($0) 的后备箱吗？请确认车后有足够空间。" },
-                completed: "后备箱已打开。"
-            )
-        case .close:
-            text = try await performControl(
-                .tailgateClose,
-                confirmation: { "要关闭 \($0) 的后备箱吗？请确认尾门周围安全。" },
-                completed: "后备箱已关闭。"
-            )
-        }
+        let target = try await resolveVehicle()
+        let control = try SiriTailgateControl(open: operation == .open, vehicle: target.name,
+                                             unlockOnly: target.trunkUnlockOnly)
+        let text = try await performControl(control.action, resolvedVehicle: target,
+                                           confirmation: { _ in "\(control.confirmation)" },
+                                           completed: control.completed)
         return .result(dialog: "\(text)")
     }
 }

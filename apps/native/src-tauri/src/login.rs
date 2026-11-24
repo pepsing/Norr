@@ -161,7 +161,7 @@ async fn commit_session(
         target_os = "ios",
         not(any(feature = "p4-field-test", feature = "polestar4-test"))
     ))]
-    let _ = crate::watch::synchronize("", true, true).await;
+    let _ = crate::watch::synchronize(&mut backend.client, "", true, true).await;
     flow.finish();
     if let Err(error) = backend.save() {
         let _ = app.emit("desktop-failed", error);

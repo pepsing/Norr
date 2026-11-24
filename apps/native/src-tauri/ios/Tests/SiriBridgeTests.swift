@@ -5,6 +5,18 @@ enum SiriBridgeTests {
     static func main() async throws {
         let fleet = try await SiriBridge.run(.vehicles)
         precondition(fleet.vehicles?.first?.id == "fixture" && fleet.preferred == "fixture")
+        precondition(fleet.vehicles?.first?.trunkUnlockOnly == nil)
+        let p4 = try JSONDecoder().decode(SiriVehicleOption.self, from: Data(
+            #"{"id":"p4","name":"Polestar 4","trunkUnlockOnly":true}"#.utf8))
+        let trunk = try SiriTailgateControl(open: true, vehicle: p4.name, unlockOnly: p4.trunkUnlockOnly == true)
+        precondition(trunk.action == .tailgateOpen && trunk.completed == "后备箱已解锁。")
+        precondition(trunk.confirmation.contains("手动打开"))
+        do {
+            _ = try SiriTailgateControl(open: false, vehicle: p4.name, unlockOnly: true)
+            preconditionFailure("P4 must not offer an unsupported powered tailgate close")
+        } catch is SiriVehicleError {}
+        let p2 = try SiriTailgateControl(open: false, vehicle: "Polestar 2", unlockOnly: false)
+        precondition(p2.action == .tailgateClose && p2.completed == "后备箱已关闭。")
 
         let reading = try await SiriBridge.run(.energy, vehicle: "fixture").reading
         precondition(reading?.value?.percent == 0 && reading?.value?.rangeKm == nil)

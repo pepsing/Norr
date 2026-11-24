@@ -30,6 +30,7 @@ struct VehicleWidgetView: View {
   }
 
   private var isStale: Bool {
+    if entry.vehicle?.freshnessPending == true { return true }
     guard let date = entry.vehicle?.updatedAt else { return true }
     return entry.date.timeIntervalSince(date) > 900
   }

@@ -297,9 +297,44 @@ impl ChinaClient {
             any(
                 target_os = "macos",
                 target_os = "ios",
-                target_os = "windows"
+                target_os = "windows",
+                target_os = "android"
             )
         )) && self.p4_vehicle(vin).is_some()
+    }
+
+    pub async fn watch_authorization(&mut self, vin: &str) -> Result<serde_json::Value> {
+        self.ensure_metadata().await?;
+        let car = self
+            .fleet
+            .iter()
+            .find(|car| car.vin == vin)
+            .ok_or("车辆已不属于当前账号")?;
+        let session = self.session.as_ref().ok_or("请先登录并恢复车辆连接")?;
+        let mut grant = json!({
+            "version": now_ms(), "account": session.login.user_uid, "vin": vin,
+            "accessToken": session.login.globle_token.access_token,
+            "expiresAt": session.expires_at(),
+        });
+        if self.uses_xchanger(vin) {
+            grant["service"] = json!("xchanger");
+            #[cfg(all(
+                feature = "polestar4",
+                any(
+                    target_os = "macos",
+                    target_os = "ios",
+                    target_os = "windows",
+                    target_os = "android"
+                )
+            ))]
+            {
+                grant["xchanger"] =
+                    crate::geely::watch_authorization(&self.http, session, car).await?;
+            }
+        } else if !matches!(car.platform.as_deref(), Some("ICUP" | "AccountLinking")) {
+            return Err("此车型尚未接入手表车辆服务".into());
+        }
+        Ok(grant)
     }
 
     async fn read(&self, vin: &str, kind: &str) -> Reading {

@@ -14,9 +14,11 @@ use error::RequestError;
 mod readings;
 mod signing;
 mod storage;
+mod watch;
 pub use control::{execute_control, prepare_control, validate_control, PreparedControl};
 #[cfg(target_os = "android")]
 pub use storage::initialize_android_directory;
+pub(crate) use watch::authorization as watch_authorization;
 
 pub fn candidate(car: &Vehicle) -> bool {
     car.platform

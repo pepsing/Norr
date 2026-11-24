@@ -298,7 +298,6 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     const data = snapshot && snapshot.vehicle.vin === vin
       ? widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model))
       : null;
-    if (!data && !isAndroid) return;
     widgetSync.current = widgetSync.current
       .then(() => native.updateWidgets(data))
       .then(() => { if (!disposed) setWidgetError(""); })

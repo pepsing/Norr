@@ -8,6 +8,28 @@ enum SiriVehicleAction: String, Encodable {
 struct SiriVehicleOption: Decodable, Sendable {
     let id: String
     let name: String
+    let trunkUnlockOnly: Bool?
+}
+
+struct SiriTailgateControl {
+    let action: SiriVehicleAction
+    let confirmation: String
+    let completed: String
+
+    init(open: Bool, vehicle: String, unlockOnly: Bool) throws {
+        if unlockOnly && !open {
+            throw SiriVehicleError("此车辆仅支持解锁尾门，请手动关闭尾门。")
+        }
+        action = open ? .tailgateOpen : .tailgateClose
+        if unlockOnly {
+            confirmation = "要解锁 \(vehicle) 的后备箱吗？解锁后请手动打开。"
+            completed = "后备箱已解锁。"
+        } else {
+            confirmation = open ? "要打开 \(vehicle) 的后备箱吗？请确认车后有足够空间。"
+                : "要关闭 \(vehicle) 的后备箱吗？请确认尾门周围安全。"
+            completed = open ? "后备箱已打开。" : "后备箱已关闭。"
+        }
+    }
 }
 
 struct SiriReading: Decodable {
@@ -33,6 +55,7 @@ struct SiriReading: Decodable {
             6: "车辆处于智能充电状态。",
             7: "充电已暂停。",
             8: "充电已完成。",
+            9: "车辆正在等待充电。",
         ]
         guard let value, let state = value.chargeState, var summary = states[state] else {
             return "充电状态未知。"

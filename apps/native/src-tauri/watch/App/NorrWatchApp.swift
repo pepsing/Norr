@@ -170,9 +170,9 @@ struct WatchRootView: View {
         Label(lockLabel(data.locked), systemImage: data.locked == false ? "lock.open" : "lock")
           .font(.system(size: 10)).foregroundStyle(.secondary)
       }
-      Image("vehicle").resizable().scaledToFill()
+      Image(data.vehicleService == "xchanger" ? "vehicle-p4" : "vehicle").resizable().scaledToFill()
         .frame(width: compact ? 110 : 150, height: compact ? 32 : 42).clipped()
-        .frame(maxWidth: .infinity).accessibilityLabel("白色 Polestar 2")
+        .frame(maxWidth: .infinity).accessibilityLabel("白色 \(data.model)")
       Button {
         path.append(.charging)
       } label: {
@@ -288,7 +288,8 @@ struct WatchRootView: View {
       Text(remote.notice).font(.caption).foregroundStyle(.secondary)
     }
     if pending != nil && !busy {
-      Text("结果待核对").font(.headline)
+      let action = ["lock": "锁车", "unlock": "解锁", "climateStart": "开启空调", "climateStop": "关闭空调"][pending ?? ""] ?? "操作"
+      Text("\(action)结果待核对").font(.headline)
       control("核对车辆状态", disabled: busy) { Task { await verify() } }
       Text("只读取，不重复发送").font(.caption2).foregroundStyle(.secondary)
     }
@@ -331,7 +332,7 @@ struct WatchRootView: View {
   }
   private func unavailable(_ action: String) -> String? {
     if busy { return "请等待当前请求完成" }
-    if pending != nil { return "请先核对上一条操作" }
+    if demo && pending != nil { return "请先核对上一条操作" }
     if cached { return "请先刷新车辆状态" }
     return demo ? nil : remote.unavailableReason(for: action)
   }
@@ -401,7 +402,8 @@ struct WatchRootView: View {
     } else {
       do {
         snapshot = try await remote.verifyPending()
-        message = "车辆回读确认"
+        cached = false
+        message = remote.phase == "confirmed" ? "车辆回读确认" : "此前操作未确认，请以当前车况为准；可重新选择操作"
       } catch {
         snapshot = remote.cachedSnapshot ?? snapshot
         message = error.localizedDescription

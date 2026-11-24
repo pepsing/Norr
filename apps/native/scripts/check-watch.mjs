@@ -22,6 +22,7 @@ try {
     "-Onone",
     resolve(watchDirectory, "../ios/Sources/NorrMobile/WatchSyncPolicy.swift"),
     join(watchDirectory, "Network/WatchSnapshot.swift"),
+    join(watchDirectory, "Network/WatchXchanger.swift"),
     join(watchDirectory, "Network/WatchWire.swift"),
     join(watchDirectory, "Tests/main.swift"),
     "-o",

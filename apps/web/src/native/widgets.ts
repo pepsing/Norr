@@ -15,10 +15,12 @@ export function widgetData(snapshot: Snapshot, appearance: VehicleAppearance) {
   const battery = reading("battery");
   const exterior = reading("exterior");
   const climate = reading("climate");
+  const p4 = snapshot.vehicle.platform?.toUpperCase() === "HUANFU";
   const number = (value: unknown) =>
     typeof value === "number" && Number.isFinite(value) ? value : null;
-  const times = [battery, exterior, climate]
-    .map((entry) => entry?.reportedAt ?? entry?.observedAt)
+  const entries = [battery, exterior, climate].filter((entry) => entry != null);
+  const times = entries
+    .map((entry) => p4 ? entry.reportedAt : entry.reportedAt ?? entry.observedAt)
     .filter((time): time is number => typeof time === "number" && time > 0);
   return {
     vin: snapshot.vehicle.vin,
@@ -29,7 +31,10 @@ export function widgetData(snapshot: Snapshot, appearance: VehicleAppearance) {
       typeof exterior?.value?.locked === "boolean" ? exterior.value.locked : null,
     climate: String(climate?.value?.activity ?? "unknown"),
     charging: number(battery?.value?.chargeState),
-    updatedAt: times.length ? Math.min(...times) : null,
+    updatedAt: times.length && (!p4 || times.length === entries.length) ? Math.min(...times) : null,
+    freshnessPending: p4 && entries.some((entry) => entry.value?.freshnessPending === true
+      || typeof entry.reportedAt !== "number" || entry.reportedAt <= 0),
     artwork: artworkPath(appearance).replace(/^\.?\//, ""),
+    observedAt: snapshot.fetchedAt,
   };
 }

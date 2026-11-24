@@ -43,6 +43,7 @@ struct VehicleData: Decodable {
   let charging: Int?
   let updatedAt: Double?
   let artwork: String
+  var freshnessPending: Bool? = nil
 
   var lockLabel: String {
     guard let locked else { return "门锁未知" }
@@ -66,6 +67,7 @@ struct VehicleData: Decodable {
     case 6: return "智能充电"
     case 7: return "已暂停"
     case 8: return "充电完成"
+    case 9: return "等待充电"
     default: return "未知"
     }
   }
@@ -305,6 +307,7 @@ struct VehicleWidgetView: View {
 
   private func timestamp(_ data: VehicleData, compact: Bool) -> String {
     if entry.preview { return "示例数据" }
+    if data.freshnessPending == true { return "等待车辆更新" }
     guard let time = data.updatedAt else { return "尚未读取" }
     let date = Date(timeIntervalSince1970: time / 1000)
     let formatter = DateFormatter()

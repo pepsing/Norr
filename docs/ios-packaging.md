@@ -2,6 +2,8 @@
 
 从此次 P4 更新开始，标准 Norr 构建默认包含中国区 Polestar 4 的车况读取、定位、xchanger 控制和诊断日志。GitHub Releases 提供标准未签名 IPA；TestFlight 使用原有 `app.norr.ios` 应用记录，保留 P2、小组件、Siri 与 Watch 包。Watch 的独立车辆接口仍仅支持 P2。独立 P4 Build 6 保留为此前侧载测试记录。
 
+2026-11-24 源码已补接 Watch 的 P4 既有功能，并修正 Siri、快捷指令和小组件的 P4 行为。上段的 Watch 范围对应 TestFlight 1021；本次按用户要求纳入新的 GitHub 全平台构建和 TestFlight 1024，实际分发状态以平台结果为准。具体范围与验收见 [P4 跨入口修复](polestar4-entrypoint-fixes.md)。
+
 | 用途 | 构建入口 | 应用标识 | 产物或安装位置 |
 | --- | --- | --- | --- |
 | 本地模拟器 | `npm run build:ios` | `app.norr.ios` | `target/ios/Norr.app` 和 ARM64 模拟器 ZIP |

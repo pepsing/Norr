@@ -8,7 +8,9 @@
 node apps/native/scripts/check-watch.mjs
 ```
 
-脚本直接编译生产代码 `WatchWire.swift`、`WatchSnapshot.swift`、手机端 `WatchSyncPolicy.swift` 和测试入口 `main.swift`，在系统临时目录运行后清理产物。编译失败或断言失败会返回非零退出码。编译保留断言检查。
+脚本直接编译生产代码 `WatchWire.swift`、`WatchSnapshot.swift`、`WatchXchanger.swift`、手机端 `WatchSyncPolicy.swift` 和测试入口 `main.swift`，在系统临时目录运行后清理产物。编译失败或断言失败会返回非零退出码。编译保留断言检查。
+
+P4 样本核对与 Rust 一致的 HMAC 签名、查询转义、四种车控参数、访问授权到期、共享车库能力字段、未知回执、车辆身份、充电目标单位及车辆回读时间。不访问真实凭据、不连接车辆服务，不将样本成功当作实车验证。
 
 测试使用本地构造的协议数据及登录态，覆盖以下行为。
 
@@ -17,7 +19,8 @@ node apps/native/scripts/check-watch.mjs
 - 新鲜且匹配的车辆回读确认操作，过期、车辆不匹配、状态不匹配及缺少时间戳时保持待核对。
 - 登录态编码与恢复、清除登录态后恢复为空、无效 VIN 拒绝恢复。
 - 待核对操作按账号与车辆隔离，切车后切回、授权续期、清除当前账号、重启恢复及旧版单条记录迁移。
-
+- 同类命令十分钟内阻断，门锁与空调互不阻断；过期保留未知结果，回读按账号、车辆与上报时间消除匹配记录。
+- `URLProtocol` 固定响应验证能力接口失败或车辆类型缺失时车况仍可读取，车辆不在账号车库时不发出车况请求。
 - 自动同步首次发送、相同授权去重（忽略版本）、账号 / VIN / token / 有效期变化、暂停、清除与恢复、手动强制重试。
 
 真实网络、WatchConnectivity 传输、Keychain 存取及系统 UI 需要通过配对设备另行验证。

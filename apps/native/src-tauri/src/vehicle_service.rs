@@ -5,29 +5,86 @@ use tokio::sync::Mutex;
 
 pub(crate) type VehicleService = Arc<Mutex<Backend>>;
 
+#[cfg(any(target_os = "ios", test))]
+#[derive(Default)]
+struct IosServiceSlot {
+    service: std::sync::OnceLock<(std::path::PathBuf, VehicleService)>,
+    initialization: std::sync::Mutex<()>,
+}
+
+#[cfg(any(target_os = "ios", test))]
+impl IosServiceSlot {
+    fn get(
+        &self,
+        root: std::path::PathBuf,
+        initialize: impl FnOnce() -> Result<Backend>,
+    ) -> Result<VehicleService> {
+        let _guard = self
+            .initialization
+            .lock()
+            .map_err(|_| "车辆服务初始化未完成")?;
+        if let Some((initialized, service)) = self.service.get() {
+            if initialized != &root {
+                return Err("车辆服务数据目录不一致".into());
+            }
+            return Ok(service.clone());
+        }
+        let service = Arc::new(Mutex::new(initialize()?));
+        self.service
+            .set((root, service.clone()))
+            .map_err(|_| "车辆服务重复初始化")?;
+        Ok(service)
+    }
+}
+
 #[cfg(target_os = "ios")]
 pub(crate) fn ios_service(path: std::path::PathBuf) -> Result<VehicleService> {
-    use std::sync::{Mutex as InitLock, OnceLock};
-
-    static SERVICE: OnceLock<(std::path::PathBuf, VehicleService)> = OnceLock::new();
-    static INIT: InitLock<()> = InitLock::new(());
-
-    let _guard = INIT.lock().map_err(|_| "车辆服务初始化未完成")?;
-    if let Some((initialized, service)) = SERVICE.get() {
-        if initialized != &path {
-            return Err("车辆服务数据目录不一致".into());
-        }
-        return Ok(service.clone());
-    }
-
-    let service = Arc::new(Mutex::new(crate::load_backend(path.clone())?));
-    SERVICE
-        .set((path, service.clone()))
-        .map_err(|_| "车辆服务重复初始化")?;
-    Ok(service)
+    static SERVICE: IosServiceSlot = IosServiceSlot {
+        service: std::sync::OnceLock::new(),
+        initialization: std::sync::Mutex::new(()),
+    };
+    SERVICE.get(path.clone(), || {
+        #[cfg(feature = "polestar4")]
+        let path =
+            crate::account_history_path(path, crate::credentials::load_session()?.as_ref(), true)?;
+        crate::load_backend(path)
+    })
 }
 
 impl Backend {
+    #[cfg(any(target_os = "ios", test))]
+    pub(crate) fn record_reading(
+        &mut self,
+        car: &crate::Vehicle,
+        endpoint: &str,
+        reading: crate::Reading,
+        fetched_at: u64,
+    ) -> Result<Snapshot> {
+        let mut snapshot = self
+            .history
+            .snapshots
+            .iter()
+            .rev()
+            .find(|snapshot| snapshot.vehicle.vin == car.vin)
+            .cloned()
+            .unwrap_or_else(|| Snapshot {
+                vehicle: car.clone(),
+                fetched_at,
+                readings: Default::default(),
+            });
+        let replace = snapshot.readings.get(endpoint).is_none_or(|old| {
+            reading.observed_at >= old.observed_at
+                && !(reading.status == "success" && old.status == "success"
+                    && matches!((reading.reported_at, old.reported_at), (Some(new), Some(old)) if new < old))
+        });
+        if replace {
+            snapshot.readings.insert(endpoint.into(), reading);
+        }
+        snapshot.vehicle = car.clone();
+        snapshot.fetched_at = snapshot.fetched_at.max(fetched_at);
+        self.record(snapshot)
+    }
+
     pub(crate) fn apply_readback(&mut self, snapshot: &Snapshot) -> Result<()> {
         let account = self.client.account_scope();
         for receipt in &mut self.history.receipts {
@@ -160,5 +217,139 @@ impl Backend {
         }
         self.update_notifications();
         self.save()
+    }
+}
+
+#[cfg(test)]
+mod ios_tests {
+    use super::*;
+
+    #[test]
+    fn siri_partial_reading_persists_state_and_receipts_without_crossing_vehicle_or_clock() {
+        use serde_json::json;
+        let root = std::env::temp_dir().join(format!("norr-siri-state-{}", uuid::Uuid::new_v4()));
+        let mut backend = crate::load_backend(root.join("account-a/history.json")).unwrap();
+        let car: crate::Vehicle =
+            serde_json::from_value(json!({"vin":"TEST0000000000001", "model":"Polestar 4",
+            "platform":"HUANFU", "capabilities":{}, "limits":{}}))
+            .unwrap();
+        let reading = |value, reported, observed| {
+            let mut r = crate::Reading::success(value, Some(reported));
+            r.observed_at = observed;
+            r
+        };
+        backend
+            .record_reading(
+                &car,
+                "battery",
+                reading(json!({"percent":42}), 1000, 1500),
+                1500,
+            )
+            .unwrap();
+        backend.history.receipts.push(Receipt {
+            id: "fixture".into(),
+            command: Command {
+                vin: car.vin.clone(),
+                action: "unlock".into(),
+                ..Default::default()
+            },
+            time: 2000,
+            status: "accepted".into(),
+            message: "fixture".into(),
+            readback: None,
+            readback_at: None,
+            baseline_timer_ids: None,
+            account_scope: None,
+        });
+        let snapshot = backend
+            .record_reading(
+                &car,
+                "exterior",
+                reading(json!({"locked":false}), 2500, 3000),
+                3000,
+            )
+            .unwrap();
+        assert_eq!(
+            snapshot.readings["battery"].value.as_ref().unwrap()["percent"],
+            42
+        );
+        assert_eq!(
+            backend.history.receipts[0].readback.as_deref(),
+            Some(confirmation::CONFIRMED)
+        );
+        let stale = backend
+            .record_reading(
+                &car,
+                "exterior",
+                reading(json!({"locked":true}), 2300, 4000),
+                4000,
+            )
+            .unwrap();
+        assert_eq!(
+            stale.readings["exterior"].value.as_ref().unwrap()["locked"],
+            false
+        );
+        assert_eq!(stale.readings["exterior"].observed_at, 3000);
+        let mut other = car.clone();
+        other.vin = "TEST0000000000002".into();
+        let other_snapshot = backend
+            .record_reading(
+                &other,
+                "exterior",
+                reading(json!({"locked":true}), 4500, 5000),
+                5000,
+            )
+            .unwrap();
+        assert!(!other_snapshot.readings.contains_key("battery"));
+        let restored = crate::load_backend(root.join("account-a/history.json")).unwrap();
+        assert_eq!(
+            restored.history.receipts[0].readback.as_deref(),
+            Some(confirmation::CONFIRMED)
+        );
+        assert_eq!(
+            restored.history.snapshots.last().unwrap().vehicle.vin,
+            other.vin
+        );
+        let mut switched = crate::load_backend(root.join("account-b/history.json")).unwrap();
+        let isolated = switched
+            .record_reading(
+                &car,
+                "exterior",
+                reading(json!({"locked":true}), 5500, 6000),
+                6000,
+            )
+            .unwrap();
+        assert!(!isolated.readings.contains_key("battery"));
+        drop((backend, restored, switched));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn siri_and_app_share_service_across_login_and_account_history_changes() {
+        let root = std::env::temp_dir().join(format!("norr-ios-service-{}", uuid::Uuid::new_v4()));
+        let path = root.join("vehicle-history.json");
+        let slot = IosServiceSlot::default();
+        let service = slot
+            .get(path.clone(), || {
+                crate::load_backend(root.join("signed-out/vehicle-history.json"))
+            })
+            .unwrap();
+        for account in ["account-a", "account-b", "account-a"] {
+            let history = root.join(account).join("vehicle-history.json");
+            *service.blocking_lock() = crate::load_backend(history.clone()).unwrap();
+            let from_siri = slot
+                .get(path.clone(), || panic!("must reuse active account backend"))
+                .unwrap();
+            assert!(Arc::ptr_eq(&service, &from_siri));
+            assert_eq!(from_siri.blocking_lock().path, history);
+        }
+        assert!(slot
+            .get(root.join("another-app/vehicle-history.json"), || panic!(
+                "must reject another root"
+            ))
+            .is_err());
+        drop(service);
+        drop(slot);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

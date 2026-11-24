@@ -31,6 +31,40 @@ struct WidgetStorageTests {
     try bytes.write(to: app.appendingPathComponent("vehicle.json"), options: .atomic)
     let readback = try Data(contentsOf: widget.appendingPathComponent("vehicle.json"))
     precondition(readback == bytes)
+    let record: [String: Any] = ["data": ["vin": "fixture-vin", "accountScope": "fixture-account", "observedAt": 100,
+        "batteryPercent": 42, "locked": true, "artwork": "fixture.jpg"], "imageName": "fixture.jpg"]
+    try WidgetStorage.write(JSONSerialization.data(withJSONObject: record), to: root)
+    var values: [String: Any] = ["vin": "fixture-vin", "accountScope": "fixture-account", "observedAt": 200, "locked": false]
+    func checkReadback(_ values: [String: Any], _ expected: Bool) throws {
+      let applied = try WidgetStorage.applyReadback(values, in: root)
+      precondition(applied == expected)
+    }
+    try checkReadback(values, true)
+    func stored() throws -> [String: Any] {
+      try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("vehicle.json"))) as! [String: Any]
+    }
+    var saved = try stored()
+    precondition((saved["data"] as! [String: Any])["locked"] as? Bool == false)
+    precondition((saved["data"] as! [String: Any])["batteryPercent"] as? Int == 42)
+    precondition(saved["imageName"] as? String == "fixture.jpg")
+    try WidgetStorage.write(JSONSerialization.data(withJSONObject: record), to: root)
+    saved = try stored()
+    precondition((saved["data"] as! [String: Any])["locked"] as? Bool == false)
+    for replacement in [["vin": "other-vin"], ["accountScope": "other-account"], ["accountScope": ""]] {
+      var changed = values
+      replacement.forEach { changed[$0.key] = $0.value }
+      try checkReadback(changed, false)
+    }
+    values["observedAt"] = 99
+    try checkReadback(values, false)
+    let image = root.appendingPathComponent("fixture.jpg")
+    try Data([1, 2, 3]).write(to: image)
+    try WidgetStorage.clear(in: root)
+    try WidgetStorage.clear(in: root)
+    precondition(!FileManager.default.fileExists(atPath: root.appendingPathComponent("vehicle.json").path))
+    precondition(FileManager.default.fileExists(atPath: image.path))
+    try checkReadback(values, false)
     print("PASS: original/resigned groups, invalid/ambiguous/missing permissions, shared data round trip")
+    print("PASS: clear/idempotence, preserve artwork, scoped Siri readback, late write protection")
   }
 }
