@@ -23,12 +23,14 @@ struct WidgetRecord: Codable {
   let data: WidgetVehicle
   let imageName: String
   let darkImageName: String?
+  let portraitImageName: String?
 }
 
 struct WidgetUpdate: Decodable {
   let data: WidgetVehicle?
   let imagePath: String?
   let darkImagePath: String?
+  let portraitPath: String?
   let clear: Bool?
 }
 
@@ -42,7 +44,7 @@ extension NorrPlugin {
     do {
       if update.clear == true {
         try WidgetStorage.clear(in: directory)
-        WidgetCenter.shared.reloadTimelines(ofKind: "NorrVehicle")
+        reloadVehicleWidgets()
         invoke.resolve()
         return
       }
@@ -62,9 +64,10 @@ extension NorrPlugin {
       }
       let imageName = try storeImage(imagePath, extension: "jpg")
       let darkImageName = try update.darkImagePath.map { try storeImage($0, extension: "webp") }
-      let record = WidgetRecord(data: data, imageName: imageName, darkImageName: darkImageName)
+      let portrait = try update.portraitPath.map { try storeImage($0, extension: "webp") }
+      let record = WidgetRecord(data: data, imageName: imageName, darkImageName: darkImageName, portraitImageName: portrait)
       try WidgetStorage.write(JSONEncoder().encode(record), to: directory)
-      WidgetCenter.shared.reloadTimelines(ofKind: "NorrVehicle")
+      reloadVehicleWidgets()
       invoke.resolve()
     } catch {
       invoke.reject("小组件数据保存失败，请重新刷新车辆。")
@@ -78,5 +81,10 @@ public func norrWidgetReadback(_ json: UnsafePointer<CChar>?) {
         let bytes = String(cString: json).data(using: .utf8),
         let values = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
         (try? WidgetStorage.applyReadback(values, in: directory)) == true else { return }
+  reloadVehicleWidgets()
+}
+
+private func reloadVehicleWidgets() {
   WidgetCenter.shared.reloadTimelines(ofKind: "NorrVehicle")
+  WidgetCenter.shared.reloadTimelines(ofKind: "NorrPortrait")
 }

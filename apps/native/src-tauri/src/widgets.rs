@@ -17,6 +17,9 @@ pub struct WidgetData {
     charging: Option<i32>,
     updated_at: Option<i64>,
     artwork: String,
+    #[cfg(target_os = "ios")]
+    #[serde(default)]
+    carplay_front: bool,
     #[serde(default)]
     freshness_pending: bool,
     #[serde(default, skip_deserializing)]
@@ -141,16 +144,19 @@ pub async fn update_widgets(
     let dark_image_path = directory.join("widget-vehicle-dark.webp");
     #[cfg(target_os = "macos")]
     let dark_image_path = directory.join(format!("vehicle-{}", dark_artwork.replace('/', "-")));
-    for (source, destination) in [(path, &image_path), (&dark_artwork, &dark_image_path)] {
+    let write_image = |source: &str, destination: &std::path::Path| -> Result<()> {
         let asset = app
             .asset_resolver()
-            .get(source.clone())
+            .get(source.to_owned())
             .ok_or("小组件车辆图片不可用")?;
         let temporary = destination.with_extension("tmp");
         std::fs::write(&temporary, asset.bytes).map_err(|error| error.to_string())?;
         crate::platform::private_path(&temporary, 0o600)?;
         std::fs::rename(temporary, destination).map_err(|error| error.to_string())?;
-    }
+        Ok(())
+    };
+    write_image(path, &image_path)?;
+    write_image(&dark_artwork, &dark_image_path)?;
     #[cfg(target_os = "macos")]
     {
         let record = serde_json::json!({
@@ -169,8 +175,20 @@ pub async fn update_widgets(
     }
     #[cfg(any(target_os = "ios", target_os = "android"))]
     {
+        #[cfg(target_os = "ios")]
+        let portrait_path = if data.carplay_front {
+            let front = path.replace("-side.jpg", "-front-portrait.webp");
+            let destination = directory.join("widget-front.webp");
+            write_image(&front, &destination)?;
+            Some(destination)
+        } else {
+            None
+        };
+        #[cfg(target_os = "android")]
+        let portrait_path: Option<std::path::PathBuf> = None;
         let payload = serde_json::json!({
             "data": data, "imagePath": image_path, "darkImagePath": dark_image_path,
+            "portraitPath": portrait_path,
         });
         crate::mobile::call_async("updateWidgets", payload).await
     }

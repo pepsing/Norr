@@ -47,8 +47,15 @@ struct WidgetStorageTests {
     precondition((saved["data"] as! [String: Any])["locked"] as? Bool == false)
     precondition((saved["data"] as! [String: Any])["batteryPercent"] as? Int == 42)
     precondition(saved["imageName"] as? String == "fixture.jpg")
+    var frontView = record
+    frontView["portraitImageName"] = "vehicle-front.webp"
+    try WidgetStorage.write(JSONSerialization.data(withJSONObject: frontView), to: root)
+    saved = try stored()
+    precondition(saved["portraitImageName"] as? String == "vehicle-front.webp")
+    precondition((saved["data"] as! [String: Any])["observedAt"] as? Int == 200)
     try WidgetStorage.write(JSONSerialization.data(withJSONObject: record), to: root)
     saved = try stored()
+    precondition(saved["portraitImageName"] == nil)
     precondition((saved["data"] as! [String: Any])["locked"] as? Bool == false)
     for replacement in [["vin": "other-vin"], ["accountScope": "other-account"], ["accountScope": ""]] {
       var changed = values

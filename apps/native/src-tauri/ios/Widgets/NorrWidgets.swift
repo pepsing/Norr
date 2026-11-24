@@ -85,6 +85,7 @@ struct StoredVehicle: Decodable {
   let data: VehicleData
   let imageName: String
   let darkImageName: String?
+  let portraitImageName: String?
 }
 
 struct VehicleEntry: TimelineEntry {
@@ -118,7 +119,7 @@ struct VehicleProvider: AppIntentTimelineProvider {
     Timeline(entries: [load(configuration)], policy: .after(.now.addingTimeInterval(900)))
   }
 
-  private func load(_ configuration: WidgetOptions) -> VehicleEntry {
+  fileprivate func load(_ configuration: WidgetOptions, portrait: Bool = false) -> VehicleEntry {
     var entry = VehicleEntry(date: .now, configuration: configuration)
     guard let directory = WidgetStorage.directory() else {
       entry.unavailableTitle = "共享权限不可用"
@@ -140,23 +141,34 @@ struct VehicleProvider: AppIntentTimelineProvider {
       return entry
     }
     entry.data = stored.data
-    func croppedImage(_ name: String?) -> WidgetImage? {
+    func croppedImage(_ name: String?, fullFrame: Bool = false) -> WidgetImage? {
       guard let name, name.hasPrefix("vehicle-"), !name.contains("/") else { return nil }
       let url = directory.appendingPathComponent(name)
       guard let image = CGImageSourceCreateWithURL(url as CFURL, nil),
             let source = CGImageSourceCreateImageAtIndex(image, 0, nil) else { return nil }
       let height = min(CGFloat(source.height), CGFloat(source.width) / 3.2)
-      let crop = CGRect(x: 0, y: (CGFloat(source.height) - height) * 0.6,
-                        width: CGFloat(source.width), height: height)
-      let cropped = source.cropping(to: crop) ?? source
+      let width = CGFloat(source.width)
+      // Both catalog side views have clear space at the ends of their studio canvas.
+      let inset = portrait ? floor(width * 0.08) : 0
+      let crop = CGRect(x: inset, y: (CGFloat(source.height) - height) * 0.6,
+                        width: width - 2 * inset, height: height)
+      let cropped = fullFrame ? source : (source.cropping(to: crop) ?? source)
       #if os(macOS)
       return NSImage(cgImage: cropped, size: NSSize(width: cropped.width, height: cropped.height))
       #else
       return UIImage(cgImage: cropped)
       #endif
     }
-    entry.image = croppedImage(stored.imageName)
-    entry.darkImage = croppedImage(stored.darkImageName)
+    if portrait {
+      if let name = stored.portraitImageName {
+        entry.image = croppedImage(name, fullFrame: true)
+      } else {
+        entry.image = croppedImage(stored.darkImageName)
+      }
+    } else {
+      entry.image = croppedImage(stored.imageName)
+      entry.darkImage = croppedImage(stored.darkImageName)
+    }
     return entry
   }
 }
@@ -316,7 +328,9 @@ struct VehicleWidgetView: View {
   }
 }
 
+#if os(macOS)
 @main
+#endif
 struct NorrWidgets: Widget {
   var body: some WidgetConfiguration {
     AppIntentConfiguration(kind: "NorrVehicle", intent: WidgetOptions.self, provider: VehicleProvider()) { entry in
@@ -328,3 +342,68 @@ struct NorrWidgets: Widget {
     .contentMarginsDisabled()
   }
 }
+
+#if os(iOS)
+struct PortraitProvider: TimelineProvider {
+  func placeholder(in context: Context) -> VehicleEntry {
+    var entry = VehicleEntry(date: .now, configuration: WidgetOptions())
+    entry.preview = true
+    return entry
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (VehicleEntry) -> Void) {
+    let entry = VehicleProvider().load(WidgetOptions(), portrait: true)
+    completion(context.isPreview && entry.data == nil ? placeholder(in: context) : entry)
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<VehicleEntry>) -> Void) {
+    let entry = VehicleProvider().load(WidgetOptions(), portrait: true)
+    completion(Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(900))))
+  }
+}
+
+struct VehiclePortraitView: View {
+  let entry: VehicleEntry
+
+  private func caption(_ data: VehicleData) -> String {
+    guard data.freshnessPending != true, let value = data.batteryPercent,
+          (0...100).contains(value), let timestamp = data.updatedAt else { return data.model }
+    let reported = Date(timeIntervalSince1970: timestamp / 1000)
+    let prefix = Calendar.current.isDate(reported, inSameDayAs: entry.date) ? "" : "上次 "
+    return "\(data.model) · \(prefix)\(Int(value.rounded()))%"
+  }
+
+  var body: some View {
+    VStack(spacing: 6) {
+      if let image = entry.image {
+        Image(widgetImage: image).resizable().scaledToFit().accessibilityHidden(true)
+      } else {
+        Image(systemName: "car.side").font(.largeTitle).accessibilityHidden(true)
+      }
+      Text(entry.data.map(caption) ?? (entry.preview ? "北行车影 · 示例" : entry.unavailableTitle))
+        .font(.subheadline).lineLimit(1).minimumScaleFactor(0.7)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .containerBackground(.clear, for: .widget)
+  }
+}
+
+struct NorrPortraitWidget: Widget {
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: "NorrPortrait", provider: PortraitProvider()) { entry in
+      VehiclePortraitView(entry: entry)
+    }
+    .configurationDisplayName("北行车影")
+    .description("在 CarPlay 查看你的车和电量。车辆视角跟随北行 App 设置。")
+    .supportedFamilies([.systemSmall])
+  }
+}
+
+@main
+struct NorrWidgetBundle: WidgetBundle {
+  var body: some Widget {
+    NorrWidgets()
+    NorrPortraitWidget()
+  }
+}
+#endif

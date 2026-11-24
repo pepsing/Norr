@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Norr · CarPlay 车辆小组件</title>
+<style>
+@font-face{font-family:Archivo;src:url(../watch/assets/archivo.woff2)}
+*{box-sizing:border-box}
+body{margin:0;background:#f7f7f5;color:#242521;font:16px Archivo,-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1200px;margin:auto;padding:32px clamp(16px,4vw,54px)}
+header,.setting,.stage-label,footer,.paints,.caption{display:flex;align-items:center;justify-content:space-between}
+header{border-bottom:1px solid #cccec7;padding-bottom:14px}.brand{font-size:32px;letter-spacing:-2px}.brand b{color:#b75121}.muted,footer{font-size:13px;color:#60645b}
+h1{font-size:clamp(32px,4vw,52px);font-weight:450;letter-spacing:-2px;margin:26px 0}
+.layout{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(270px,1fr);gap:clamp(20px,3.6vw,44px);align-items:center}
+.stage{width:100%;isolation:isolate;position:relative;overflow:hidden;min-height:430px;aspect-ratio:1.55;display:grid;place-items:center;border-radius:12px;color:#fff;background:radial-gradient(ellipse at 11% 59%,#efd0ad 0%,transparent 49%),radial-gradient(ellipse at 79% 0%,#71879b 0%,transparent 65%),linear-gradient(175deg,#a79ba6 8%,#e2b49d 55%,#caa595 64%,#7f7478 88%);}
+.stage::before,.stage::after{content:"";position:absolute;pointer-events:none;inset:0;z-index:-1}
+.stage::before{background:linear-gradient(177deg,#a58086,#766f7b);clip-path:polygon(0 76%,10% 75%,21% 72%,36% 74%,50% 71%,60% 71%,76% 65%,85% 64%,100% 55%,100% 100%,0 100%);opacity:.48}
+.stage::after{background:linear-gradient(166deg,#847778,#4d525e);clip-path:polygon(0 67%,14% 72%,31% 76%,48% 76%,67% 79%,84% 76%,100% 70%,100% 100%,0 100%);opacity:.65}
+.stage.night{background:radial-gradient(ellipse at 12% 64%,#7e716b,transparent 55%),radial-gradient(ellipse at 78% 30%,#5b687e,transparent 60%),linear-gradient(155deg,#262c3c,#495363 60%,#302f37)}
+.stage.night::before{background:#343e51}.stage.night::after{background:#232b36}
+figure{margin:0}.widget{width:min(93%,590px);display:grid;place-items:center;position:relative;color:#fff}
+.art{position:relative;width:100%;aspect-ratio:2.65;overflow:hidden}
+.art img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:118%;height:auto}
+.art.front{aspect-ratio:2.3}.art.front img{width:112%;clip-path:url(#front-mask)}
+.caption{gap:10px;justify-content:center;font-size:19px;letter-spacing:.01em;font-variant-numeric:tabular-nums;margin-top:5px;color:#292723}.caption i{width:3px;height:3px;background:currentColor;border-radius:100%;opacity:.6}.night .caption{color:#fff}
+.stage-label{margin:12px 0 0;font-size:13px;color:#565a52;gap:8px;flex-wrap:wrap}
+button{cursor:pointer;font:inherit;color:inherit;background:transparent;border:1px solid #c5c8c0;border-radius:5px;min-height:44px}
+button:focus-visible{outline:3px solid #9c4319;outline-offset:3px}
+button:hover{background:#eaece7}button:active{transform:translateY(1px)}
+.wallpaper{font-size:13px;padding:0 10px}.panel{align-self:start;padding:16px 0}.panel h2{font-size:26px;font-weight:500;letter-spacing:-1px;margin:7px 0 26px}
+fieldset{min-width:0;border:0;padding:0;margin:0 0 22px}legend{padding:0 0 10px;font-size:14px}.options{display:flex;gap:8px}
+.view{flex:1;min-width:0;overflow:hidden;text-align:left;padding:0}.view img{display:block;width:100%;height:72px;object-fit:cover}.view span{padding:8px 10px;display:flex;justify-content:space-between;font-size:14px}
+button[aria-pressed=true]{border-color:#a44920;box-shadow:inset 0 0 0 1px #a44920}.view[aria-pressed=true] span:after{content:"✓";color:#99401b}
+.setting{border-top:1px solid #ced0c9;padding:17px 0}.setting small{color:#60645b}
+.paints{justify-content:start;gap:8px}.paints button{padding:0 10px;display:flex;align-items:center;gap:7px;font-size:14px}.dot{width:13px;height:13px;border-radius:50%;border:1px solid #a4a6a0}
+footer{margin-top:12px}.defs{position:absolute;width:0;height:0}
+@media(max-width:720px){main{padding:18px 16px}.layout{grid-template-columns:minmax(0,1fr);gap:12px}.stage{min-height:240px}.panel{padding:8px 0}.stage-label{font-size:12px}.caption{font-size:16px}.view img{height:80px}}
+</style></head><body>
+<svg class="defs" aria-hidden="true"><defs><clipPath id="front-mask" clipPathUnits="objectBoundingBox"><path transform="scale(.00069444444 .00123456790)" d="M281 488.5L282 435.5L288 406.5L298 368.5L299 340.5L301 327.5L306 325.5L311 312.5L323 308.5L339 296.5L379 252.5L401 230.5L419 214.5L437 201.5L448 195.5L473 186.5L495 182.5L519 181.5L543 178.5L601 176.5L602 175.5L719 175.5L720 176.5L781 178.5L828 183.5L852 184.5L866 187.5L879 192.5L896 201.5L929 224.5L961 251.5L990 280.5L994 270.5L1005 269.5L1023 275.5L1034 281.5L1038 285.5L1039 288.5L1041 317.5L1084 324.5L1111 332.5L1139 345.5L1154 356.5L1160 362.5L1161 372.5L1162 374.5L1163 373.5L1164 393.5L1167 392.5L1168 394.5L1171 414.5L1172 404.5L1173 416.5L1174 415.5L1176 391.5L1177 391.5L1183 410.5L1184 421.5L1185 419.5L1190 454.5L1191 486.5L1194 508.5L1194 545.5L1192 560.5L1189 570.5L1183 586.5L1169 614.5L1157 627.5L1137 633.5L1112 633.5L1111 634.5L1069 633.5L1054 624.5L1046 616.5L1038 605.5L1028 586.5L1027 587.5L977 587.5L976 588.5L824 590.5L815 598.5L807 600.5L751 600.5L741 595.5L740 593.5L662 594.5L653 612.5L643 625.5L637 631.5L625 639.5L610 644.5L547 644.5L531 635.5L518 610.5L510 579.5L507 577.5L414 566.5L392 562.5L385 590.5L377 603.5L366 608.5L314 608.5L305 606.5L293 595.5L287 577.5L283 555.5L281 534.5L281 488.5Z"/></clipPath></defs></svg>
+<main><header><div class="brand">Norr<b>.</b></div><span class="muted">北行 / 设计预览</span></header>
+<h1>CarPlay 车辆小组件</h1>
+<div class="layout"><figure><div class="stage" id="stage"><div class="widget">
+<div class="art" id="art"><img id="hero" width="1440" height="810" src="../../../apps/web/public/images/vehicles/polestar-2/long-dual/snow-black-side-cutout.webp" alt="Snow 色 Polestar 2 侧面" fetchpriority="high"></div>
+<div class="caption"><span>Polestar 2</span><i aria-hidden="true"></i><span aria-label="示例电量 68%">68%</span></div></div></div>
+<figcaption class="stage-label"><span>CarPlay 负一屏 · 壁纸与电量为示例</span><button class="wallpaper" id="wallpaper" type="button" aria-pressed="false">夜色壁纸</button></figcaption></figure>
+<section class="panel"><div class="muted">北行 App / 设置</div><h2>小组件外观</h2>
+<fieldset><legend>车辆视角</legend><div class="options">
+<button class="view" data-view="side" aria-pressed="true"><img alt="" width="1440" height="810" src="../../../apps/web/public/images/vehicles/polestar-2/long-dual/snow-black-side.jpg"><span>侧面</span></button>
+<button class="view" data-view="front" aria-pressed="false"><img alt="" width="1440" height="810" src="../../../apps/web/public/images/vehicles/polestar-2/long-dual/snow-black-front.jpg"><span>前侧</span></button></div></fieldset>
+<div class="setting"><span>车辆配置</span><small>跟随 App</small></div>
+<fieldset><legend>预览车漆</legend><div class="paints"><button data-color="snow" aria-pressed="true"><i class="dot" style="background:#ecece7"></i>Snow</button><button data-color="midnight" aria-pressed="false"><i class="dot" style="background:#3f4d5d"></i>Midnight</button></div></fieldset>
+</section></div></main>
+<script>
+const root="../../../apps/web/public/images/vehicles/polestar-2/long-dual/";
+let view="side",color="snow";
+function studio(angle){return root+color+"-black-"+angle+".jpg"}
+function render(){
+ const hero=document.getElementById("hero");
+ document.getElementById("art").classList.toggle("front",view==="front");
+ hero.src=view==="side"?root+color+"-black-side-cutout.webp":studio(view);
+ hero.alt=(color==="snow"?"Snow":"Midnight")+" 色 Polestar 2 "+(view==="side"?"侧面":"前侧");
+ for(const item of document.querySelectorAll("[data-view]")){item.setAttribute("aria-pressed",item.dataset.view===view);item.querySelector("img").src=studio(item.dataset.view)}
+ for(const item of document.querySelectorAll("[data-color]"))item.setAttribute("aria-pressed",item.dataset.color===color)
+}
+for(const item of document.querySelectorAll("[data-view]"))item.onclick=()=>{view=item.dataset.view;render()};
+for(const item of document.querySelectorAll("[data-color]"))item.onclick=()=>{color=item.dataset.color;render()};
+document.getElementById("wallpaper").onclick=function(){this.setAttribute("aria-pressed",document.getElementById("stage").classList.toggle("night"))};
+</script></body></html>

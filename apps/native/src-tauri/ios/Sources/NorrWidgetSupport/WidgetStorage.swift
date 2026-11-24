@@ -38,10 +38,17 @@ public enum WidgetStorage {
        let data = next["data"] as? [String: Any],
        let oldBytes = try? Data(contentsOf: path),
        let old = try? JSONSerialization.jsonObject(with: oldBytes) as? [String: Any],
-       let previous = old["data"] as? [String: Any],
+       var previous = old["data"] as? [String: Any],
        let account = data["accountScope"] as? String, account == previous["accountScope"] as? String,
        data["vin"] as? String == previous["vin"] as? String,
-       (previous["observedAt"] as? Double ?? 0) > (data["observedAt"] as? Double ?? 0) { return }
+       (previous["observedAt"] as? Double ?? 0) > (data["observedAt"] as? Double ?? 0) {
+      // A newer Siri reading can arrive before the settings screen publishes its artwork.
+      var merged = next
+      previous["artwork"] = data["artwork"]
+      merged["data"] = previous
+      try JSONSerialization.data(withJSONObject: merged).write(to: path, options: .atomic)
+      return
+    }
     try bytes.write(to: path, options: .atomic)
   }
 

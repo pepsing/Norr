@@ -938,3 +938,18 @@
 .p4-cabin-control legend { padding: 0; margin-bottom: 10px; }
 .p4-cabin-control .limit-presets { display: flex; gap: 6px; }
 .p4-cabin-control .limit-presets button { flex: 1; min-height: 44px; }
+.carplay-angles {
+  display: flex;
+  gap: 10px;
+}
+.carplay-angles button {
+  flex: 1;
+  max-width: 180px;
+  min-width: 0;
+  padding: 8px;
+  color: var(--ink);
+  background: var(--tile);
+  border: 1px solid var(--line);
+}
+.carplay-angles button[aria-pressed="true"] { border-color: var(--accent); }
+.carplay-angles img { display: block; width: 100%; height: 72px; object-fit: contain; }

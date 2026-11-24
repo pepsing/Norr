@@ -42,7 +42,7 @@ import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
 import { ChargeLocations, OpeningStatus, P4ClimateDetails, VehicleDetails } from "./VehicleDetails";
 import { VehicleMap } from "./VehicleMap";
-import { defaultAppearance, validAppearance } from "../vehicle-catalog";
+import { artworkPath, defaultAppearance, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
   actionLabels,
@@ -156,6 +156,10 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     () => window.matchMedia("(max-width: 760px)").matches,
   );
   const [appearance, setAppearance] = useState(defaultAppearance());
+  const [carplayView, setCarplayView] = useState<"side" | "front">(() => {
+    try { return localStorage.getItem("norr-carplay-view") === "front" ? "front" : "side"; }
+    catch { return "side"; }
+  });
   const [widgetTarget, setWidgetTarget] = useState<WidgetTarget | null>(null);
   const widgetSync = useRef(Promise.resolve());
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -300,7 +304,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     }
     let disposed = false;
     const data = snapshot && snapshot.vehicle.vin === vin
-      ? widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model))
+      ? { ...widgetData(snapshot, storedAppearance(vin, snapshot.vehicle.model)), carplayFront: isIOS && carplayView === "front" }
       : null;
     widgetSync.current = widgetSync.current
       .then(() => native.updateWidgets(data))
@@ -310,7 +314,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         if (!disposed) setWidgetError(String(problem));
       });
     return () => { disposed = true; };
-  }, [snapshot, vin, appearance, p4Logging]);
+  }, [snapshot, vin, appearance, p4Logging, carplayView]);
 
   useEffect(() => {
     if (p4Logging || !supportsWidgets) return;
@@ -943,6 +947,25 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       />
                     </div>
                   </section>
+                  {isIOS && !p4Logging && (
+                    <section className="native-section">
+                      <h2>CarPlay 小组件</h2>
+                      <p className="muted">在 CarPlay 的小组件中添加「北行车影」。车漆、轮毂和下饰板跟随当前车辆。</p>
+                      <div className="carplay-angles" role="group" aria-label="车辆视角">
+                        {(["side", "front"] as const).map(view => (
+                          <button key={view} aria-pressed={carplayView === view} onClick={() => {
+                            try {
+                              localStorage.setItem("norr-carplay-view", view);
+                              setCarplayView(view);
+                            } catch { setError("小组件视角未能保存"); }
+                          }}>
+                            <img src={artworkPath(appearance, view).replace(".jpg", view === "side" ? "-cutout.webp" : "-portrait.webp")} width="160" height="78" alt="" />
+                            {view === "side" ? "侧面" : "前侧"}{carplayView === view && <span aria-hidden="true"> ✓</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </>
               )}
               {settingsTab === "隐私与数据" && (
