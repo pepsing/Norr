@@ -497,7 +497,7 @@ iOS 模拟器 ZIP 的 SHA-256 为 `219a0aad198c7437e63c49394143bb25b242fdd4a223d
 | 工作 | 当前状态与验证条件 |
 | --- | --- |
 | 第一阶段：CarPlay 车辆信息小组件 | 已按[设计稿](design/carplay/preview.html)实现「北行车影」。iOS 26 起可在 iPhone「设置 → 通用 → CarPlay → 对应车辆 → 小组件」添加。车图跟随 App 外观，在北行「设置 → 偏好 → CarPlay 小组件」选择侧面或前侧。车下仅列车型与可用电量。已在 iOS 模拟器安装应用、识别小组件扩展，并以固定数据[渲染两个视角](design/carplay/native-preview.png)。**ToDo**：实体 iPhone 与车机显示验收。 |
-| TestFlight 0.2.1 (1026) | **ToDo**：Xcode 登录有该团队分发权限的 Apple 账号后，继续上传已签名归档，核对 Apple 处理状态并分发至现有 Norr 公测组。归档已验证四个包签名及版本号。 |
+| TestFlight 0.2.1 (1026) | CarPlay 构建已上传，Apple 已处理完成并加入现有「Norr 公测」组，状态为「正在测试」。此归档包含「北行车影」，Duo 首轮适配在归档后本地提交。[TestFlight 构建记录](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/64596c1d-3ba7-4c5e-8c62-b2916e619d03) |
 | 第二阶段：iPhone Duo 首页与弹窗 | 已接入 iOS 窗口左右安全区和 UIKit 当前有效的折叠分割区域。P2/P4 首页按内容宽度切换单列与双列，书本姿态将两列放在折线两侧，桌面半折姿态在上区展示车辆和导航，确认弹窗限制在单个可用区域。复用当前车辆与指令状态。[Apple 适配指南](https://developer.apple.com/iphone-duo/prepare/) |
 | Duo 验证 | 浏览器固定样本覆盖 382、385、594、669、951 px 和非对称安全区。模拟切换姿态时，24.5 °C 输入、进行中的指令与回读保持，模拟发送次数为 1。普通 iPhone 模拟器的 WKWebView 键盘与旋转测试通过。已在 iOS 27.1（24A94425）的 iPhone Duo 模拟器安装并启动北行。使用同一原生折线代码与固定 P2 样本，在 Device Hub 实测合盖外屏、内屏展开、书本与桌面半折；951 × 669 pt 书本姿态的车图和电量分处折线两侧，669 × 951 pt 桌面姿态的车图与导航位于上区。**ToDo**：系统分屏与 Duo 真机验收。 |
 | Duo 后续页面 | **ToDo**：逐页检查控制、充电、历史和设置的跨折线排布，以及换车后的状态。独立多窗口与内外屏同时显示另行评估。 |
