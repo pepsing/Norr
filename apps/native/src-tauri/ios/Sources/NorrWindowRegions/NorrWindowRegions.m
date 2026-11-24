@@ -1,6 +1,6 @@
 #import "NorrWindowRegions.h"
 
-void NorrTrackWindowDivision(UIView *view, void (^hingeAvailabilityChanged)(BOOL)) {
+void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL, BOOL)) {
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270100
     if (@available(iOS 27.1, *)) {
         __weak UIView *target = view;
@@ -8,20 +8,23 @@ void NorrTrackWindowDivision(UIView *view, void (^hingeAvailabilityChanged)(BOOL
             [changedView setNeedsLayout];
         }];
         [view addInteraction:[[UIHingeInteraction alloc] initWithUpdateHandler:^(UIHingeInteraction *interaction, UIHingeInteractionUpdate *update) {
-            hingeAvailabilityChanged(update.hinge != nil);
+            hingeChanged(update.hinge != nil, update.hinge.status == UIHingeStatusFullyOpen);
             [target setNeedsLayout];
         }]];
     }
 #endif
 }
 
-BOOL NorrHasVerticalBarEdge(UIView *view) {
+UIRectEdge NorrVerticalBarEdge(UIView *view) {
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270100
     if (@available(iOS 27.1, *)) {
-        return view.traitCollection.verticalBarEdge != UIVerticalBarEdgeUnspecified;
+        UIVerticalBarEdge edge = view.traitCollection.verticalBarEdge;
+        if (edge == UIVerticalBarEdgeUnspecified) return UIRectEdgeNone;
+        BOOL rtl = view.effectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft;
+        return (edge == UIVerticalBarEdgeLeading) != rtl ? UIRectEdgeLeft : UIRectEdgeRight;
     }
 #endif
-    return NO;
+    return UIRectEdgeNone;
 }
 
 CGRect NorrWindowDivision(UIView *view) {

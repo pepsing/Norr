@@ -1,3 +1,4 @@
+import NorrWindowRegions
 import UIKit
 import WebKit
 
@@ -5,7 +6,7 @@ import WebKit
 final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDelegate, UITabBarControllerDelegate {
   private weak var webView: WKWebView?
   private let bar = UITabBar()
-  private var sideController: UITabBarController?
+  private var sideController: DuoTabController?
   private var sideHost: DuoTabHost?
   private let symbols = ["car", "slider.horizontal.3", "bolt.batteryblock", "clock", "gearshape"]
 
@@ -36,14 +37,14 @@ final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDe
   }
 
   private func showSideTabs(in webView: WKWebView, labels: [String], selected: Int, dark: Bool) -> Bool {
-    let controller: UITabBarController
+    let controller: DuoTabController
     if let sideController {
       controller = sideController
     } else {
       var responder: UIResponder? = webView
       while responder != nil && !(responder is UIViewController) { responder = responder?.next }
       guard let parent = responder as? UIViewController else { return false }
-      controller = UITabBarController()
+      controller = DuoTabController()
       controller.delegate = self
       controller.viewControllers = labels.enumerated().map { index, title in
         let page = UIViewController()
@@ -52,6 +53,10 @@ final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDe
       }
       let host = DuoTabHost(frame: webView.bounds)
       host.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      controller.host = host
+      host.onVisibilityChange = { [weak webView] in
+        webView?.evaluateJavaScript("window.dispatchEvent(new Event('norr-tabs-ready'))")
+      }
       parent.addChild(controller)
       webView.addSubview(host)
       controller.view.frame = host.bounds
@@ -64,7 +69,8 @@ final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDe
     }
     controller.overrideUserInterfaceStyle = dark ? .dark : .light
     controller.selectedIndex = selected
-    return true
+    controller.view.layoutIfNeeded()
+    return sideHost?.hasRail == true
   }
 
   func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage,
@@ -121,20 +127,51 @@ final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDe
   }
 }
 
-/// The web view owns the page content; UIKit owns the controls in the lateral safe-area inset.
+@available(iOS 26.0, *)
+private final class DuoTabController: UITabBarController {
+  weak var host: DuoTabHost?
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    guard let host else { return }
+    let bar = tabBar.convert(tabBar.bounds, to: host)
+    let content = view.convert(contentLayoutGuide.layoutFrame, to: host)
+    let edge = NorrVerticalBarEdge(view)
+    var rail = CGRect.zero
+    if !isTabBarHidden, !tabBar.isHidden, tabBar.window != nil,
+       bar.height > bar.width, !content.isEmpty {
+      if edge == .left {
+        rail = host.bounds.divided(atDistance: max(0, content.minX - host.bounds.minX), from: .minXEdge).slice
+      } else if edge == .right {
+        rail = host.bounds.divided(atDistance: max(0, host.bounds.maxX - content.maxX), from: .maxXEdge).slice
+      }
+    }
+    host.setRail(rail.intersection(bar).width >= 44 ? rail : .zero)
+  }
+}
+
+/// Only the system tab strip draws over the web page and receives touches.
 private final class DuoTabHost: UIView {
-  private var rail: CGRect {
-    let insets = safeAreaInsets
-    return insets.left > insets.right
-      ? CGRect(x: 0, y: 0, width: insets.left, height: bounds.height)
-      : CGRect(x: bounds.width - insets.right, y: 0, width: insets.right, height: bounds.height)
+  private let clip = CAShapeLayer()
+  private var rail = CGRect.zero
+  var onVisibilityChange: (() -> Void)?
+  var hasRail: Bool { !rail.isEmpty }
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    accessibilityElementsHidden = true
+    layer.mask = clip
   }
 
-  override func layoutSubviews() {
-    super.layoutSubviews()
-    let mask = CAShapeLayer()
-    mask.path = UIBezierPath(rect: rail).cgPath
-    layer.mask = mask
+  required init?(coder: NSCoder) { nil }
+
+  func setRail(_ rect: CGRect) {
+    guard rail != rect else { return }
+    let wasVisible = hasRail
+    rail = rect
+    clip.path = UIBezierPath(rect: rect).cgPath
+    accessibilityElementsHidden = !hasRail
+    if wasVisible != hasRail { onVisibilityChange?() }
   }
 
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {

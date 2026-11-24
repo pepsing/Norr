@@ -36,6 +36,7 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
         if (revision === revisionAtSend) nav.classList.toggle("ios-system-tabs", visible);
       }).catch(() => { if (revision === revisionAtSend) nav.classList.remove("ios-system-tabs"); });
     };
+    const onReady = () => { previous = undefined; sync(); };
     const onSelect = (event: Event) => {
       const target = pages[(event as CustomEvent<number>).detail];
       if (target && nav.classList.contains("ios-system-tabs")) select(target.id);
@@ -46,7 +47,7 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
     const size = new ResizeObserver(sync);
     size.observe(nav);
     window.addEventListener("resize", sync);
-    window.addEventListener("norr-tabs-ready", sync);
+    window.addEventListener("norr-tabs-ready", onReady);
     window.addEventListener("norr-tab-select", onSelect);
     document.addEventListener("focusin", sync);
     document.addEventListener("focusout", sync);
@@ -56,7 +57,7 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
       mutations.disconnect();
       size.disconnect();
       window.removeEventListener("resize", sync);
-      window.removeEventListener("norr-tabs-ready", sync);
+      window.removeEventListener("norr-tabs-ready", onReady);
       window.removeEventListener("norr-tab-select", onSelect);
       document.removeEventListener("focusin", sync);
       document.removeEventListener("focusout", sync);

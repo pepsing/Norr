@@ -1118,3 +1118,29 @@
 .native-ios[data-duo-side-tabs]:has(.navigation.ios-system-tabs) .native-main {
   padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
+
+/* Keep the page tabs reachable while UIKit has no usable vertical strip. */
+.native-ios[data-duo-side-tabs] .native-header .navigation:not(.ios-system-tabs) {
+  position: fixed;
+  inset: auto auto max(8px, env(safe-area-inset-bottom)) auto;
+  display: grid;
+  grid-template-columns: 52px;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  z-index: 5;
+  background: var(--canvas);
+}
+.native-ios[data-duo-side-tabs] .navigation:not(.ios-system-tabs) .nav-item {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: 44px;
+  font-size: 11px;
+}
+.native-ios[data-duo-side-tabs] .navigation .nav-item > svg { display: block; }
+.native-ios[data-duo-side-tabs="left"] .native-header .navigation:not(.ios-system-tabs) { left: var(--window-left); }
+.native-ios[data-duo-side-tabs="right"] .native-header .navigation:not(.ios-system-tabs) { right: var(--window-right); }
+.native-ios[data-duo-side-tabs="left"]:has(.navigation:not(.ios-system-tabs)) #root { padding-left: calc(var(--window-left) + 52px); }
+.native-ios[data-duo-side-tabs="right"]:has(.navigation:not(.ios-system-tabs)) #root { padding-right: calc(var(--window-right) + 52px); }
