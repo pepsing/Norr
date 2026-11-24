@@ -42,7 +42,7 @@ import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
 import { ChargeLocations, OpeningStatus, P4ClimateDetails, VehicleDetails } from "./VehicleDetails";
 import { VehicleMap } from "./VehicleMap";
-import { artworkPath, defaultAppearance, validAppearance } from "../vehicle-catalog";
+import { artworkPath, defaultAppearance, sideCutoutPath, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
   actionLabels,
@@ -219,6 +219,12 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   useEffect(() => {
     document.title = `Norr 北行 · ${pages.find((item) => item.id === page)?.label}`;
   }, [page]);
+
+  useLayoutEffect(() => {
+    if (!isIOS) return;
+    document.documentElement.classList.add("native-ios");
+    return () => document.documentElement.classList.remove("native-ios");
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -730,6 +736,10 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
             {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
           </button>
         </div>
+        {isIOS && vehicle && (
+          <div className="fold-portrait" aria-hidden="true"
+            style={{ backgroundImage: `url("${sideCutoutPath(appearance)}")` }} />
+        )}
       </header>
       <SkyPullRefresh enabled={page === "vehicle" && !!vehicle && !!session?.hasSession && !dialog && !vehicleSheet}
         busy={busy} onRefresh={refresh} resetKey={`${page}:${vin}`}>

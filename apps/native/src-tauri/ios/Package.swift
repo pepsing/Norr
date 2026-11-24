@@ -8,6 +8,7 @@ let package = Package(
   dependencies: [.package(name: "Tauri", path: ".tauri/tauri-api")],
   targets: [
     .target(name: "NorrWidgetSupport"),
-    .target(name: "NorrMobile", dependencies: [.byName(name: "Tauri"), "NorrWidgetSupport"])
+    .target(name: "NorrWindowRegions"),
+    .target(name: "NorrMobile", dependencies: [.byName(name: "Tauri"), "NorrWidgetSupport", "NorrWindowRegions"])
   ]
 )

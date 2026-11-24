@@ -953,3 +953,143 @@
 }
 .carplay-angles button[aria-pressed="true"] { border-color: var(--accent); }
 .carplay-angles img { display: block; width: 100%; height: 72px; object-fit: contain; }
+
+/* The iOS window can reserve different amounts of space on its two sides. */
+.native-ios {
+  --window-left: env(safe-area-inset-left, 0px);
+  --window-right: env(safe-area-inset-right, 0px);
+}
+.native-ios #root {
+  padding-left: var(--window-left);
+  padding-right: var(--window-right);
+}
+.native-ios .native-header .header-actions,
+.native-ios .native-vehicle-select {
+  min-width: 0;
+}
+.native-ios .native-page-vehicle {
+  container: vehicle-home / inline-size;
+}
+.native-ios .modal[open] {
+  left: var(--window-left);
+  right: var(--window-right);
+  max-width: calc(100% - var(--window-left) - var(--window-right) - 24px);
+}
+@media (max-width: 760px) {
+  .native-ios .native-header .navigation {
+    left: var(--window-left);
+    right: var(--window-right);
+  }
+  .native-ios .modal.native-vehicle-sheet[open] {
+    width: calc(100% - var(--window-left) - var(--window-right));
+    max-width: none;
+  }
+}
+@container vehicle-home (min-width: 580px) and (max-width: 760px) {
+  .native-ios .native-page-vehicle :is(.overview-grid, .p4-overview) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+  .native-ios .p4-overview-side {
+    margin-top: 0;
+  }
+}
+.fold-portrait {
+  display: none;
+}
+.native-ios[data-window-division="vertical"] {
+  --pane-gutter: 16px;
+  --left-pane: calc(var(--fold-start) - var(--window-left) - 2 * var(--pane-gutter));
+  --division-gap: calc(var(--fold-end) - var(--fold-start) + 2 * var(--pane-gutter));
+}
+.native-ios[data-window-division="vertical"] :is(.native-header, .native-main) {
+  max-width: none;
+  padding-inline: var(--pane-gutter);
+}
+.native-ios[data-window-division="vertical"] .native-header,
+.native-ios[data-window-division="vertical"] :is(.overview-grid, .p4-overview) {
+  display: grid;
+  grid-template-columns: minmax(0, var(--left-pane)) minmax(0, 1fr);
+  column-gap: var(--division-gap);
+}
+.native-ios[data-window-division="vertical"] .native-header .wordmark {
+  grid-area: 1 / 1;
+  justify-self: start;
+}
+.native-ios[data-window-division="vertical"] .native-header .header-actions {
+  grid-area: 1 / 1;
+  justify-self: end;
+  max-width: calc(100% - 72px);
+}
+.native-ios[data-window-division="vertical"] .native-header .navigation {
+  grid-area: 1 / 2;
+}
+.native-ios[data-window-division="vertical"] .p4-overview-side {
+  margin-top: 0;
+}
+.native-ios[data-window-division="horizontal"] {
+  scroll-padding-top: var(--fold-end);
+}
+.native-ios[data-window-division="horizontal"] .native-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: var(--fold-end);
+  max-width: none;
+  padding: env(safe-area-inset-top) 16px calc(var(--fold-end) - var(--fold-start));
+  gap: 0;
+  background: var(--canvas);
+}
+.native-ios[data-window-division="horizontal"] .native-header .header-actions {
+  grid-area: 1 / 3;
+}
+.native-ios[data-window-division="horizontal"] .fold-portrait {
+  display: block;
+  grid-area: 2 / 1 / 3 / -1;
+  align-self: stretch;
+  background-size: contain;
+  background-position: center 55%;
+  background-repeat: no-repeat;
+}
+.native-ios[data-window-division="horizontal"] .navigation {
+  grid-area: 3 / 1 / 4 / -1;
+}
+.native-ios:is([data-window-division="horizontal"], [data-window-division="vertical"]) .native-header .navigation {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+/* The upper pane already shows the vehicle. Keep its label directly above the energy reading. */
+.native-ios[data-window-division="horizontal"] .native-page-vehicle .overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.native-ios[data-window-division="horizontal"] .native-page-vehicle .vehicle-stage {
+  min-height: 0;
+}
+.native-ios[data-window-division="horizontal"] .native-page-vehicle :is(.vehicle-art, .p4-car) {
+  display: none;
+}
+/* A confirmation stays in a single pane. The top pane also leaves room for the keyboard. */
+.native-ios[data-window-division="vertical"] .modal[open] {
+  left: var(--fold-end);
+  right: var(--window-right);
+  width: min(460px, calc(100vw - var(--fold-end) - var(--window-right) - 24px));
+  max-width: none;
+  margin-inline: auto;
+}
+.native-ios[data-window-division="horizontal"] .modal[open] {
+  top: env(safe-area-inset-top);
+  bottom: calc(100dvh - var(--fold-start));
+  max-height: calc(var(--fold-start) - env(safe-area-inset-top) - 12px);
+  margin: auto;
+}

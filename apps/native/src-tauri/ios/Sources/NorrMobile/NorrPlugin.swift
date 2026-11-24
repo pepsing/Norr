@@ -41,6 +41,9 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
 
   override func load(webview: WKWebView) {
     self.webview = webview
+    if #available(iOS 27.1, *) {
+      DispatchQueue.main.async { _ = WindowDivisionView(webView: webview) }
+    }
     active = UIApplication.shared.applicationState == .active
     NotificationCenter.default.addObserver(
       self, selector: #selector(enteredForeground),
