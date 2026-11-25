@@ -5,17 +5,38 @@ import type { Snapshot } from "./client";
 import { vehicleMapLinks } from "./mapLinks";
 import type { CoordinateSystem } from "./mapLinks";
 
-export function VehicleMap({
-  snapshot,
-  onError,
-}: {
+type VehicleMapProps = {
   snapshot?: Snapshot;
   onError: (message: string) => void;
-}) {
+};
+
+export function VehicleMap(props: VehicleMapProps) {
+  return <VehicleLocationMap key={props.snapshot?.vehicle.vin} {...props} />;
+}
+
+function VehicleLocationMap({ snapshot, onError }: VehicleMapProps) {
   const vin = snapshot?.vehicle.vin ?? "";
   const p4 = isNativeP4(snapshot?.vehicle);
   const [mapVisible, setVisible] = useState<boolean | null>(null);
-  const visible = mapVisible ?? !p4;
+  const preferenceKey = `norr-amap-auto-${vin}`;
+  const [automatic, setAutomatic] = useState(() => {
+    try {
+      return Boolean(p4 && vin && localStorage.getItem(preferenceKey) === "true");
+    } catch {
+      return false;
+    }
+  });
+  const visible = mapVisible ?? (!p4 || automatic);
+  function changeAutomatic(enabled: boolean) {
+    try {
+      if (enabled) localStorage.setItem(preferenceKey, "true");
+      else localStorage.removeItem(preferenceKey);
+      setAutomatic(enabled);
+      setVisible(enabled);
+    } catch {
+      onError("无法保存地图偏好，请检查本机存储。");
+    }
+  }
   const [showLoading, setShowLoading] = useState(false);
   const [googleSystem] = useState<CoordinateSystem>(() => {
     try {
@@ -159,6 +180,12 @@ export function VehicleMap({
         </>
       ) : (!p4 || snapshot?.readings.location?.status === "success") && (
         <p className="muted">车辆尚未返回有效位置。</p>
+      )}
+      {p4 && vin && (valid || automatic) && (
+        <label className="native-map-auto">
+          <input type="checkbox" checked={automatic} onChange={event => changeAutomatic(event.target.checked)} />
+          在此设备自动显示此车的高德地图，加载时向高德提供车辆位置
+        </label>
       )}
     </section>
   );

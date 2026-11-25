@@ -54,8 +54,13 @@ final class VehicleTabBar: NSObject, WKScriptMessageHandlerWithReply, UITabBarDe
       let host = DuoTabHost(frame: webView.bounds)
       host.autoresizingMask = [.flexibleWidth, .flexibleHeight]
       controller.host = host
-      host.onVisibilityChange = { [weak webView] in
-        webView?.evaluateJavaScript("window.dispatchEvent(new Event('norr-tabs-ready'))")
+      host.onRailChange = { [weak webView] rect in
+        guard let webView, webView.bounds.width > 0 else { return }
+        let width = 100 * rect.width / webView.bounds.width
+        webView.evaluateJavaScript("""
+          document.documentElement.style.setProperty('--duo-rail-width', '\(width)vw');
+          window.dispatchEvent(new Event('norr-tabs-ready'));
+          """)
       }
       parent.addChild(controller)
       webView.addSubview(host)
@@ -154,7 +159,7 @@ private final class DuoTabController: UITabBarController {
 private final class DuoTabHost: UIView {
   private let clip = CAShapeLayer()
   private var rail = CGRect.zero
-  var onVisibilityChange: (() -> Void)?
+  var onRailChange: ((CGRect) -> Void)?
   var hasRail: Bool { !rail.isEmpty }
 
   override init(frame: CGRect) {
@@ -167,11 +172,10 @@ private final class DuoTabHost: UIView {
 
   func setRail(_ rect: CGRect) {
     guard rail != rect else { return }
-    let wasVisible = hasRail
     rail = rect
     clip.path = UIBezierPath(rect: rect).cgPath
     accessibilityElementsHidden = !hasRail
-    if wasVisible != hasRail { onVisibilityChange?() }
+    onRailChange?(rect)
   }
 
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
