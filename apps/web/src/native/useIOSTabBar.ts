@@ -21,25 +21,28 @@ export function useIOSTabBar(pages: { id: string; label: string }[], select: (pa
       if (!bridge) return;
       const active = document.activeElement;
       const side = root.hasAttribute("data-duo-side-tabs");
+      const modalOpen = Boolean(document.querySelector("dialog[open]"));
+      const keepSideLayout = side && modalOpen;
       const show = !root.dataset.windowDivision && (side || matchMedia("(max-width: 760px)").matches) &&
-        !document.querySelector("dialog[open]") && !active?.matches("input, textarea, [contenteditable=true]") &&
+        !modalOpen && !active?.matches("input, textarea, [contenteditable=true]") &&
         nav.getClientRects().length > 0;
       const { x, y, width, height } = nav.getBoundingClientRect();
       const selected = Array.from(nav.children).findIndex(item => item.getAttribute("aria-current") === "page");
       const body = show ? { x, y, width, height, selected, side,
         labels: pages.map(item => item.label), dark: root.dataset.theme === "dark" } : null;
-      const signature = JSON.stringify(body);
+      const signature = JSON.stringify([body, keepSideLayout]);
       if (signature === previous) return;
       previous = signature;
       const revisionAtSend = ++revision;
-      void bridge.postMessage(body).then(visible => {
-        if (revision === revisionAtSend) nav.classList.toggle("ios-system-tabs", visible);
-      }).catch(() => { if (revision === revisionAtSend) nav.classList.remove("ios-system-tabs"); });
+      const updateLayout = (visible: boolean) => {
+        if (revision === revisionAtSend && !keepSideLayout) nav.classList.toggle("ios-system-tabs", visible);
+      };
+      void bridge.postMessage(body).then(updateLayout, () => updateLayout(false));
     };
     const onReady = () => { previous = undefined; sync(); };
     const onSelect = (event: Event) => {
       const target = pages[(event as CustomEvent<number>).detail];
-      if (target && nav.classList.contains("ios-system-tabs")) select(target.id);
+      if (target && nav.classList.contains("ios-system-tabs") && !document.querySelector("dialog[open]")) select(target.id);
     };
     const mutations = new MutationObserver(sync);
     mutations.observe(root, { attributes: true, attributeFilter: ["data-window-division", "data-duo-side-tabs", "data-theme"] });

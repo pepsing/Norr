@@ -1139,6 +1139,7 @@
   min-height: 44px;
   font-size: 11px;
 }
+.native-ios[data-duo-side-tabs]:has(dialog[open]) .navigation { visibility: hidden; }
 .native-ios[data-duo-side-tabs] .navigation .nav-item > svg { display: block; }
 .native-ios[data-duo-side-tabs="left"] .native-header .navigation:not(.ios-system-tabs) { left: var(--window-left); }
 .native-ios[data-duo-side-tabs="right"] .native-header .navigation:not(.ios-system-tabs) { right: var(--window-right); }
@@ -1155,10 +1156,10 @@
 .native-map-auto input { flex: none; }
 
 @media (orientation: landscape) {
-  .native-ios[data-duo-side-tabs="left"]:has(.navigation.ios-system-tabs, dialog[open]) {
+  .native-ios[data-duo-side-tabs="left"]:has(.navigation.ios-system-tabs) {
     --window-left: max(env(safe-area-inset-left, 0px), var(--duo-rail-width, 0px));
   }
-  .native-ios[data-duo-side-tabs="right"]:has(.navigation.ios-system-tabs, dialog[open]) {
+  .native-ios[data-duo-side-tabs="right"]:has(.navigation.ios-system-tabs) {
     --window-right: max(env(safe-area-inset-right, 0px), var(--duo-rail-width, 0px));
   }
   .native-ios[data-duo-side-tabs] .native-header {
@@ -1182,10 +1183,6 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 20px;
   }
-  .native-ios[data-duo-side-tabs]:has(dialog[open]) #root {
-    padding-inline: var(--window-left) var(--window-right);
-  }
-  .native-ios[data-duo-side-tabs]:has(dialog[open]) .navigation { visibility: hidden; }
   .native-ios[data-duo-side-tabs] .modal[open] {
     top: auto;
     bottom: calc(env(safe-area-inset-bottom) + 12px);
