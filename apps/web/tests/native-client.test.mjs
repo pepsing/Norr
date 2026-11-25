@@ -13,6 +13,7 @@ let cabinAirSnapshot;
 let openingState;
 let chargingOptions;
 let commandLimits;
+let chargingPlugText;
 let chargingStatusText;
 let chargingTimeText;
 let readingText;
@@ -26,6 +27,7 @@ try {
     openingState,
     chargingOptions,
     commandLimits,
+    chargingPlugText,
     chargingStatusText,
     chargingTimeText,
     readingText,
@@ -45,6 +47,23 @@ const sharedVehicle = {
   capabilities: { supportsParkingClimatization: true },
   limits: {},
 };
+
+test("P4 charging details keep conflicting plug readings pending", () => {
+  const sample = (chargeState, plugged, status = "success") => ({
+    vehicle: { platform: "HUANFU" },
+    readings: { battery: { status, value: { chargeState, plugged, minutesToFull: 90 } } },
+  });
+  const conflict = sample(1, false);
+  assert.equal(chargingStatusText(conflict), "正在充电");
+  assert.equal(chargingTimeText(conflict), "1 小时 30 分钟");
+  assert.equal(chargingPlugText(conflict), "连接状态待更新");
+  assert.equal(chargingPlugText(sample(1, true)), "已连接");
+  assert.equal(chargingPlugText(sample(3, true)), "已连接");
+  assert.equal(chargingPlugText(sample(null, false)), "未连接");
+  assert.equal(chargingPlugText(sample(1, null)), "未知");
+  assert.equal(chargingPlugText(sample(1, true, "failed")), "未知");
+  assert.equal(chargingPlugText(undefined), "未知");
+});
 
 test("charging duration uses reported time to full even when target time is absent", () => {
   const sample = (minutesToFull, status = "success") => ({

@@ -240,6 +240,15 @@ export function chargingStatusText(snapshot?: Snapshot): string {
   return "充电状态未知";
 }
 
+export function chargingPlugText(snapshot?: Snapshot): string {
+  const battery = snapshot?.readings.battery;
+  if (battery?.status !== "success") return "未知";
+  const plugged = battery.value?.plugged;
+  if (plugged === true) return "已连接";
+  if (plugged !== false) return "未知";
+  return numeric(snapshot, "battery", "chargeState") === 1 ? "连接状态待更新" : "未连接";
+}
+
 export function chargingTimeText(snapshot?: Snapshot): string | null {
   if (snapshot?.readings.battery?.status !== "success") return null;
   const value = numeric(snapshot, "battery", "minutesToFull");

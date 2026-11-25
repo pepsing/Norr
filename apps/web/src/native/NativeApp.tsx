@@ -54,6 +54,7 @@ import {
   p4CabinActions,
   commandLimits,
   chargingOptions,
+  chargingPlugText,
   chargingStatusText,
   chargingTimeText,
   native,
@@ -1370,7 +1371,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       <DataRows
                         rows={p4 ? [
                           ["预计充满剩余", chargeTime ?? "未知"],
-                          ["充电枪", snapshot?.readings.battery?.value?.plugged === true ? "已连接" : snapshot?.readings.battery?.value?.plugged === false ? "未连接" : "未知"],
+                          ["充电枪", chargingPlugText(snapshot)],
                         ] : [
                           [
                             "当前功率",
