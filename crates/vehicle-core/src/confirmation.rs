@@ -100,7 +100,22 @@ pub fn update(receipt: &mut Receipt, snapshot: &Snapshot) {
                 time <= receipt.time || time > reading.observed_at || time > snapshot.fetched_at
             }))
     {
-        "等待操作后的车辆上报"
+        let value = reading.value.as_ref();
+        match receipt.command.action.as_str() {
+            "unlock" if value.is_some_and(|v| v["locked"] == false) => {
+                "最近车况显示已解锁，本次操作待确认"
+            }
+            "lock" if value.is_some_and(|v| v["locked"] == true) => {
+                "最近车况显示已锁定，本次操作待确认"
+            }
+            "climateStart" if value.is_some_and(|v| v["activity"] == "active") => {
+                "最近车况显示空调运行中，本次操作待确认"
+            }
+            "climateStop" if value.is_some_and(|v| v["activity"] == "idle") => {
+                "最近车况显示空调已停止，本次操作待确认"
+            }
+            _ => "等待操作后的车辆上报",
+        }
     } else if p4_control
         && matches!(receipt.command.action.as_str(), "lock" | "unlock")
         && reading
@@ -309,7 +324,10 @@ mod tests {
             .as_mut()
             .unwrap()["freshnessPending"] = json!(true);
         update(&mut receipt, &snapshot);
-        assert_eq!(receipt.readback.as_deref(), Some("等待操作后的车辆上报"));
+        assert_eq!(
+            receipt.readback.as_deref(),
+            Some("最近车况显示空调运行中，本次操作待确认")
+        );
         snapshot
             .readings
             .get_mut("climate")
@@ -404,6 +422,47 @@ mod tests {
             })).unwrap();
             update(&mut receipt, &snapshot);
             assert_eq!(receipt.readback.as_deref(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn cached_p4_state_then_a_fresh_report_for_the_same_command() {
+        for (action, field, value, pending) in [
+            (
+                "unlock",
+                "exterior",
+                json!({"locked":false}),
+                "最近车况显示已解锁，本次操作待确认",
+            ),
+            (
+                "climateStart",
+                "climate",
+                json!({"activity":"active"}),
+                "最近车况显示空调运行中，本次操作待确认",
+            ),
+        ] {
+            let mut receipt: Receipt = serde_json::from_value(json!({"id":"fixture","time":1000,
+                "status":"accepted","message":"P4 服务已受理","command":{"vin":"TEST","action":action}})).unwrap();
+            let mut snapshot: Snapshot = serde_json::from_value(json!({
+                "vehicle":{"vin":"TEST","model":"P4","platform":"HUANFU","capabilities":{},"limits":{}},
+                "fetchedAt":2000,"readings":{(field):{"status":"success","observedAt":2000,"reportedAt":990,"value":value}}
+            })).unwrap();
+            update(&mut receipt, &snapshot);
+            assert_eq!(receipt.readback.as_deref(), Some(pending));
+            let reading = snapshot.readings.get_mut(field).unwrap();
+            reading.reported_at = Some(1500);
+            reading.value.as_mut().unwrap()["freshnessPending"] = json!(true);
+            update(&mut receipt, &snapshot);
+            assert_eq!(receipt.readback.as_deref(), Some(pending));
+            snapshot
+                .readings
+                .get_mut(field)
+                .unwrap()
+                .value
+                .as_mut()
+                .unwrap()["freshnessPending"] = json!(false);
+            update(&mut receipt, &snapshot);
+            assert_eq!(receipt.readback.as_deref(), Some(CONFIRMED));
         }
     }
 

@@ -134,7 +134,7 @@ pub async fn prepare_control(
     };
     let profile = reader.profile(&command.vin).await?;
     let capabilities = reader.capabilities(&command.vin, &profile).await?;
-    let snapshot = reader.status_snapshot(car).await?;
+    let snapshot = reader.status_snapshot(car, false).await?;
     authorize_control(car, command, &capabilities, &snapshot)?;
     availability::check_seat_mode(command, &snapshot, now_ms())?;
     let grant = match reader.renewed.get() {
@@ -356,7 +356,7 @@ fn outcome(http: u16, data: &Value) -> (String, String) {
             return unknown();
         }
     }
-    ("accepted".into(), "P4 服务已受理，等待车辆回读".into())
+    ("accepted".into(), "P4 服务已受理".into())
 }
 
 #[cfg(test)]
@@ -791,15 +791,15 @@ mod tests {
         })).unwrap();
         for (kind, data, path) in [
             ("target", json!({"soc":"900","socTime":reported}), "GET /remote-control/vehicle/status/soc/TEST1234567890123?setting=charging "),
-            ("climate", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"climateStatus":{"preClimateActive":1}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=false&target=&userId=fixture-user "),
-            ("exterior", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"drivingSafetyStatus":{"centralLockingStatus":1,"trunkLockStatus":0},"electricVehicleStatus":{"chargeLidDcAcStatus":2},"climateStatus":{"winStatusDriver":0}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=false&target=&userId=fixture-user "),
-            ("airQuality", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"climateStatus":{"airBlowerActive":false}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=false&target=&userId=fixture-user "),
+            ("climate", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"climateStatus":{"preClimateActive":1}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=true&target=&userId=fixture-user "),
+            ("exterior", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"drivingSafetyStatus":{"centralLockingStatus":1,"trunkLockStatus":0},"electricVehicleStatus":{"chargeLidDcAcStatus":2},"climateStatus":{"winStatusDriver":0}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=true&target=&userId=fixture-user "),
+            ("airQuality", json!({"result":{"serviceResult":{"operationResult":0}},"vehicleStatus":{"configuration":{"vin":"TEST1234567890123"},"updateTime":reported,"additionalVehicleStatus":{"climateStatus":{"airBlowerActive":false}}}}), "GET /remote-control/vehicle/status/TEST1234567890123?latest=true&target=&userId=fixture-user "),
         ] {
             let (endpoint, captured) = server(200, json!({"code":1000,"data":data}), Duration::ZERO);
             let http = Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().unwrap();
             let api = Api { http: &http, key: hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, b"fixture-secret"), device: "fixture".into(), endpoint: Some(endpoint), sessions: None };
             let reader = VehicleRead { api: &api, session: &session, grant: json!({"userId":"fixture-user","accessToken":"fixture-token","clientId":"fixture-client"}), renewed: Default::default() };
-            let reading = tokio::runtime::Runtime::new().unwrap().block_on(reader.control_reading(&vehicle(), kind)).unwrap();
+            let reading = tokio::runtime::Runtime::new().unwrap().block_on(reader.control_reading(&vehicle(), kind, true)).unwrap();
             assert_eq!(reading.status, "success");
             assert_eq!(reading.reported_at, Some(reported));
             let value = reading.value.unwrap();

@@ -131,7 +131,9 @@ impl VehicleReadback for crate::ChinaClient {
             return Err("账号已变更，请重新选择车辆".into());
         }
         let endpoint = action.reading();
-        let reading = self.refresh_reading(&scope.vehicle.vin, endpoint).await?;
+        let reading = self
+            .refresh_reading(&scope.vehicle.vin, endpoint, false)
+            .await?;
         if self.account_scope().as_deref() != Some(scope.account) {
             return Err("回读期间账号已变更".into());
         }

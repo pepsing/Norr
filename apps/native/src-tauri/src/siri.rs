@@ -219,7 +219,7 @@ mod ios {
                 let reading = bounded(
                     deadline,
                     &mut cancel,
-                    backend.client.refresh_reading(&car.vin, kind),
+                    backend.client.refresh_reading(&car.vin, kind, false),
                 )
                 .await?;
                 let snapshot = backend.record_reading(&car, kind, reading.clone(), now_ms())?;
@@ -316,7 +316,7 @@ mod ios {
         let Ok(reading) = bounded(
             deadline,
             cancel,
-            backend.client.refresh_reading(&car.vin, endpoint),
+            backend.client.refresh_reading(&car.vin, endpoint, true),
         )
         .await
         else {

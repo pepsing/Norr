@@ -17,7 +17,7 @@ import { EmptyState, SectionTabs } from "../components/WorkspaceUI";
 import { SchedulePanel } from "./SchedulePanel";
 import { AirQuality, P4ClimateDetails, SoftwarePanel } from "./VehicleDetails";
 import {
-  actionLabels,
+  actionLabels, serviceMessage,
   p4FindActions,
   activeControls,
   cabinAirSnapshot,
@@ -288,7 +288,7 @@ export function NativeControls({
                     {new Date(receipt.time).toLocaleString("zh-CN", {
                       hour12: false,
                     })}{" "}
-                    · {receipt.message}
+                    · {serviceMessage(receipt)}
                   </p>
                   <p className="muted">
                     {receipt.readback ?? "独立回读待核对"}

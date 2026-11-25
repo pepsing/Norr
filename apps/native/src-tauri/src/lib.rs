@@ -184,7 +184,11 @@ impl Backend {
         );
     }
 
-    async fn read_command_state(&mut self, command: &Command) -> Result<Snapshot> {
+    async fn read_command_state(
+        &mut self,
+        command: &Command,
+        request_latest: bool,
+    ) -> Result<Snapshot> {
         let car = self
             .history
             .snapshots
@@ -200,7 +204,10 @@ impl Backend {
             }
         };
         let endpoint = confirmation::endpoint(&command.action).ok_or("指令没有对应的回读项目")?;
-        let reading = self.client.refresh_reading(&command.vin, endpoint).await?;
+        let reading = self
+            .client
+            .refresh_reading(&command.vin, endpoint, request_latest)
+            .await?;
         self.record_reading(&car, endpoint, reading, now_ms())
     }
 }
@@ -210,7 +217,7 @@ fn pending_readback(
     now: u64,
     account: Option<&str>,
     eligible: impl Fn(&Command) -> bool,
-) -> Option<Command> {
+) -> Option<Receipt> {
     let mut latest = std::collections::BTreeSet::new();
     history
         .receipts
@@ -254,7 +261,7 @@ fn pending_readback(
                 })
                 .map_or(0, |reading| reading.observed_at)
         })
-        .map(|receipt| receipt.command.clone())
+        .cloned()
 }
 
 #[tauri::command]
@@ -416,7 +423,7 @@ async fn refresh(
             .ok_or("当前车辆没有这条可核对的操作")?
             .command
             .clone();
-        return backend.read_command_state(&command).await;
+        return backend.read_command_state(&command, true).await;
     }
     let snapshot = backend.client.refresh(&vin).await?;
     backend.history.settings.selected_vin = Some(vin.clone());
@@ -660,7 +667,7 @@ async fn send_command(
         .cloned()
         {
             if confirmation::endpoint(&pending.command.action).is_some() {
-                let snapshot = backend.read_command_state(&pending.command).await?;
+                let snapshot = backend.read_command_state(&pending.command, true).await?;
                 let _ = app.emit("vehicle-updated", snapshot);
             }
             if pending.command.action == command.action && pending.command.value == command.value {
@@ -772,8 +779,11 @@ async fn collect_in_background(app: tauri::AppHandle) {
         });
         #[cfg(all(target_os = "ios", not(feature = "polestar4-test")))]
         let checking_command = pending.is_some();
-        let result = if let Some(command) = pending {
-            let result = backend.read_command_state(&command).await;
+        let result = if let Some(receipt) = pending {
+            let command = receipt.command;
+            let result = backend
+                .read_command_state(&command, receipt.readback_at.is_none())
+                .await;
             let usable = result
                 .as_ref()
                 .ok()
@@ -1517,13 +1527,17 @@ mod tests {
         };
         assert!(pending_readback(&history, 2000, None, |_| false).is_none());
         let pending = pending_readback(&history, 2000, None, |_| true).unwrap();
-        assert_eq!(pending.vin, "TEST0000000000001");
-        assert_eq!(confirmation::endpoint(&pending.action), Some("exterior"));
+        assert_eq!(pending.command.vin, "TEST0000000000001");
+        assert_eq!(
+            confirmation::endpoint(&pending.command.action),
+            Some("exterior")
+        );
 
         history.receipts.push(receipt("lock", "lock", 2000));
         assert_eq!(
             pending_readback(&history, 3000, None, |_| true)
                 .unwrap()
+                .command
                 .action,
             "lock"
         );
@@ -1531,6 +1545,7 @@ mod tests {
         assert_eq!(
             pending_readback(&history, 3000, None, |_| true)
                 .unwrap()
+                .command
                 .action,
             "unlock"
         );
@@ -1545,6 +1560,7 @@ mod tests {
             confirmation::endpoint(
                 &pending_readback(&history, 4000, None, |_| true)
                     .unwrap()
+                    .command
                     .action
             ),
             Some("climate")
@@ -1574,6 +1590,7 @@ mod tests {
         assert_eq!(
             pending_readback(&history, 4000, None, |_| true)
                 .unwrap()
+                .command
                 .action,
             "unlock"
         );
@@ -1585,6 +1602,7 @@ mod tests {
         assert_eq!(
             pending_readback(&history, 5000, None, |_| true)
                 .unwrap()
+                .command
                 .action,
             "climateStart"
         );

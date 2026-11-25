@@ -514,7 +514,12 @@ impl ChinaClient {
         Ok(snapshot)
     }
 
-    pub async fn refresh_reading(&mut self, vin: &str, kind: &str) -> Result<Reading> {
+    pub async fn refresh_reading(
+        &mut self,
+        vin: &str,
+        kind: &str,
+        _request_latest: bool,
+    ) -> Result<Reading> {
         self.ensure_metadata().await?;
         #[cfg(all(
             feature = "polestar4",
@@ -531,6 +536,7 @@ impl ChinaClient {
                 self.session.as_ref().ok_or("会话尚未恢复")?,
                 car,
                 kind,
+                _request_latest,
             )
             .await;
         }

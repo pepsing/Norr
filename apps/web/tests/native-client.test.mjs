@@ -17,6 +17,7 @@ let chargingStatusText;
 let chargingTimeText;
 let readingText;
 let refreshOutcome;
+let serviceMessage;
 try {
   ({
     unavailableReason,
@@ -29,6 +30,7 @@ try {
     chargingTimeText,
     readingText,
     refreshOutcome,
+    serviceMessage,
   } = await server.ssrLoadModule("/src/native/client.ts"));
 } finally {
   await server.close();
@@ -358,4 +360,11 @@ test("P4 keeps charging state and plug detection distinct on both energy cards",
     assert.equal(readingText({ vehicle: { capabilities: { [marker]: true } }, readings: {} }, "software"), "此项数据待接入");
   }
   assert.equal(label(null, false, false), "充电状态未知");
+});
+
+test("saved P4 service receipts show the current readback without repeating the initial wait", () => {
+  for (const readback of ["等待车辆回读", "最近车况显示已解锁，本次操作待确认", "回读一致"]) {
+    assert.equal(serviceMessage({ message: "P4 服务已受理，等待车辆回读", readback }), "P4 服务已受理");
+  }
+  assert.equal(serviceMessage({ message: "服务拒绝", readback: null }), "服务拒绝");
 });

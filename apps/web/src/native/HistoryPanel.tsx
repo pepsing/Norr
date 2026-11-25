@@ -4,7 +4,7 @@ import { ArrowDownToLine, ArrowUpRight } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { DataRows, EmptyState, SectionTabs } from "../components/WorkspaceUI";
 import { HistoryTrend } from "./HistoryTrend";
-import { actionLabels, native } from "./client";
+import { actionLabels, serviceMessage, native } from "./client";
 import type { HistoryReport, ImportSummary } from "./client";
 
 const categoryLabels: Record<string, string> = {
@@ -626,7 +626,7 @@ export function HistoryPanel({
                         </div>
                         <div>
                           <p>
-                            {command.message ||
+                            {serviceMessage(command) ||
                               statusLabels[command.status] ||
                               command.status}
                           </p>

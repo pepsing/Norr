@@ -141,7 +141,12 @@ struct VehicleRead<'a> {
 }
 
 impl VehicleRead<'_> {
-    async fn control_reading(&self, car: &Vehicle, kind: &str) -> Result<Reading> {
+    async fn control_reading(
+        &self,
+        car: &Vehicle,
+        kind: &str,
+        request_latest: bool,
+    ) -> Result<Reading> {
         if kind == "target" {
             return Ok(crate::p4_readback::charge_target(
                 self.get(
@@ -152,20 +157,24 @@ impl VehicleRead<'_> {
                 .await,
             ));
         }
-        self.status_snapshot(car)
+        self.status_snapshot(car, request_latest)
             .await?
             .readings
             .remove(kind)
             .ok_or_else(|| "P4 该读数待验证".into())
     }
 
-    async fn status_snapshot(&self, car: &Vehicle) -> Result<Snapshot> {
+    async fn status_snapshot(&self, car: &Vehicle, request_latest: bool) -> Result<Snapshot> {
         let uid = self.grant["userId"].as_str().ok_or("P4 会话缺少车辆授权")?;
         let status = self
             .get(
                 "device-api",
                 &format!("/remote-control/vehicle/status/{}", car.vin),
-                &[("userId", uid), ("latest", "false"), ("target", "")],
+                &[
+                    ("userId", uid),
+                    ("latest", if request_latest { "true" } else { "false" }),
+                    ("target", ""),
+                ],
             )
             .await;
         readings::snapshot(car, status, Err("未请求独立充电读数".into()))
@@ -265,6 +274,7 @@ pub async fn refresh_reading(
     session: &Session,
     car: &Vehicle,
     kind: &str,
+    request_latest: bool,
 ) -> Result<Reading> {
     if !matches!(kind, "target" | "climate" | "exterior" | "airQuality") {
         return refresh(http, session, car)
@@ -283,7 +293,7 @@ pub async fn refresh_reading(
         renewed: Default::default(),
     };
     reader.profile(&car.vin).await?;
-    reader.control_reading(car, kind).await
+    reader.control_reading(car, kind, request_latest).await
 }
 
 pub async fn refresh(http: &Client, session: &Session, car: &Vehicle) -> Result<Snapshot> {

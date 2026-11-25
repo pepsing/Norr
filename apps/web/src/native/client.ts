@@ -70,6 +70,11 @@ export interface Receipt {
   readbackAt: number | null;
   readback: string | null;
 }
+export function serviceMessage(receipt: { message: string | null; readback: string | null }) {
+  if (receipt.readback && receipt.message === "P4 服务已受理，等待车辆回读") return "P4 服务已受理";
+  return receipt.message;
+}
+
 export interface History {
   snapshots: Snapshot[];
   receipts: Receipt[];

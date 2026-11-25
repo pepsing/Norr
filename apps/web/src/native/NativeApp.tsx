@@ -47,7 +47,7 @@ import { VehicleMap } from "./VehicleMap";
 import { artworkPath, defaultAppearance, sideCutoutPath, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
 import {
-  actionLabels,
+  actionLabels, serviceMessage,
   p4FindActions,
   activeControls,
   isNativeP4,
@@ -724,7 +724,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   const noticeText = noticeReceipt
     ? [
         actionLabels[noticeReceipt.command.action],
-        noticeReceipt.message,
+        serviceMessage(noticeReceipt),
         noticeReceipt.readback,
       ]
         .filter(Boolean)
@@ -814,7 +814,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         {notice && (
           <div className="native-notice" role="status">
             <span>{noticeText}</span>
-            {pendingReceipt && delayedReceipt === pendingReceipt.id && <span>已超过一分钟，仍未取得匹配的车辆上报。</span>}
+            {pendingReceipt && delayedReceipt === pendingReceipt.id && <span>已超过一分钟，本次操作仍待确认。</span>}
             {pendingReceipt && (
                 <button className="text-button" disabled={busy} onClick={() => void checkReceipt(pendingReceipt)}>
                   {busy ? "正在读取车况…" : Date.now() - pendingReceipt.time < 600_000 ? "重新核对车况" : "查看当前车况"}
