@@ -3,5 +3,5 @@
   "identifier": "main-window",
   "windows": ["main"],
   "platforms": ["linux", "macOS", "windows", "android"],
-  "permissions": ["core:default", "main-app", "android-theme", "macos-import"]
+  "permissions": ["core:default", "main-app", "app-updates", "android-theme", "macos-import"]
 }

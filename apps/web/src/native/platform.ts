@@ -6,6 +6,7 @@ export const isWindows = platform === "windows";
 export const isAndroid = platform === "android";
 export const isIOS = platform === "ios";
 export const isHarmonyOS = platform === "harmonyos";
+export const supportsAppUpdates = ["macos", "windows", "android"].includes(platform ?? "");
 export const supportsWidgets = ["android", "ios", "macos"].includes(platform ?? "");
 export const isMobile = isAndroid || isIOS || isHarmonyOS;
 export const desktopName = isHarmonyOS

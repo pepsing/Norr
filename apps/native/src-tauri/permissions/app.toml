@@ -2,7 +2,7 @@
 identifier = "main-app"
 description = "Local Norr window commands"
 commands.allow = [
-  "session_status", "request_login_code", "sign_in_phone", "sign_in_password",
+  "app_version", "session_status", "request_login_code", "sign_in_phone", "sign_in_password",
   "connect", "refresh", "history", "history_report", "preview_history_import",
   "commit_history_import", "cancel_history_import", "set_refresh_interval",
   "desktop_status", "set_desktop_option", "open_system_settings",
@@ -30,3 +30,8 @@ commands.allow = ["sync_watch"]
 identifier = "phone-verification"
 description = "Submit the official phone verification result"
 commands.allow = ["submit_verification"]
+
+[[permission]]
+identifier = "app-updates"
+platforms = ["macOS", "android", "windows"]
+commands.allow = ["check_update", "install_update"]

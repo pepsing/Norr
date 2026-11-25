@@ -23,6 +23,16 @@ private struct NotificationTarget: Codable {
 }
 
 final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
+  @objc func installedVersion(_ invoke: Invoke) {
+    let info = Bundle.main.infoDictionary
+    guard let version = info?["CFBundleShortVersionString"] as? String else {
+      invoke.reject("无法读取版本号")
+      return
+    }
+    let build = info?["CFBundleVersion"] as? String
+    invoke.resolve(["version": build.map { "\(version) (\($0))" } ?? version])
+  }
+
   private var active = false
   private var generation = 0
   private var target: NotificationTarget?

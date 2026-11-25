@@ -15,6 +15,7 @@ import android.provider.Settings
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.tauri.annotation.ActivityCallback
@@ -41,6 +42,46 @@ class NorrPlugin(private val activity: Activity) : Plugin(activity) {
     private var webView: WebView? = null
     private var verification: PhoneVerification? = null
     private val credentials by lazy { NorrCredentialStore(activity) }
+
+    @Command
+    fun installedVersion(invoke: Invoke) {
+        val info = activity.packageManager.getPackageInfo(activity.packageName, 0)
+        invoke.resolve(JSObject().put("version", info.versionName) as JSObject)
+    }
+
+    @Command
+    fun prepareUpdate(invoke: Invoke) {
+        if (Build.VERSION.SDK_INT < 26 || activity.packageManager.canRequestPackageInstalls()) {
+            invoke.resolve()
+            return
+        }
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.packageName))
+        startActivityForResult(invoke, intent, "updatePermission")
+    }
+
+    @ActivityCallback
+    private fun updatePermission(invoke: Invoke, result: ActivityResult) {
+        if (Build.VERSION.SDK_INT >= 26 && activity.packageManager.canRequestPackageInstalls()) invoke.resolve()
+        else invoke.reject("未获得安装权限，可在系统设置中允许北行安装应用后重试。")
+    }
+
+    @Command
+    fun installUpdate(invoke: Invoke) {
+        try {
+            val file = File(invoke.getArgs().getString("path")).canonicalFile
+            val info = activity.packageManager.getPackageArchiveInfo(file.path, 0)
+            require(file.parentFile == File(activity.cacheDir, "updates").canonicalFile &&
+                info?.packageName == activity.packageName) { "安装包与当前应用不匹配" }
+            val uri = FileProvider.getUriForFile(activity, activity.packageName + ".fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            activity.startActivity(intent)
+            invoke.resolve()
+        } catch (error: Exception) {
+            invoke.reject("无法打开系统安装程序：" + error.localizedMessage)
+        }
+    }
 
     override fun load(webView: WebView) {
         this.webView = webView

@@ -1,5 +1,18 @@
 # Norr 开发进展
 
+## 2026-11-25 · 关于与应用更新
+
+「设置 → 关于」显示当前安装版本和仓库 MIT 协议全文。macOS ARM64、Windows x64 与 Android ARM64 默认在前台异步检查 GitHub Releases，每次成功检查后间隔 24 小时。可关闭自动检查，也可随时手动检查。仅在用户选择「下载并更新」后下载安装包。按平台和语义版本比较正式版及公开测试版，跳过草稿和缺少本机安装包的发布。iOS 显示安装包版本与构建号。HarmonyOS 显示版本与协议，GitHub Release 目前缺少面向用户分发的鸿蒙安装包。
+
+| 验收 | 结果 | 依据 |
+| --- | --- | --- |
+| Hard Gate | PASS | iOS Duo 模拟器实际打开「关于」，读到安装版本，无更新入口。320 像素视口检查通过。 |
+| Purpose Gate | PASS | Android 36 模拟器从本地 0.1.0 发起更新，授权安装来源并确认后，系统报告已覆盖至公开的 0.2.1-alpha.9（1025），首次安装时间一致。 |
+| Liveliness | PASS | 固定样本验证发现版本后可选「稍后」，关闭自动检查重启后仍生效，手动更新失败可重试。 |
+| Craftsmanship | PASS | macOS 隔离目录使用实际 Release 包验证 SHA-256、签名、原位替换和启动助手失败回滚。Windows NSIS 交叉打包通过，Android、iOS、macOS 与 HarmonyOS 本地打包通过。 |
+
+**ToDo** Windows 实机完成 NSIS 覆盖安装和重启验收。
+
 ## 2026-11-25 Duo 横屏历史页与 P4 地图偏好
 
 TestFlight 0.2.1（1030）已加入 Norr 公测组，App Store Connect 显示「正在测试」。签名归档来自 `7f51548`。展开横屏时历史页按侧栏剩余宽度排版，弹窗靠近底部。P4 可按设备和车辆记住高德地图自动显示偏好。Duo 27.2.1 真机复核为 ToDo。[模拟器验收记录](design/iphone-duo/review-2026-11-24.md) · [TestFlight 构建](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/e771f795-01e9-4334-a795-495b4f836df5)

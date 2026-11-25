@@ -5,6 +5,7 @@ import {
   isIOS,
   isMobile,
   isWindows,
+  supportsAppUpdates,
   supportsWidgets,
 } from "./platform";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -41,6 +42,7 @@ import { P4Recording } from "./P4Recording";
 import { DesktopSettings } from "./DesktopSettings";
 import { PhoneSignIn } from "./PhoneSignIn";
 import { ChargeLocations, OpeningStatus, P4ClimateDetails, VehicleDetails } from "./VehicleDetails";
+import { About, UpdatePrompt, useAppUpdates } from "./About";
 import { VehicleMap } from "./VehicleMap";
 import { artworkPath, defaultAppearance, sideCutoutPath, validAppearance } from "../vehicle-catalog";
 import type { VehicleAppearance } from "../vehicle-catalog";
@@ -129,6 +131,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     window.scrollTo(0, 0);
   }, [page]);
   const [chargingTab, setChargingTab] = useState("充电状态");
+  const updates = useAppUpdates(supportsAppUpdates && !onFieldLog && !p4Logging);
   const [settingsTab, setSettingsTab] = useState("偏好");
   const [fleet, setFleet] = useState<NativeVehicle[]>([]);
   const [vin, setVin] = useState("");
@@ -771,6 +774,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
             <RefreshCw size={16} className={busy ? "spinning" : ""} />
           </button>
         </div>
+        {!(page === "settings" && settingsTab === "关于") && <UpdatePrompt updates={updates} />}
         {error && (
           <div className="state-banner" role="alert">
             <span>{error}</span>
@@ -821,12 +825,13 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         {page === "settings" ? (
           <>
             <SectionTabs
-              items={["偏好", "账号", "通知与系统", "隐私与数据"]}
+              items={["偏好", "账号", "通知与系统", "隐私与数据", "关于"]}
               value={settingsTab}
               onChange={setSettingsTab}
               label="设置分类"
             />
             <div className="settings-page">
+              {settingsTab === "关于" && <About updates={updates} />}
               {settingsTab === "通知与系统" && (
                 <>
                   <DesktopSettings />

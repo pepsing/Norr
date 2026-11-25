@@ -1,5 +1,5 @@
 import nativeCore from 'libentry.so';
-import { common } from '@kit.AbilityKit';
+import { bundleManager, common } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
@@ -27,7 +27,7 @@ const COMMANDS: string[] = [
   'refresh', 'history', 'history_report', 'set_refresh_interval', 'desktop_status',
   'set_desktop_option', 'take_notification_target', 'take_widget_target', 'send_command',
   'preview_history_import', 'commit_history_import', 'cancel_history_import', 'export_history',
-  'open_map_link'
+  'open_map_link', 'app_version'
 ];
 
 export async function coreCall(command: string, args: Object): Promise<string> {
@@ -77,6 +77,10 @@ export class NativeBridge {
   }
 
   private async perform(request: Request): Promise<string> {
+    if (request.command === 'app_version') {
+      const info = await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
+      return JSON.stringify({ ok: true, value: info.versionName });
+    }
     if (['request_login_code', 'sign_in_phone', 'sign_in_password'].includes(request.command)) {
       if (this.loginBusy) throw new Error('登录操作正在进行，请完成或取消当前验证');
       this.loginBusy = true;

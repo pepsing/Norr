@@ -13,6 +13,26 @@ mod desktop;
 #[path = "desktop_mobile.rs"]
 mod desktop;
 mod exports;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "android"))]
+mod updates;
+
+#[tauri::command]
+async fn app_version(_app: tauri::AppHandle) -> Result<String> {
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    {
+        #[derive(Deserialize)]
+        struct Installed {
+            version: String,
+        }
+        Ok(
+            mobile::call_async::<Installed>("installedVersion", serde_json::json!({}))
+                .await?
+                .version,
+        )
+    }
+    #[cfg(desktop)]
+    Ok(_app.package_info().version.to_string())
+}
 mod insights;
 mod login;
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -1251,6 +1271,12 @@ pub fn run() {
                     tauri::generate_handler![set_android_theme];
                 return theme_handler(invoke);
             }
+            #[cfg(any(target_os = "macos", target_os = "windows", target_os = "android"))]
+            if matches!(invoke.message.command(), "check_update" | "install_update") {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![updates::check_update, updates::install_update];
+                return handler(invoke);
+            }
             #[cfg(all(debug_assertions, target_os = "macos"))]
             if invoke.message.command() == "import_hisingen" {
                 let development_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
@@ -1258,6 +1284,7 @@ pub fn run() {
                 return development_handler(invoke);
             }
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                app_version,
                 session_status,
                 login::request_login_code,
                 login::sign_in_phone,

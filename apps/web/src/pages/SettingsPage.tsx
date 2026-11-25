@@ -1,3 +1,5 @@
+import { OpenSourceLicense } from "../components/OpenSourceLicense";
+import { version } from "../../package.json";
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { ArrowRight, Download, Upload } from "lucide-react";
@@ -476,12 +478,13 @@ export function SettingsPage({
           <p className="about-description">车辆状态、远程控制与本地历史。</p>
           <DataRows
             rows={[
-              ["版本", "界面设计预览 0.2"],
+              ["版本", `界面设计预览 ${version}`],
               ["数据模式", "本地模拟"],
               ["视觉方向", "极星参考 · Archivo 字体"],
               ["设备连接", "各端独立直连 · 集成阶段接入"],
             ]}
           />
+          <OpenSourceLicense />
           <details className="disclosure">
             <summary>厂商接入进展</summary>
             <p>

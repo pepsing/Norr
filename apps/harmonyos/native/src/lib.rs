@@ -149,6 +149,7 @@ impl Backend {
             readback_at: None,
             readback: None,
             baseline_timer_ids: prepared.baseline_timer_ids.clone(),
+            account_scope: self.client.account_scope(),
         };
         self.history.receipts.push(receipt.clone());
         if self.history.receipts.len() > 2000 {
