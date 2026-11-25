@@ -5,6 +5,7 @@ import { native, type SessionStatus } from "./client";
 interface Props {
   session: SessionStatus | undefined;
   fieldTest?: boolean;
+  onCancel?: () => void;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
   onSignedIn: (session: SessionStatus) => Promise<void>;
@@ -13,11 +14,12 @@ interface Props {
 export function PhoneSignIn({
   session,
   fieldTest,
+  onCancel,
   busy,
   onBusyChange,
   onSignedIn,
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(Boolean(onCancel));
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [method, setMethod] = useState<"sms" | "password">("sms");
@@ -243,6 +245,7 @@ export function PhoneSignIn({
               setPassword("");
               setError("");
               setStatus("");
+              onCancel?.();
             }}
           >
             取消

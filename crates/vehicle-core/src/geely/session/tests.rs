@@ -272,6 +272,27 @@ fn recovery_failure_survives_restart_with_a_bounded_retry_and_preserves_credenti
 }
 
 #[test]
+fn recovery_6666_offers_fresh_login_without_retrying_the_same_grant() {
+    let (endpoint, worker) = server(vec![Some((400, json!({"code":6666}))), success(grant())]);
+    let http = client();
+    let api = make_api(&http, endpoint, Value::Null);
+    let rt = runtime();
+    for _ in 0..2 {
+        let error = rt.block_on(api.grant(&login(100.), None)).unwrap_err();
+        assert!(error.contains("HTTP 400，业务码 6666") && error.contains("可重新登录中国区账号"));
+    }
+    let mut fresh = login(200.);
+    fresh
+        .login
+        .extra
+        .insert("accessToken".into(), json!("fixture-new-outer"));
+    rt.block_on(api.grant(&fresh, None)).unwrap();
+    let requests = worker.join().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1].contains("fixture-new-outer"));
+}
+
+#[test]
 fn new_login_bypasses_recovery_cooldown() {
     let mut stored = cache();
     stored["recovery"] =

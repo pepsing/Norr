@@ -19,6 +19,16 @@ struct WatchSnapshot: Codable {
     var vehicleService: String? = nil
     var observedAt: Date? = nil
 
+    func pendingReason(for record: WatchPendingCommand) -> String {
+        let reported = record.group == "lock" ? lockUpdatedAt : climateUpdatedAt
+        if freshnessPending == true { return "车辆仍在更新，尚未确认操作结果" }
+        guard let reported else { return "车辆尚未返回这项车况的上报时间" }
+        if reported <= record.sentAt {
+            return "最近上报于" + reported.formatted(date: .omitted, time: .standard) + "，仍在等待操作后的车况"
+        }
+        return "尚未取得与操作匹配的车况"
+    }
+
     func confirms(_ record: WatchPendingCommand) -> Bool {
         guard vin == record.vin, freshnessPending != true else { return false }
         if let observedAt, !record.blocks(record.action, now: observedAt) { return false }

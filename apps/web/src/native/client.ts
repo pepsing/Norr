@@ -61,6 +61,7 @@ export interface DesktopState {
   settings: NativeSettings;
 }
 export interface Receipt {
+  accountScope?: string;
   id: string;
   command: Command;
   time: number;
@@ -472,6 +473,13 @@ export function unavailableReason(
       const key = `norrP4.${action}`;
       if (Object.hasOwn(vehicle.capabilities, key)) {
         const permission = vehicle.capabilities[key];
+        if (permission == null && ["unlockTrunk", "windowsOpen", "windowsClose", "windowsVent"].includes(action)) {
+          return "车辆服务尚未确认此账号的操作权限，请刷新车辆";
+        }
+        if (permission == null && (action === "chargeLidOpen" || action === "chargeLidClose")) {
+          const flag = action === "chargeLidOpen" ? "geely.remote_control_open" : "geely.remote_control_close";
+          return vehicle.capabilities[flag] === true ? "尚未取得充电口盖位置，请刷新车辆" : "车辆服务尚未确认充电口盖操作权限，请刷新车辆";
+        }
         return permission === true ? null : permission === false ? "车辆未开放此功能" : "能力或对应车况未确认，请刷新车辆";
       }
       if (!["climateStart", "climateStop", "target"].includes(action)) return "能力或对应车况未确认，请刷新车辆";

@@ -185,15 +185,15 @@ impl Backend {
     }
 
     async fn read_command_state(&mut self, command: &Command) -> Result<Snapshot> {
-        let previous = self
+        let car = self
             .history
             .snapshots
             .iter()
             .rev()
             .find(|snapshot| snapshot.vehicle.vin == command.vin)
-            .cloned();
-        let mut snapshot = match previous {
-            Some(snapshot) => snapshot,
+            .map(|snapshot| snapshot.vehicle.clone());
+        let car = match car {
+            Some(car) => car,
             None => {
                 let snapshot = self.client.refresh(&command.vin).await?;
                 return self.record(snapshot);
@@ -201,9 +201,7 @@ impl Backend {
         };
         let endpoint = confirmation::endpoint(&command.action).ok_or("指令没有对应的回读项目")?;
         let reading = self.client.refresh_reading(&command.vin, endpoint).await?;
-        snapshot.readings.insert(endpoint.into(), reading);
-        snapshot.fetched_at = now_ms();
-        self.record(snapshot)
+        self.record_reading(&car, endpoint, reading, now_ms())
     }
 }
 

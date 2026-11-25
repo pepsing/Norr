@@ -161,6 +161,15 @@ impl Api<'_> {
                         let message = error.message("会话恢复");
                         if error.authentication() {
                             format!("{message}，请重新登录中国区账号")
+                        } else if matches!(
+                            error,
+                            super::error::RequestError::Response {
+                                http: 400,
+                                code: Some(6666),
+                                ..
+                            }
+                        ) {
+                            format!("{message}，可重新登录中国区账号后读取车辆")
                         } else {
                             message
                         }

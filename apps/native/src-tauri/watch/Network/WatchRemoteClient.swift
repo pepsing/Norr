@@ -148,7 +148,8 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
             throw WatchFailure(message: "\(error.localizedDescription)。操作结果待核对，可重新读取车况")
         }
         phase = "pending"
-        throw WatchFailure(message: "结果待核对，请读取车辆状态。指令不会自动重发")
+        let reason = cachedSnapshot?.pendingReason(for: record) ?? "尚未取得车辆上报"
+        throw WatchFailure(message: "\(reason)，可重新核对车况")
     }
 
     func verifyPending() async throws -> WatchSnapshot {
@@ -166,7 +167,7 @@ final class WatchRemoteClient: NSObject, ObservableObject, WCSessionDelegate {
                 return snapshot
             }
             phase = "pending"
-            throw WatchFailure(message: "尚无足够新的匹配回读，操作仍待核对")
+            throw WatchFailure(message: snapshot.pendingReason(for: record))
         }
         try clearPending(record)
         phase = "confirmed"

@@ -124,6 +124,11 @@ function valueText(value: number | null, unit = "", digits = 0): string {
     : `${value.toLocaleString("zh-CN", { maximumFractionDigits: digits })}${unit}`;
 }
 
+function recoveryError(message: string) {
+  return message.includes("重新登录中国区账号") ||
+    (message.includes("P4 会话恢复") && /HTTP 400，业务码 6666[）)]/.test(message));
+}
+
 export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLog?: () => void; p4Logging?: boolean }) {
   const [page, setPage] = useState("vehicle");
   useIOSTabBar(pages, setPage);
@@ -147,6 +152,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   const [widgetError, setWidgetError] = useState("");
   const [notice, setNotice] = useState<string | Receipt>("");
   const [backgroundError, setBackgroundError] = useState("");
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [desktopError, setDesktopError] = useState("");
   const [notificationTarget, setNotificationTarget] = useState<{
     vin: string;
@@ -167,15 +173,16 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   });
   const [widgetTarget, setWidgetTarget] = useState<WidgetTarget | null>(null);
   const widgetSync = useRef(Promise.resolve());
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  const [themeMode, setTheme] = useState<"light" | "dark" | "system">(() => {
     try {
-      return localStorage.getItem("norr-native-theme") === "dark"
-        ? "dark"
-        : "light";
+      const stored = localStorage.getItem("norr-native-theme");
+      return stored === "light" || stored === "dark" ? stored : "system";
     } catch {
-      return "light";
+      return "system";
     }
   });
+  const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
+  const theme = themeMode === "system" ? (systemDark ? "dark" : "light") : themeMode;
   const started = useRef(false);
   const selectedVehicle = useRef("");
   const refreshing = useRef(false);
@@ -222,6 +229,14 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
       (!chargeOptions || chargeOptions.values.includes(dialog.value)));
 
   useEffect(() => {
+    const query = matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setSystemDark(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
     document.title = `Norr 北行 · ${pages.find((item) => item.id === page)?.label}`;
   }, [page]);
 
@@ -246,11 +261,11 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
       });
     }
     try {
-      localStorage.setItem("norr-native-theme", theme);
+      localStorage.setItem("norr-native-theme", themeMode);
     } catch {
       /* Theme still applies to the current window. */
     }
-  }, [theme]);
+  }, [theme, themeMode]);
 
   useEffect(() => {
     if (started.current) return;
@@ -503,6 +518,17 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     }
   }
 
+  async function checkReceipt(receipt: Receipt) {
+    if (receipt.command.vin !== vin || busy) return;
+    if (Date.now() - receipt.time >= 600_000) {
+      setNotice("已超过十分钟核对时限。原操作结果仍待确认。");
+      await refresh();
+      return;
+    }
+    setNotice(receipt);
+    await refresh(receipt.id);
+  }
+
   async function importSession() {
     if (!native.import) return;
     setBusy(true);
@@ -537,6 +563,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
   }
 
   async function signedIn(status: SessionStatus) {
+    setRecoveryOpen(false);
     selectedVehicle.current = "";
     setDialog(null);
     setVehicleSheet(null);
@@ -703,6 +730,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         .filter(Boolean)
         .join(" · ")
     : String(notice);
+  const signInAction = <button type="button" disabled={busy} onClick={() => setRecoveryOpen(true)}>重新登录账号</button>;
 
   return (
     <>
@@ -778,9 +806,9 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
         {error && (
           <div className="state-banner" role="alert">
             <span>{error}</span>
-            <button disabled={busy} onClick={() => void refresh()}>
+            {recoveryError(error) ? signInAction : <button disabled={busy} onClick={() => void refresh()}>
               重新连接
-            </button>
+            </button>}
           </div>
         )}
         {notice && (
@@ -788,8 +816,8 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
             <span>{noticeText}</span>
             {pendingReceipt && delayedReceipt === pendingReceipt.id && <span>已超过一分钟，仍未取得匹配的车辆上报。</span>}
             {pendingReceipt && (
-                <button className="text-button" disabled={busy} onClick={() => void refresh(pendingReceipt.id)}>
-                  {busy ? "正在读取车况…" : "重新核对车况"}
+                <button className="text-button" disabled={busy} onClick={() => void checkReceipt(pendingReceipt)}>
+                  {busy ? "正在读取车况…" : Date.now() - pendingReceipt.time < 600_000 ? "重新核对车况" : "查看当前车况"}
                 </button>
               )}
             <button className="text-button" onClick={() => setNotice("")}>
@@ -802,11 +830,18 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
             小组件同步失败 · {widgetError}
           </p>
         )}
-        {backgroundError && (
-          <p className="native-cache-note" role="status">
+        {backgroundError && !(recoveryError(error) && recoveryError(backgroundError)) && (
+          <div className={recoveryError(backgroundError) ? "state-banner" : "native-cache-note"} role="status">
+            <span>
             自动采集未完成 · {backgroundError}
-          </p>
+            </span>
+            {recoveryError(backgroundError) && signInAction}
+          </div>
         )}
+        {recoveryOpen && <Modal title="重新登录中国区账号" onClose={() => setRecoveryOpen(false)}>
+          <PhoneSignIn session={session} busy={busy} onBusyChange={setBusy}
+            onCancel={() => setRecoveryOpen(false)} onSignedIn={signedIn} />
+        </Modal>}
         {desktopError && (
           <div className="native-notice" role="status">
             <span>{desktopError}</span>
@@ -950,13 +985,13 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       <p>保存在本机</p>
                     </div>
                     <div className="segmented-control">
-                      {(["light", "dark"] as const).map((mode) => (
+                      {(["system", "light", "dark"] as const).map((mode) => (
                         <button
                           key={mode}
-                          aria-pressed={theme === mode}
+                          aria-pressed={themeMode === mode}
                           onClick={() => setTheme(mode)}
                         >
-                          {mode === "light" ? "浅色" : "深色"}
+                          {mode === "system" ? "跟随系统" : mode === "light" ? "浅色" : "深色"}
                         </button>
                       ))}
                     </div>
@@ -1286,6 +1321,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                 disabled={busy || !connected}
                 control={control}
                 onCommand={setDialog}
+                onCheckReceipt={checkReceipt}
                 onHistory={() => setPage("history")}
                 openings={<OpeningStatus snapshot={snapshot} />}
               />

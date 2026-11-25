@@ -328,7 +328,9 @@ test("expanded P4 controls use backend availability without bypassing denials or
     for (const owner of [false, true, null]) {
       for (const enabled of [true, false, null]) {
         const vehicle = { ...car, owner, capabilities: { ...car.capabilities, [`norrP4.${action}`]: enabled } };
-        assert.equal(unavailableReason(vehicle, action), enabled === true ? null : enabled === false ? "车辆未开放此功能" : "能力或对应车况未确认，请刷新车辆");
+        const reason = unavailableReason(vehicle, action);
+        if (enabled === null) assert.match(reason, /权限|能力或对应车况未确认/);
+        else assert.equal(reason, enabled ? null : "车辆未开放此功能");
       }
     }
   }
@@ -336,6 +338,8 @@ test("expanded P4 controls use backend availability without bypassing denials or
     assert.deepEqual(commandLimits(car, action), { min: 0, max: 3, step: 1 });
   }
   assert.deepEqual(commandLimits(car, "steeringWheelHeat"), { min: 0, max: 1, step: 1 });
+  assert.match(unavailableReason({ ...car, capabilities: { ...car.capabilities, "norrP4.chargeLidOpen": null,
+    "geely.remote_control_open": true } }, "chargeLidOpen"), /尚未取得充电口盖位置/);
   assert.match(unavailableReason(car, "tailgateOpen"), /未实现电动开关尾门/);
 });
 

@@ -39,6 +39,7 @@ export function NativeControls({
   disabled,
   control,
   onCommand,
+  onCheckReceipt,
   onHistory,
   openings,
 }: {
@@ -50,6 +51,7 @@ export function NativeControls({
   disabled: boolean;
   control: (action: string, onSelect?: () => void) => ReactNode;
   onCommand: (command: Command) => void;
+  onCheckReceipt: (receipt: Receipt) => void;
   onHistory?: () => void;
   openings: ReactNode;
 }) {
@@ -291,6 +293,13 @@ export function NativeControls({
                   <p className="muted">
                     {receipt.readback ?? "独立回读待核对"}
                   </p>
+                  {p4 && receipt.accountScope && receipt.status !== "rejected" &&
+                    receipt.readback && receipt.readback !== "回读一致" &&
+                    !p4FindActions.includes(receipt.command.action) && (
+                    <button className="text-button" disabled={disabled} onClick={() => onCheckReceipt(receipt)}>
+                      {Date.now() - receipt.time < 600_000 ? "重新核对车况" : "查看当前车况"}
+                    </button>
+                  )}
                 </div>
               </article>
             ))}

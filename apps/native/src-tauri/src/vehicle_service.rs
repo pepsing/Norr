@@ -52,7 +52,6 @@ pub(crate) fn ios_service(path: std::path::PathBuf) -> Result<VehicleService> {
 }
 
 impl Backend {
-    #[cfg(any(target_os = "ios", test))]
     pub(crate) fn record_reading(
         &mut self,
         car: &crate::Vehicle,
