@@ -215,12 +215,21 @@ jobs:
     name: iOS ARM64 ${{ matrix.variant }} package
     needs: web
     if: inputs.version != '' && github.ref == 'refs/heads/main' && (inputs.platform == 'all' || inputs.platform == 'ios-ipa')
-    runs-on: macos-15
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.web.outputs.ios_matrix) }}
     steps:
+      - name: Check iOS toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iPhoneOS SDK $sdk_version"
+          test "$sdk_version" = "27.2"
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ inputs.source_sha || github.sha }}
@@ -237,11 +246,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - run: npm ci
-      - name: Check iOS toolchain
-        run: |
-          test "$(uname -m)" = arm64
-          xcodebuild -version
-          xcrun --sdk "${{ matrix.sdk }}" --show-sdk-version
       - name: Check widget sharing, Siri bridge, and IPA entitlements
         run: |
           xcrun swiftc apps/native/src-tauri/ios/Sources/NorrWidgetSupport/WidgetStorage.swift apps/native/src-tauri/ios/Tests/WidgetStorageTests.swift -o /tmp/norr-widget-storage-tests
