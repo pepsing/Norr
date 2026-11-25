@@ -1,5 +1,9 @@
 # Norr 开发进展
 
+## 2026-11-25 Duo 横屏历史页与 P4 地图偏好
+
+TestFlight 0.2.1（1030）已加入 Norr 公测组，App Store Connect 显示「正在测试」。签名归档来自 `7f51548`。展开横屏时历史页按侧栏剩余宽度排版，弹窗靠近底部。P4 可按设备和车辆记住高德地图自动显示偏好。Duo 27.2.1 真机复核为 ToDo。[模拟器验收记录](design/iphone-duo/review-2026-11-24.md) · [TestFlight 构建](https://appstoreconnect.apple.com/teams/57610506-1097-4e33-ad27-ca8b70ac357a/apps/6836276990/testflight/ios/e771f795-01e9-4334-a795-495b4f836df5)
+
 ## 2026-11-24 充电时间与首页下拉刷新
 
 GitHub [`0.2.1-alpha.9`](https://github.com/pepsing/Norr/releases/tag/v0.2.1-alpha.9) 与 TestFlight `0.2.1 (1025)` 已发布，均来自 `db6c9dd`。TestFlight 已加入现有 Norr 公测组并显示“正在测试”；按用户确认，不在法国分发。GitHub 常规 CI、四平台构建及发布步骤全部成功，提供五个安装包与 `SHA256SUMS.txt`，已逐一核对发布资产摘要。[发布构建](https://github.com/pepsing/Norr/actions/runs/45359695531)
