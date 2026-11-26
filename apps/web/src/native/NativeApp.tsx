@@ -587,6 +587,10 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
     }
   }
 
+  function tapFeedback() {
+    if (isIOS) void native.controlTap().catch(() => {});
+  }
+
   function openCommand(action: string) {
     if (action === "otaSchedule") {
       setDialog({ vin, action, value: 60 });
@@ -665,6 +669,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
           }
           disabled={busy || !connected || !!reason}
           onClick={() => {
+            tapFeedback();
             onSelect?.();
             openCommand(action);
           }}
@@ -1120,8 +1125,11 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
               limit={target === null ? "尚无车辆读数" : `当前设定 ${target}%`}
               chargingSummary={chargingSummary}
               chargingUpdated={readingText(snapshot, "battery", compact)}
-              onControl={action => setVehicleSheet(({ lock: "车锁", climate: "空调", tailgate: "尾门",
-                locate: "寻车", cleaning: "座舱净化", limit: "充电上限" } as const)[action])}
+              onControl={action => {
+                tapFeedback();
+                setVehicleSheet(({ lock: "车锁", climate: "空调", tailgate: "尾门",
+                  locate: "寻车", cleaning: "座舱净化", limit: "充电上限" } as const)[action]);
+              }}
               onNavigate={destination => {
                 if (destination === "details" || destination === "location") setVehicleSheet(destination);
                 else setPage(destination);
@@ -1202,7 +1210,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       !connected ||
                       !!unavailableReason(vehicle, lockAction)
                     }
-                    onClick={() => openCommand(lockAction)}
+                    onClick={() => { tapFeedback(); openCommand(lockAction); }}
                   >
                     <div className="tile-heading">
                       <h3>车门与门锁</h3>
@@ -1229,7 +1237,7 @@ export default function NativeApp({ onFieldLog, p4Logging = false }: { onFieldLo
                       !connected ||
                       !!unavailableReason(vehicle, climateAction)
                     }
-                    onClick={() => openCommand(climateAction)}
+                    onClick={() => { tapFeedback(); openCommand(climateAction); }}
                   >
                     <div className="tile-heading">
                       <h3>座舱温度</h3>

@@ -23,6 +23,13 @@ private struct NotificationTarget: Codable {
 }
 
 final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
+  @objc func controlTap(_ invoke: Invoke) {
+    DispatchQueue.main.async {
+      UIImpactFeedbackGenerator(style: .light).impactOccurred()
+      invoke.resolve()
+    }
+  }
+
   @objc func installedVersion(_ invoke: Invoke) {
     let info = Bundle.main.infoDictionary
     guard let version = info?["CFBundleShortVersionString"] as? String else {

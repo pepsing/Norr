@@ -144,6 +144,7 @@ export interface SessionStatus {
 }
 
 export const native = {
+  controlTap: () => invoke<void>("control_tap"),
   updateWidgets: (data: ReturnType<typeof widgetData> | null) => invoke<void>("update_widgets", { data }),
   syncWatch: (vin: string, clear = false) => invoke<void>("sync_watch", { vin, clear }),
   takeWidgetTarget: () => invoke<WidgetTarget | null>("take_widget_target"),

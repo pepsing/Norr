@@ -959,6 +959,13 @@
   --window-left: env(safe-area-inset-left, 0px);
   --window-right: env(safe-area-inset-right, 0px);
 }
+.native-ios :is(button, label, summary, .modal-heading, .sky-refresh-scene) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.native-ios .modal-heading { touch-action: pan-x pinch-zoom; }
+.native-ios dialog { overscroll-behavior: contain; }
+
 .native-ios #root {
   padding-left: var(--window-left);
   padding-right: var(--window-right);

@@ -76,6 +76,12 @@ mod watch;
 #[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
 mod widgets;
 
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn control_tap() -> Result<()> {
+    mobile::call_async("controlTap", serde_json::json!({})).await
+}
+
 #[cfg(target_os = "android")]
 #[tauri::command]
 async fn set_android_theme(dark: bool) -> Result<()> {
@@ -1272,6 +1278,12 @@ pub fn run() {
                 let widget_handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
                     tauri::generate_handler![widgets::update_widgets, widgets::take_widget_target];
                 return widget_handler(invoke);
+            }
+            #[cfg(target_os = "ios")]
+            if invoke.message.command() == "control_tap" {
+                let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
+                    tauri::generate_handler![control_tap];
+                return handler(invoke);
             }
             #[cfg(target_os = "android")]
             if invoke.message.command() == "set_android_theme" {

@@ -22,7 +22,10 @@
 .p4-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); }
 .p4-shortcuts button { min-height: 82px; display: grid; justify-items: center; align-content: center; gap: 7px; font-size: 13px; }
 .p4-shortcuts button + button { border-left: 1px solid var(--line); }
-.p4-shortcuts button:hover, .p4-instruments button:hover, .p4-overview-rows button:hover { background: var(--tile-hover); }
+@media (hover: hover) {
+  .p4-shortcuts button:hover, .p4-instruments button:hover, .p4-overview-rows button:hover { background: var(--tile-hover); }
+}
+.p4-shortcuts button:active, .p4-instruments button:active, .p4-overview-rows button:active { background: var(--tile-hover); }
 .p4-section-title { margin-bottom: 14px; }
 .p4-section-title h2 { font-size: 23px; }
 .p4-instruments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1px solid var(--line); }

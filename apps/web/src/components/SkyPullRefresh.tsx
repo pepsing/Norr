@@ -132,7 +132,7 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
     if (!element) return;
     function start(x: number, y: number, target: EventTarget | null) {
       if (!latest.current.enabled || latest.current.busy || locked.current || window.scrollY > 0) return;
-      if (!(target instanceof Element) || target.closest("button, a, input, select, textarea, summary, [role='dialog']")) return;
+      if (!(target instanceof Element) || target.closest("button, a, input, select, textarea, summary, dialog, [role='dialog']")) return;
       for (let node: Element | null = target; node && node !== element; node = node.parentElement) {
         if (node.scrollHeight > node.clientHeight && /auto|scroll/.test(getComputedStyle(node).overflowY)) return;
       }
@@ -159,14 +159,18 @@ export function SkyPullRefresh({ children, enabled, busy, onRefresh, resetKey, p
         setPhase("pulling");
       }
       if (event.cancelable) event.preventDefault();
-      current.distance = maxPull * (1 - Math.exp(-Math.max(0, dy) / 230));
+      const travel = Math.max(0, dy);
+      // Track the finger up to the refresh threshold, then resist further travel.
+      const extra = maxPull - threshold;
+      current.distance = travel <= threshold ? travel
+        : threshold + extra * (1 - Math.exp(-(travel - threshold) / extra));
       if (dragFrame.current === null) {
         dragFrame.current = requestAnimationFrame(() => {
           dragFrame.current = null;
           if (gesture.current !== current) return;
           paintPull(element!, current.distance);
           const next = current.distance >= threshold ? threshold : 0;
-          setDistance(previous => previous === next ? previous : next);
+          setDistance(next);
         });
       }
     }
