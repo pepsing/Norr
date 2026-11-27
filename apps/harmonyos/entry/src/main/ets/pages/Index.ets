@@ -167,6 +167,7 @@ struct Index {
     Stack() {
       if (this.ready) {
       Web({ src: ORIGIN + '/index.html', controller: this.controller })
+        .zoomAccess(false)
         .width('100%')
         .height('100%')
         .backgroundColor(this.pageBackground)

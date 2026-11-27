@@ -102,7 +102,7 @@ test("vehicle map defaults and saved AMap settings are isolated per vehicle", ()
 });
 
 
-test("P4 displays trusted GPS locally and keeps legacy or unknown coordinate systems out of the map", () => {
+test("P4 falls back to local coordinates when the map preference cannot be read", () => {
   const render = (coordinateSystem) => renderToStaticMarkup(createElement(VehicleMap, {
     snapshot: { vehicle: { vin: "P4TEST", capabilities: { norrGeelyReadOnly: true } },
       readings: { location: { status: "success", value: { longitude, latitude, coordinateSystem }, reportedAt: 1700000000000 } } },
@@ -114,11 +114,11 @@ test("P4 displays trusted GPS locally and keeps legacy or unknown coordinate sys
   for (const system of ["gcj02", undefined]) assert.doesNotMatch(render(system), /显示高德地图|<iframe/);
 });
 
-test("P4 loads a remembered map only for the selected VIN with valid GPS", () => {
+test("P4 shows valid GPS by default and remembers opting out per vehicle", () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
-    value: { getItem: key => key === "norr-amap-auto-consented" ? "true" : null },
+    value: { getItem: key => ({ "norr-amap-auto-consented": "true", "norr-amap-auto-hidden": "false" })[key] ?? null },
   });
   const render = (vin, coordinateSystem) => renderToStaticMarkup(createElement(VehicleMap, {
     snapshot: { vehicle: { vin, capabilities: { norrGeelyReadOnly: true } },
@@ -127,7 +127,8 @@ test("P4 loads a remembered map only for the selected VIN with valid GPS", () =>
   }));
   try {
     assert.match(render("consented", "wgs84"), /<iframe/);
-    assert.doesNotMatch(render("another", "wgs84"), /<iframe/);
+    assert.match(render("another", "wgs84"), /<iframe/);
+    assert.doesNotMatch(render("hidden", "wgs84"), /<iframe/);
     assert.doesNotMatch(render("consented", "gcj02"), /<iframe/);
     assert.match(render("consented", "gcj02"), /type="checkbox"/);
   } finally {

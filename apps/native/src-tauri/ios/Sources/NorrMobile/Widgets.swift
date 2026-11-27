@@ -76,12 +76,13 @@ extension NorrPlugin {
 }
 
 @_cdecl("norr_widget_readback")
-public func norrWidgetReadback(_ json: UnsafePointer<CChar>?) {
+public func norrWidgetReadback(_ json: UnsafePointer<CChar>?) -> Bool {
   guard let json, let directory = WidgetStorage.directory(),
         let bytes = String(cString: json).data(using: .utf8),
         let values = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-        (try? WidgetStorage.applyReadback(values, in: directory)) == true else { return }
+        (try? WidgetStorage.applyReadback(values, in: directory)) == true else { return false }
   reloadVehicleWidgets()
+  return true
 }
 
 private func reloadVehicleWidgets() {

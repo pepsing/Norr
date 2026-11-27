@@ -8,6 +8,8 @@ final class WindowDivisionView: UIView {
   private var lastDivision: WindowDivision?
   private var hasHinge = false
   private var fullyOpen = false
+  private var hingeClosed = false
+  private var previousOrientations: UIInterfaceOrientationMask?
   private var lastSideTabs: String?
   private var hideTabs: (() -> Void)?
 
@@ -18,9 +20,10 @@ final class WindowDivisionView: UIView {
     accessibilityElementsHidden = true
     autoresizingMask = [.flexibleWidth, .flexibleHeight]
     webView.addSubview(self)
-    NorrTrackWindowDivision(self) { [weak self] present, open in
+    NorrTrackWindowDivision(self) { [weak self] present, open, closed in
       self?.hasHinge = present
       self?.fullyOpen = open
+      self?.hingeClosed = closed
     }
     if #available(iOS 26.0, *) {
       let tabs = VehicleTabBar(webView: webView)
@@ -39,6 +42,21 @@ final class WindowDivisionView: UIView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    if #available(iOS 16.0, *), let scene = window?.windowScene, let controller = window?.rootViewController {
+      if hingeClosed, previousOrientations == nil {
+        let previous = controller.supportedInterfaceOrientations
+        if NorrSetWindowOrientations(controller, .portrait) {
+          previousOrientations = previous
+          controller.setNeedsUpdateOfSupportedInterfaceOrientations()
+          scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+        }
+      } else if !hingeClosed, let previous = previousOrientations {
+        previousOrientations = nil
+        _ = NorrSetWindowOrientations(controller, previous)
+        controller.setNeedsUpdateOfSupportedInterfaceOrientations()
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: previous))
+      }
+    }
     guard let webView, window != nil, !webView.isLoading else { return }
     let division = WindowDivision(region: NorrWindowDivision(self), in: bounds)
     let outerLandscape = !fullyOpen && bounds.width > bounds.height

@@ -21,18 +21,17 @@ function VehicleLocationMap({ snapshot, onError }: VehicleMapProps) {
   const preferenceKey = `norr-amap-auto-${vin}`;
   const [automatic, setAutomatic] = useState(() => {
     try {
-      return Boolean(p4 && vin && localStorage.getItem(preferenceKey) === "true");
+      return Boolean(p4 && vin && localStorage.getItem(preferenceKey) !== "false");
     } catch {
       return false;
     }
   });
   const visible = mapVisible ?? (!p4 || automatic);
   function changeAutomatic(enabled: boolean) {
+    setAutomatic(enabled);
+    setVisible(enabled);
     try {
-      if (enabled) localStorage.setItem(preferenceKey, "true");
-      else localStorage.removeItem(preferenceKey);
-      setAutomatic(enabled);
-      setVisible(enabled);
+      localStorage.setItem(preferenceKey, String(enabled));
     } catch {
       onError("无法保存地图偏好，请检查本机存储。");
     }

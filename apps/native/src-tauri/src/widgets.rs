@@ -262,13 +262,43 @@ fn snapshot_values(snapshot: &crate::Snapshot, account: &str) -> serde_json::Val
 }
 
 #[cfg(target_os = "ios")]
-pub(crate) fn publish_siri_snapshot(snapshot: &crate::Snapshot, account: &str) {
+pub(crate) fn publish_siri_snapshot(snapshot: &crate::Snapshot, account: &str) -> bool {
     extern "C" {
-        fn norr_widget_readback(json: *const std::ffi::c_char);
+        fn norr_widget_readback(json: *const std::ffi::c_char) -> bool;
     }
-    if let Ok(json) = std::ffi::CString::new(snapshot_values(snapshot, account).to_string()) {
-        unsafe { norr_widget_readback(json.as_ptr()) };
+    std::ffi::CString::new(snapshot_values(snapshot, account).to_string())
+        .is_ok_and(|json| unsafe { norr_widget_readback(json.as_ptr()) })
+}
+
+#[cfg(any(target_os = "ios", test))]
+pub(crate) fn merge_widget_refresh(
+    mut snapshot: crate::Snapshot,
+    previous: Option<&crate::Snapshot>,
+) -> Result<crate::Snapshot> {
+    let mut received = false;
+    for kind in ["battery", "exterior", "climate"] {
+        let old = previous
+            .and_then(|s| s.readings.get(kind))
+            .filter(|r| r.status == "success");
+        let current = snapshot
+            .readings
+            .get(kind)
+            .filter(|r| r.status == "success");
+        if current.is_some_and(|new| {
+            old.is_none_or(|old| {
+                new.observed_at >= old.observed_at
+                    && !matches!((new.reported_at, old.reported_at), (Some(n), Some(o)) if n < o)
+            })
+        }) {
+            received = true;
+        } else if let Some(old) = old {
+            snapshot.readings.insert(kind.into(), old.clone());
+        }
     }
+    if !received {
+        return Err("未收到可更新的小组件车况，已保留上次读数".into());
+    }
+    Ok(snapshot)
 }
 
 #[cfg(target_os = "macos")]
@@ -321,6 +351,30 @@ mod tests {
             snapshot_values(&snapshot, "fixture-account")["updatedAt"],
             2000
         );
+    }
+
+    #[test]
+    fn widget_refresh_keeps_previous_readings_on_partial_or_stale_results() {
+        use serde_json::json;
+        let previous: crate::Snapshot = serde_json::from_value(json!({
+            "vehicle":{"vin":"fixture","model":"Polestar 4","capabilities":{},"limits":{}},
+            "fetchedAt":100, "readings":{
+                "battery":{"status":"success","value":{"percent":50},"observedAt":100,"reportedAt":90},
+                "exterior":{"status":"success","value":{"locked":false},"observedAt":100,"reportedAt":90}
+            }
+        })).unwrap();
+        let mut next = previous.clone();
+        next.readings.remove("battery");
+        next.readings.get_mut("exterior").unwrap().reported_at = Some(80);
+        assert!(merge_widget_refresh(next.clone(), Some(&previous)).is_err());
+        next.readings.insert(
+            "climate".into(),
+            crate::Reading::success(json!({"activity":"idle"}), Some(120)),
+        );
+        let merged = merge_widget_refresh(next, Some(&previous)).unwrap();
+        assert_eq!(merged.readings["exterior"].reported_at, Some(90));
+        assert_eq!(merged.readings["battery"].observed_at, 100);
+        assert_eq!(merged.readings["climate"].reported_at, Some(120));
     }
 
     #[test]

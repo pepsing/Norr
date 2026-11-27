@@ -371,7 +371,11 @@ impl Backend {
                 .cloned();
             if let Some(mut snapshot) = previous {
                 let endpoint = confirmation::endpoint(&command.action).ok_or("指令回读项目无效")?;
-                match self.client.refresh_reading(&command.vin, endpoint).await {
+                match self
+                    .client
+                    .refresh_reading(&command.vin, endpoint, true)
+                    .await
+                {
                     Ok(reading) => {
                         snapshot.readings.insert(endpoint.into(), reading);
                         snapshot.fetched_at = now_ms();

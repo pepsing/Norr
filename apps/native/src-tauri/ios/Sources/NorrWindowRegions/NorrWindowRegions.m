@@ -1,6 +1,17 @@
 #import "NorrWindowRegions.h"
 
-void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL, BOOL)) {
+// This setter belongs to the Tao view controller that hosts the WebView.
+@protocol NorrOrientationHost
+- (void)setSupportedInterfaceOrientations:(UIInterfaceOrientationMask)orientations;
+@end
+
+BOOL NorrSetWindowOrientations(UIViewController *controller, UIInterfaceOrientationMask orientations) {
+    if (![controller respondsToSelector:@selector(setSupportedInterfaceOrientations:)]) return NO;
+    [(id<NorrOrientationHost>)controller setSupportedInterfaceOrientations:orientations];
+    return YES;
+}
+
+void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL, BOOL, BOOL)) {
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270100
     if (@available(iOS 27.1, *)) {
         __weak UIView *target = view;
@@ -8,7 +19,8 @@ void NorrTrackWindowDivision(UIView *view, void (^hingeChanged)(BOOL, BOOL)) {
             [changedView setNeedsLayout];
         }];
         [view addInteraction:[[UIHingeInteraction alloc] initWithUpdateHandler:^(UIHingeInteraction *interaction, UIHingeInteractionUpdate *update) {
-            hingeChanged(update.hinge != nil, update.hinge.status == UIHingeStatusFullyOpen);
+            hingeChanged(update.hinge != nil, update.hinge.status == UIHingeStatusFullyOpen,
+                         update.hinge.status == UIHingeStatusClosed);
             [target setNeedsLayout];
         }]];
     }

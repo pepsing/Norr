@@ -22,6 +22,8 @@ enum SiriBridgeTests {
         precondition(reading?.value?.percent == 0 && reading?.value?.rangeKm == nil)
         precondition(reading?.reportedAt == 1000)
         precondition(reading?.chargingSummary == "充电状态未知。")
+        let widget = try await SiriBridge.run(.widgetRefresh, vehicle: "fixture")
+        precondition(widget.status == .refreshed)
 
         let decoder = JSONDecoder()
         let charging = try decoder.decode(SiriReading.self, from: Data(

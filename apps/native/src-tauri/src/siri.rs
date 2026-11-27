@@ -11,12 +11,13 @@ pub(crate) fn initialize(app: tauri::AppHandle) {
 }
 
 #[cfg(target_os = "ios")]
-fn publish(snapshot: &crate::Snapshot, account: &str) {
+fn publish(snapshot: &crate::Snapshot, account: &str) -> bool {
     use tauri::Emitter;
-    crate::widgets::publish_siri_snapshot(snapshot, account);
+    let widget_updated = crate::widgets::publish_siri_snapshot(snapshot, account);
     if let Some(app) = APP.get() {
         let _ = app.emit("vehicle-updated", snapshot);
     }
+    widget_updated
 }
 
 fn control_action(action: &str, xchanger: bool) -> crate::Result<&str> {
@@ -89,6 +90,7 @@ mod ios {
     enum Action {
         Vehicles,
         Energy,
+        WidgetRefresh,
         LockState,
         Lock,
         Unlock,
@@ -124,6 +126,7 @@ mod ios {
         Reading {
             reading: Reading,
         },
+        Refreshed,
         Confirmed,
         Accepted,
         Pending,
@@ -210,6 +213,35 @@ mod ios {
             .ok_or("车辆已不属于当前账号，请重新选择")?;
 
         let action = match request.action {
+            Action::WidgetRefresh => {
+                if backend
+                    .history
+                    .settings
+                    .selected_vin
+                    .as_ref()
+                    .is_some_and(|vin| vin != &car.vin)
+                {
+                    return Err("小组件所选车辆已更改".into());
+                }
+                let snapshot = bounded(
+                    deadline,
+                    &mut cancel,
+                    backend.client.refresh_snapshot(&car.vin, true),
+                )
+                .await?;
+                let previous = backend
+                    .history
+                    .snapshots
+                    .iter()
+                    .rev()
+                    .find(|s| s.vehicle.vin == car.vin);
+                let snapshot = crate::widgets::merge_widget_refresh(snapshot, previous)?;
+                let snapshot = backend.record(snapshot)?;
+                if !publish(&snapshot, &account) {
+                    return Err("小组件记录已更改或无法保存，请在北行重新同步小组件".into());
+                }
+                return Ok(Response::Refreshed);
+            }
             Action::Energy | Action::LockState => {
                 let kind = if matches!(request.action, Action::Energy) {
                     "battery"

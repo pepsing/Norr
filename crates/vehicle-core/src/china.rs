@@ -387,6 +387,10 @@ impl ChinaClient {
     }
 
     pub async fn refresh(&mut self, vin: &str) -> Result<Snapshot> {
+        self.refresh_snapshot(vin, false).await
+    }
+
+    pub async fn refresh_snapshot(&mut self, vin: &str, _request_latest: bool) -> Result<Snapshot> {
         self.ensure_metadata().await?;
         #[cfg(all(
             feature = "polestar4",
@@ -406,6 +410,7 @@ impl ChinaClient {
                 &self.http,
                 self.session.as_ref().ok_or("会话尚未恢复")?,
                 car,
+                _request_latest,
             )
             .await;
         }

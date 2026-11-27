@@ -49,6 +49,8 @@
 		E021A1B346FF5A05421024A7 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 391DC41C47D76AA1778F5312 /* Security.framework */; };
 		EB0B1741B67C9E9BE6D7A3C1 /* WatchSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17028CEC08079B91724CB032 /* WatchSnapshot.swift */; };
 		F5D61A2D68A448BA436F9BF5 /* NorrWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E3E4E87D5919ACAA1A9638FE /* RefreshVehicleWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D0DFEF1D225F1026B0B6E8 /* RefreshVehicleWidgetIntent.swift */; };
+		FEEC2C9FBE60F19D23976C3D /* RefreshVehicleWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D0DFEF1D225F1026B0B6E8 /* RefreshVehicleWidgetIntent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -178,6 +180,7 @@
 		F8B81905D28487FB7C939024 /* norr_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = norr_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC67AE31ED08E3C9F2EC4AE5 /* NorrWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NorrWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDB5CE9F1B67BE408E181DE2 /* NorrWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NorrWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5D0DFEF1D225F1026B0B6E8 /* RefreshVehicleWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshVehicleWidgetIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -318,6 +321,7 @@
 				C9E9A9F9B95E720DE5092579 /* InfoPlist.strings */,
 				AF11305EDC589A1975D2DA9E /* NorrShortcuts.swift */,
 				78475A3509D1CEC2B0C96D24 /* SiriBridge.h */,
+				F5D0DFEF1D225F1026B0B6E8 /* RefreshVehicleWidgetIntent.swift */,
 				71F4544503B12EB1A20ED55A /* SiriBridge.swift */,
 				C31F8218ACF1240F590FCE7B /* VehicleIntents.swift */,
 			);
@@ -638,6 +642,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3F9591F25ECDC66CB53591E4 /* NorrShortcuts.swift in Sources */,
+				E3E4E87D5919ACAA1A9638FE /* RefreshVehicleWidgetIntent.swift in Sources */,
 				6963B8D11025665FB6BB80D4 /* SiriBridge.swift in Sources */,
 				8308A3F7C59E333082CF822A /* VehicleIntents.swift in Sources */,
 				612640168E79DDC5422FBE6D /* main.mm in Sources */,
@@ -648,6 +653,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEEC2C9FBE60F19D23976C3D /* RefreshVehicleWidgetIntent.swift in Sources */,
 				4DE725A34419E852F71D93A4 /* NorrWidgets.swift in Sources */,
 				13FCEDB253E63678CC9B4834 /* WidgetStorage.swift in Sources */,
 			);
@@ -688,6 +694,7 @@
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.widgets;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NORR_WIDGET_EXTENSION";
 				PRODUCT_NAME = NorrWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -792,6 +799,7 @@
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = "$(inherited) -Wl,-sectcreate,__TEXT,__entitlements,$(PROJECT_DIR)/../../ios/Widgets/Simulator.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = app.norr.ios.widgets;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NORR_WIDGET_EXTENSION";
 				PRODUCT_NAME = NorrWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

@@ -26,6 +26,8 @@ void norr_siri_run(const char *request, const void *cancellation, void *context,
         complete(context, "{\"status\":\"vehicles\",\"preferred\":\"fixture\",\"vehicles\":[{\"id\":\"fixture\",\"name\":\"Test vehicle\"}]}");
     } else if (strstr(request, "\"energy\"") && strstr(request, "\"fixture\"")) {
         complete(context, "{\"status\":\"reading\",\"reading\":{\"value\":{\"percent\":0},\"reportedAt\":1000}}");
+    } else if (strstr(request, "\"widgetRefresh\"") && strstr(request, "\"fixture\"")) {
+        complete(context, "{\"status\":\"refreshed\"}");
     } else if (strstr(request, "\"lockState\"")) {
         complete(context, "{\"status\":\"error\",\"message\":\"请先在 Norr 登录\"}");
     } else if (strstr(request, "\"fixture\"") &&

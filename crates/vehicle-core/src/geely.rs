@@ -277,7 +277,7 @@ pub async fn refresh_reading(
     request_latest: bool,
 ) -> Result<Reading> {
     if !matches!(kind, "target" | "climate" | "exterior" | "airQuality") {
-        return refresh(http, session, car)
+        return refresh(http, session, car, request_latest)
             .await?
             .readings
             .remove(kind)
@@ -296,7 +296,12 @@ pub async fn refresh_reading(
     reader.control_reading(car, kind, request_latest).await
 }
 
-pub async fn refresh(http: &Client, session: &Session, car: &Vehicle) -> Result<Snapshot> {
+pub async fn refresh(
+    http: &Client,
+    session: &Session,
+    car: &Vehicle,
+    request_latest: bool,
+) -> Result<Snapshot> {
     let vin = &car.vin;
     validate_vin(vin)?;
     let api = Api::new(http)?;
@@ -316,7 +321,11 @@ pub async fn refresh(http: &Client, session: &Session, car: &Vehicle) -> Result<
     let charge_path = format!("/charge-server/charge_status/{vin}");
     let target_path = format!("/remote-control/vehicle/status/soc/{vin}");
     let reservation_path = format!("/charge-server/ecarx_charge_set/{vin}");
-    let filter = [("userId", uid), ("latest", "false"), ("target", "")];
+    let filter = [
+        ("userId", uid),
+        ("latest", if request_latest { "true" } else { "false" }),
+        ("target", ""),
+    ];
     let user = [("userId", uid)];
     let (status, state, cap, charge, target, reservation) = tokio::join!(
         reader.get("device-api", &status_path, &filter),

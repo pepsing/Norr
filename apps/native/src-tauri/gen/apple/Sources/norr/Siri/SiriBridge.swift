@@ -1,7 +1,7 @@
 import Foundation
 
 enum SiriVehicleAction: String, Encodable {
-    case vehicles, energy, lockState, lock, unlock
+    case vehicles, energy, widgetRefresh, lockState, lock, unlock
     case windowsOpen, windowsClose, tailgateOpen, tailgateClose, climateStart, climateStop
 }
 
@@ -77,7 +77,7 @@ struct SiriReading: Decodable {
 
 struct SiriVehicleReply: Decodable {
     enum Status: String, Decodable {
-        case vehicles, reading, confirmed, accepted, pending, pendingConflict, rejected, error
+        case vehicles, reading, refreshed, confirmed, accepted, pending, pendingConflict, rejected, error
     }
 
     let status: Status

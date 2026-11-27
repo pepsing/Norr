@@ -119,6 +119,7 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources:
+      - path: Sources/norr/Siri/RefreshVehicleWidgetIntent.swift
       - path: ../../ios/Sources/NorrWidgetSupport
       - path: ../../ios/Widgets
         excludes: ["*.plist", "*.entitlements"]
@@ -138,6 +139,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.norr.ios.widgets
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) NORR_WIDGET_EXTENSION
         PRODUCT_NAME: NorrWidgets
         SWIFT_VERSION: "5.0"
         SKIP_INSTALL: YES

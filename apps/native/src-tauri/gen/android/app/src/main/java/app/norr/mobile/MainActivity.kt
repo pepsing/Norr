@@ -54,6 +54,8 @@ class MainActivity : TauriActivity() {
 
     override fun onWebViewCreate(webView: WebView) {
         super.onWebViewCreate(webView)
+        webView.settings.setSupportZoom(false)
+        webView.settings.builtInZoomControls = false
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {

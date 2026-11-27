@@ -44,6 +44,7 @@ struct VehicleData: Decodable {
   let updatedAt: Double?
   let artwork: String
   var freshnessPending: Bool? = nil
+  var accountScope: String? = nil
 
   var lockLabel: String {
     guard let locked else { return "门锁未知" }
@@ -274,10 +275,16 @@ struct VehicleWidgetView: View {
         HStack {
           Text(timestamp(data, compact: false)).font(.system(size: 10)).foregroundStyle(muted)
           Spacer()
-          Link(destination: data.url("refresh")) {
-            Image(systemName: "arrow.clockwise").font(.system(size: family == .systemLarge ? 15 : 13))
-              .frame(width: 28, height: family == .systemLarge ? 20 : 16)
-          }.accessibilityLabel("刷新车辆")
+          #if os(iOS)
+          if let account = data.accountScope, !account.isEmpty, !data.vin.isEmpty {
+            Button(intent: RefreshVehicleWidgetIntent(account: account, vin: data.vin)) { refreshIcon }
+              .buttonStyle(.plain).accessibilityLabel("刷新车辆")
+          } else if !entry.preview {
+            Link("打开北行同步", destination: data.url("vehicle")).font(.caption2)
+          }
+          #else
+          Link(destination: data.url("refresh")) { refreshIcon }.accessibilityLabel("刷新车辆")
+          #endif
         }
       }
     }
@@ -287,6 +294,11 @@ struct VehicleWidgetView: View {
     (Text(formatted(value)).font(.custom("Archivo-Regular", size: size)) +
       Text(value == nil ? "" : suffix).font(.custom("Archivo-Regular", size: size * 0.6)))
       .lineLimit(1).minimumScaleFactor(0.7)
+  }
+
+  private var refreshIcon: some View {
+    Image(systemName: "arrow.clockwise").font(.system(size: family == .systemLarge ? 15 : 13))
+      .frame(width: 28, height: family == .systemLarge ? 20 : 16)
   }
 
   private func batteryBar(_ data: VehicleData) -> some View {

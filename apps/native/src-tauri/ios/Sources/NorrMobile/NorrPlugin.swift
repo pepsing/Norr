@@ -58,6 +58,7 @@ final class NorrPlugin: Plugin, UNUserNotificationCenterDelegate {
 
   override func load(webview: WKWebView) {
     self.webview = webview
+    webview.scrollView.pinchGestureRecognizer?.isEnabled = false
     if #available(iOS 27.1, *) {
       DispatchQueue.main.async { _ = WindowDivisionView(webView: webview) }
     }

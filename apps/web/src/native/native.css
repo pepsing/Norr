@@ -963,7 +963,7 @@
   -webkit-user-select: none;
   user-select: none;
 }
-.native-ios .modal-heading { touch-action: pan-x pinch-zoom; }
+.native-ios .modal-heading { touch-action: pan-x; }
 .native-ios dialog { overscroll-behavior: contain; }
 
 .native-ios #root {

@@ -9,6 +9,16 @@ import NativeApp from "./native/NativeApp";
 import { isHarmonyOS } from "./native/platform";
 import "./styles.css";
 
+// Trackpad pinch arrives as a modified wheel event in Chromium and a gesture in WebKit.
+window.addEventListener("wheel", event => {
+  if (event.ctrlKey || event.metaKey) event.preventDefault();
+}, { passive: false });
+window.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+window.addEventListener("keydown", event => {
+  if ((event.metaKey || event.ctrlKey) && ["+", "=", "-", "0"].includes(event.key))
+    event.preventDefault();
+});
+
 function AppRoot() {
   const [showVehicle, setShowVehicle] = React.useState(false);
   if (import.meta.env.VITE_P4_FIELD_TEST === "demo" ||
